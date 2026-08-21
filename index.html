@@ -1,0 +1,275 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Tennis Match Tracker Pro</title>
+<style>
+*{box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",Arial,sans-serif;background:#f3f3f5;margin:0;padding:12px;max-width:760px;margin:auto;color:#111}
+.card{background:#fff;border-radius:18px;padding:14px;margin:10px 0;box-shadow:0 1px 8px #00000010}
+.hidden{display:none!important}
+h1{font-size:22px;text-align:center;margin:4px 0 12px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+button{border:0;border-radius:14px;min-height:56px;padding:10px;font-size:16px;font-weight:750;background:#e5e5ea;color:#111}
+button:active{opacity:.65;transform:scale(.99)}
+.primary{background:#111;color:#fff}.servebtn{background:#dce8f7}.good{background:#dcefdc}.bad{background:#f4dddd}
+input{width:100%;padding:13px;border:1px solid #d7d7db;border-radius:12px;font-size:17px;background:#fff}
+.label{font-size:12px;color:#666;margin:0 0 5px}
+.score{display:grid;grid-template-columns:1fr 58px 58px 62px;gap:6px;align-items:center}
+.score .head{font-size:11px;color:#666;text-align:center}.score .name{font-weight:800;font-size:17px}.score .num{font-size:26px;font-weight:850;text-align:center}
+.status{text-align:center;font-weight:800;margin-bottom:10px}.section{font-weight:850;margin:2px 0 9px}.small{font-size:12px;color:#666;line-height:1.35}
+.tabs{display:flex;gap:6px;overflow-x:auto;margin-bottom:10px}.tabs button{min-height:38px;padding:7px 12px;white-space:nowrap;font-size:13px}.tabs .active{background:#111;color:#fff}
+table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:7px 5px;border-bottom:1px solid #eee}th:not(:first-child),td:not(:first-child){text-align:right}
+.kpis{display:grid;grid-template-columns:1fr 1fr;gap:8px}.kpi{background:#f6f6f8;border-radius:12px;padding:10px}.kpi .v{font-size:19px;font-weight:850}
+canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:block}ul{padding-left:20px}li{margin:7px 0}
+.startTitle{font-size:25px;font-weight:900;text-align:center;margin:8px 0 2px}.startSub{text-align:center;color:#666;font-size:13px;margin-bottom:18px}
+.spacer{height:8px}
+</style>
+</head>
+<body>
+
+<section id="setupScreen">
+  <div class="card">
+    <div class="startTitle">🎾 Tennis Match Tracker Pro</div>
+    <div class="startSub">Быстрая запись матча для двух игроков</div>
+    <div class="label">Игрок 1</div>
+    <input id="setupP1" value="Mykyta">
+    <div class="spacer"></div>
+    <div class="label">Игрок 2</div>
+    <input id="setupP2" value="Opponent">
+    <div class="spacer"></div>
+    <button id="startBtn" class="primary" style="width:100%">НАЧАТЬ МАТЧ</button>
+  </div>
+</section>
+
+<section id="serverScreen" class="hidden">
+  <div class="card">
+    <h1>Кто подаёт первым?</h1>
+    <div class="grid2">
+      <button id="serveP1Btn" class="primary"></button>
+      <button id="serveP2Btn" class="primary"></button>
+    </div>
+  </div>
+</section>
+
+<section id="matchScreen" class="hidden">
+  <div class="card score">
+    <span></span><span class="head">SETS</span><span class="head">GAMES</span><span class="head">POINTS</span>
+    <div class="name" id="scoreName1"></div><div class="num" id="set1">0</div><div class="num" id="game1">0</div><div class="num" id="point1">0</div>
+    <div class="name" id="scoreName2"></div><div class="num" id="set2">0</div><div class="num" id="game2">0</div><div class="num" id="point2">0</div>
+  </div>
+
+  <div class="card">
+    <div class="status" id="statusText"></div>
+    <div class="grid2">
+      <button id="firstInBtn" class="servebtn">1st IN</button>
+      <button id="firstOutBtn" class="servebtn">1st OUT</button>
+      <button id="aceBtn" class="good">ACE</button>
+      <button id="dfBtn" class="bad">DF</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="section" id="p1Section"></div>
+    <div class="grid2">
+      <button class="good" data-evt="p1_fhw">FH Winner</button>
+      <button class="good" data-evt="p1_bhw">BH Winner</button>
+      <button class="bad" data-evt="p1_fhue">FH UE</button>
+      <button class="bad" data-evt="p1_bhue">BH UE</button>
+      <button data-evt="p1_fe">Forced Error +</button>
+      <button data-evt="p1_net">Net +</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="section" id="p2Section"></div>
+    <div class="grid2">
+      <button class="good" data-evt="p2_fhw">FH Winner</button>
+      <button class="good" data-evt="p2_bhw">BH Winner</button>
+      <button class="bad" data-evt="p2_fhue">FH UE</button>
+      <button class="bad" data-evt="p2_bhue">BH UE</button>
+      <button data-evt="p2_fe">Forced Error +</button>
+      <button data-evt="p2_net">Net +</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="small">Быстрая запись очка</div>
+    <div class="grid2" style="margin-top:8px">
+      <button id="quickP1"></button>
+      <button id="quickP2"></button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="small">Длина последнего розыгрыша</div>
+    <div class="grid3" style="margin-top:8px">
+      <button data-rally="0-4">0–4</button>
+      <button data-rally="5-8">5–8</button>
+      <button data-rally="9+">9+</button>
+    </div>
+  </div>
+
+  <div class="card grid2">
+    <button id="undoBtn">↶ UNDO</button>
+    <button id="changeServerBtn">⇄ Подающий</button>
+    <button id="exportBtn">Export CSV</button>
+    <button id="newMatchBtn" class="primary">Новый матч</button>
+  </div>
+
+  <div class="card">
+    <div class="section">Статистика по сетам</div>
+    <div class="tabs" id="setTabs"></div>
+    <div id="setStats"></div>
+  </div>
+
+  <div class="card">
+    <div class="section">Итог матча</div>
+    <div class="kpis" id="kpiBox"></div>
+    <div style="height:10px"></div>
+    <canvas id="chart" width="700" height="240"></canvas>
+    <ul id="summary"></ul>
+  </div>
+</section>
+
+<script>
+(function(){
+"use strict";
+const $=id=>document.getElementById(id);
+const emptyStats=()=>({sp:0,fi:0,fw:0,sp2:0,sw:0,a:0,df:0,fhw:0,bhw:0,fhue:0,bhue:0,fe:0,net:0,bpf:0,bps:0,r1p:0,r1w:0,r2p:0,r2w:0,ptsWon:0});
+const defaultState=()=>({names:["Mykyta","Opponent"],set:[0,0],game:[0,0],pt:[0,0],srv:0,sn:1,marked:false,tb:false,st:[emptyStats(),emptyStats()],setStats:[[emptyStats(),emptyStats()]],hist:[],log:[],last:-1,curSet:0,selectedSet:0});
+let S=defaultState();
+const pct=(a,b)=>b?Math.round(a/b*100)+"%":"—";
+function ensureSet(){if(!S.setStats[S.curSet])S.setStats[S.curSet]=[emptyStats(),emptyStats()]}
+function snapshot(){let copy=JSON.parse(JSON.stringify(S));copy.hist=[];S.hist.push(JSON.stringify(copy));if(S.hist.length>200)S.hist.shift()}
+function save(){try{localStorage.setItem("TennisTrackerOnline",JSON.stringify(S))}catch(e){}render()}
+function isBP(server){if(S.tb)return false;let r=1-server,rp=S.pt[r],sp=S.pt[server];if(rp<3)return false;if(rp===3&&sp<=2)return true;return rp>=3&&sp>=3&&rp===sp+1}
+function inc(o,k){o[k]=(o[k]||0)+1}
+function firstIn(){if(S.marked)return;snapshot();S.marked=true;S.sn=1;save()}
+function firstOut(){if(S.marked)return;snapshot();S.marked=true;S.sn=2;save()}
+function finish(type){
+  snapshot();ensureSet();
+  let sv=S.srv,rc=1-sv,w=null,bp=isBP(sv),serv=S.st[sv],ret=S.st[rc],ss=S.setStats[S.curSet][sv],sr=S.setStats[S.curSet][rc];
+  if(!S.marked)S.marked=true;
+  [serv,ss].forEach(x=>{inc(x,"sp");if(S.sn===1)inc(x,"fi");else inc(x,"sp2")});
+  [ret,sr].forEach(x=>{if(S.sn===1)inc(x,"r1p");else inc(x,"r2p")});
+  if(bp)[serv,ss].forEach(x=>inc(x,"bpf"));
+  const ps=(p,k,win)=>{w=win;[S.st[p],S.setStats[S.curSet][p]].forEach(x=>inc(x,k))};
+  if(type==="ace"){w=sv;[serv,ss].forEach(x=>inc(x,"a"))}
+  else if(type==="df"){w=rc;[serv,ss].forEach(x=>inc(x,"df"))}
+  else if(type==="p1_fhw")ps(0,"fhw",0); else if(type==="p1_bhw")ps(0,"bhw",0);
+  else if(type==="p1_fhue")ps(0,"fhue",1); else if(type==="p1_bhue")ps(0,"bhue",1);
+  else if(type==="p1_fe")ps(0,"fe",0); else if(type==="p1_net")ps(0,"net",0);
+  else if(type==="p2_fhw")ps(1,"fhw",1); else if(type==="p2_bhw")ps(1,"bhw",1);
+  else if(type==="p2_fhue")ps(1,"fhue",0); else if(type==="p2_bhue")ps(1,"bhue",0);
+  else if(type==="p2_fe")ps(1,"fe",1); else if(type==="p2_net")ps(1,"net",1);
+  else if(type==="p1_won")w=0; else if(type==="p2_won")w=1;
+  if(w===null)return;
+  [S.st[w],S.setStats[S.curSet][w]].forEach(x=>inc(x,"ptsWon"));
+  if(w===sv){[serv,ss].forEach(x=>{if(S.sn===1)inc(x,"fw");else inc(x,"sw");if(bp)inc(x,"bps")})}
+  else {[ret,sr].forEach(x=>{if(S.sn===1)inc(x,"r1w");else inc(x,"r2w")})}
+  S.log.push({set:S.curSet+1,time:new Date().toLocaleTimeString(),server:S.names[sv],serve:S.sn,result:type,winner:S.names[w],rally:""});
+  S.last=S.log.length-1;addPoint(w);S.sn=1;S.marked=false;save()
+}
+function addPoint(w){
+  let l=1-w;
+  if(S.tb){
+    S.pt[w]++;let total=S.pt[0]+S.pt[1];
+    if(S.pt[w]>=7&&S.pt[w]-S.pt[l]>=2){S.game[w]++;S.pt=[0,0];S.tb=false;winSet(w)}
+    else if(total%2===1)S.srv=1-S.srv;return
+  }
+  S.pt[w]++;
+  if(S.pt[w]>=4&&S.pt[w]-S.pt[l]>=2){
+    S.game[w]++;S.pt=[0,0];S.srv=1-S.srv;
+    if(S.game[w]>=6&&S.game[w]-S.game[l]>=2)winSet(w);
+    else if(S.game[0]===6&&S.game[1]===6)S.tb=true
+  }
+}
+function winSet(w){S.set[w]++;S.game=[0,0];S.pt=[0,0];S.tb=false;S.curSet++;ensureSet();S.selectedSet=S.curSet}
+function pointText(i){if(S.tb)return S.pt[i];let a=S.pt[i],b=S.pt[1-i];if(a>=3&&b>=3)return a===b?"40":a>b?"AD":"40";return["0","15","30","40"][Math.min(a,3)]}
+function markRally(r){if(S.last<0)return;snapshot();S.log[S.last].rally=r;save()}
+function changeServer(){snapshot();S.srv=1-S.srv;S.sn=1;S.marked=false;save()}
+function undo(){if(!S.hist.length)return;let h=S.hist.pop(),hist=S.hist;S=JSON.parse(h);S.hist=hist;save()}
+function selectSet(i){S.selectedSet=i;save()}
+function statsTable(){
+  let s=S.setStats[S.selectedSet]||[emptyStats(),emptyStats()];
+  return `<table><tr><th>Set ${S.selectedSet+1}</th><th>${S.names[0]}</th><th>${S.names[1]}</th></tr>
+  <tr><td>Points won</td><td>${s[0].ptsWon}</td><td>${s[1].ptsWon}</td></tr>
+  <tr><td>1st Serve %</td><td>${pct(s[0].fi,s[0].sp)}</td><td>${pct(s[1].fi,s[1].sp)}</td></tr>
+  <tr><td>1st Serve Won %</td><td>${pct(s[0].fw,s[0].fi)}</td><td>${pct(s[1].fw,s[1].fi)}</td></tr>
+  <tr><td>2nd Serve Won %</td><td>${pct(s[0].sw,s[0].sp2)}</td><td>${pct(s[1].sw,s[1].sp2)}</td></tr>
+  <tr><td>Aces</td><td>${s[0].a}</td><td>${s[1].a}</td></tr>
+  <tr><td>Double Faults</td><td>${s[0].df}</td><td>${s[1].df}</td></tr>
+  <tr><td>Winners FH/BH</td><td>${s[0].fhw}/${s[0].bhw}</td><td>${s[1].fhw}/${s[1].bhw}</td></tr>
+  <tr><td>UE FH/BH</td><td>${s[0].fhue}/${s[0].bhue}</td><td>${s[1].fhue}/${s[1].bhue}</td></tr>
+  <tr><td>Break Points Saved</td><td>${s[0].bps}/${s[0].bpf}</td><td>${s[1].bps}/${s[1].bpf}</td></tr>
+  <tr><td>Return vs 1st Won %</td><td>${pct(s[0].r1w,s[0].r1p)}</td><td>${pct(s[1].r1w,s[1].r1p)}</td></tr>
+  <tr><td>Return vs 2nd Won %</td><td>${pct(s[0].r2w,s[0].r2p)}</td><td>${pct(s[1].r2w,s[1].r2p)}</td></tr></table>`
+}
+function drawChart(){
+  let c=$("chart"),ctx=c.getContext("2d");ctx.clearRect(0,0,c.width,c.height);
+  let sets=S.setStats.length,max=1;S.setStats.forEach(s=>max=Math.max(max,s[0].ptsWon||0,s[1].ptsWon||0));
+  let pad=40,w=c.width-pad*2,h=c.height-55,group=w/sets,bar=group*.28;ctx.font="12px -apple-system";ctx.textAlign="center";
+  S.setStats.forEach((s,i)=>{let x=pad+i*group+group/2,a=(s[0].ptsWon||0)/max*h,b=(s[1].ptsWon||0)/max*h;
+    ctx.fillStyle="#8a8a8f";ctx.fillRect(x-bar-3,c.height-30-a,bar,a);
+    ctx.fillStyle="#111";ctx.fillRect(x+3,c.height-30-b,bar,b);
+    ctx.fillStyle="#111";ctx.fillText("Set "+(i+1),x,c.height-10)
+  });
+  ctx.textAlign="left";ctx.fillStyle="#8a8a8f";ctx.fillText(S.names[0],10,15);ctx.fillStyle="#111";ctx.fillText(S.names[1],10,32)
+}
+function conclusions(){
+  let a=S.st[0],b=S.st[1],o=[],wa=a.fhw+a.bhw,wb=b.fhw+b.bhw,ua=a.fhue+a.bhue,ub=b.fhue+b.bhue;
+  if(a.ptsWon!==b.ptsWon)o.push((a.ptsWon>b.ptsWon?S.names[0]:S.names[1])+" выиграл больше очков.");
+  if(Math.abs(ua-ub)>=4)o.push("Меньше невынужденных ошибок у "+(ua<ub?S.names[0]:S.names[1])+".");
+  if(Math.abs(wa-wb)>=4)o.push("Больше winners у "+(wa>wb?S.names[0]:S.names[1])+".");
+  if(a.df>=4||b.df>=4)o.push("Двойные ошибки: "+S.names[0]+" — "+a.df+", "+S.names[1]+" — "+b.df+".");
+  if(!o.length)o.push("Пока данных мало для выраженных выводов.");
+  return o
+}
+function render(){
+  $("scoreName1").textContent=(S.srv===0?"● ":"")+S.names[0];$("scoreName2").textContent=(S.srv===1?"● ":"")+S.names[1];
+  $("set1").textContent=S.set[0];$("set2").textContent=S.set[1];$("game1").textContent=S.game[0];$("game2").textContent=S.game[1];
+  $("point1").textContent=pointText(0);$("point2").textContent=pointText(1);
+  $("statusText").textContent=(S.tb?"Тай-брейк · ":"")+"Подаёт "+S.names[S.srv]+" · "+(S.sn===1?"первая":"вторая")+" подача";
+  $("p1Section").textContent=S.names[0]+" — окончание очка";$("p2Section").textContent=S.names[1]+" — окончание очка";
+  $("quickP1").textContent=S.names[0]+" +";$("quickP2").textContent=S.names[1]+" +";
+  $("setTabs").innerHTML=S.setStats.map((_,i)=>`<button data-set="${i}" class="${S.selectedSet===i?'active':''}">Set ${i+1}</button>`).join("");
+  $("setTabs").querySelectorAll("button").forEach(b=>b.onclick=()=>selectSet(Number(b.dataset.set)));
+  $("setStats").innerHTML=statsTable();
+  let a=S.st[0],b=S.st[1];
+  $("kpiBox").innerHTML=`<div class="kpi"><div class="small">Points won</div><div class="v">${a.ptsWon} – ${b.ptsWon}</div></div>
+  <div class="kpi"><div class="small">1st Serve %</div><div class="v">${pct(a.fi,a.sp)} – ${pct(b.fi,b.sp)}</div></div>
+  <div class="kpi"><div class="small">2nd Serve Won</div><div class="v">${pct(a.sw,a.sp2)} – ${pct(b.sw,b.sp2)}</div></div>
+  <div class="kpi"><div class="small">Winners / UE</div><div class="v">${a.fhw+a.bhw}/${a.fhue+a.bhue} – ${b.fhw+b.bhw}/${b.fhue+b.bhue}</div></div>`;
+  $("summary").innerHTML=conclusions().map(x=>"<li>"+x+"</li>").join("");drawChart()
+}
+function exportCSV(){
+  let rows=[["Set","Time","Server","Serve","Result","Winner","Rally"],...S.log.map(x=>[x.set,x.time,x.server,x.serve,x.result,x.winner,x.rally])];
+  let text=rows.map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(",")).join("\n");
+  let blob=new Blob([text],{type:"text/csv;charset=utf-8"}),url=URL.createObjectURL(blob),a=document.createElement("a");
+  a.href=url;a.download="tennis_match.csv";document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url)
+}
+function start(){
+  S=defaultState();S.names=[$("setupP1").value.trim()||"Player 1",$("setupP2").value.trim()||"Player 2"];
+  $("serveP1Btn").textContent=S.names[0]+" подаёт";$("serveP2Btn").textContent=S.names[1]+" подаёт";
+  $("setupScreen").classList.add("hidden");$("serverScreen").classList.remove("hidden")
+}
+function chooseServer(i){S.srv=i;$("serverScreen").classList.add("hidden");$("matchScreen").classList.remove("hidden");save()}
+function newMatch(){
+  if(confirm("Начать новый матч?")){
+    S=defaultState();$("matchScreen").classList.add("hidden");$("serverScreen").classList.add("hidden");$("setupScreen").classList.remove("hidden")
+  }
+}
+$("startBtn").onclick=start;$("serveP1Btn").onclick=()=>chooseServer(0);$("serveP2Btn").onclick=()=>chooseServer(1);
+$("firstInBtn").onclick=firstIn;$("firstOutBtn").onclick=firstOut;$("aceBtn").onclick=()=>finish("ace");$("dfBtn").onclick=()=>finish("df");
+$("quickP1").onclick=()=>finish("p1_won");$("quickP2").onclick=()=>finish("p2_won");$("undoBtn").onclick=undo;$("changeServerBtn").onclick=changeServer;
+$("exportBtn").onclick=exportCSV;$("newMatchBtn").onclick=newMatch;
+document.querySelectorAll("[data-evt]").forEach(b=>b.onclick=()=>finish(b.dataset.evt));
+document.querySelectorAll("[data-rally]").forEach(b=>b.onclick=()=>markRally(b.dataset.rally));
+})();
+</script>
+</body>
+</html>

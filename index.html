@@ -271,5 +271,15 @@ document.querySelectorAll("[data-evt]").forEach(b=>b.onclick=()=>finish(b.datase
 document.querySelectorAll("[data-rally]").forEach(b=>b.onclick=()=>markRally(b.dataset.rally));
 })();
 </script>
-</body>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<script>
+
+const SUPABASE_URL = 'https://mfaptgcrzdqjjttfwuih.supabase.co';
+
+const SUPABASE_KEY = 'sb_publishable_XmRbELPcRrzbAchxQ2MaXA_s6j4U_jh';
+
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+</script></body>
 </html>

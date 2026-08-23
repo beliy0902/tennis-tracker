@@ -27,6 +27,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:7px 5px;b
 canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:block}ul{padding-left:20px}li{margin:7px 0}
 .startTitle{font-size:25px;font-weight:900;text-align:center;margin:8px 0 2px}.startSub{text-align:center;color:#666;font-size:13px;margin-bottom:18px}
 .spacer{height:8px}
+.matchover{font-size:20px;font-weight:900;text-align:center;padding:8px 0}.historyItem{border-bottom:1px solid #eee;padding:10px 0}.historyItem:last-child{border-bottom:0}.historyTop{display:flex;justify-content:space-between;gap:8px;align-items:center}.historyScore{font-weight:850}.danger{background:#f4dddd}.muted{color:#666;font-size:12px}
 </style>
 </head>
 <body>
@@ -120,6 +121,17 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
     <button id="newMatchBtn" class="primary">Новый матч</button>
   </div>
 
+  <div id="matchOverCard" class="card hidden">
+    <div class="matchover" id="matchOverText"></div>
+    <div class="small" style="text-align:center">Матч завершён и будет сохранён в истории.</div>
+  </div>
+
+  <div class="card">
+    <div class="section">История матчей</div>
+    <button id="refreshHistoryBtn" style="width:100%;min-height:42px">Обновить историю</button>
+    <div id="historyList" class="small" style="margin-top:8px">История ещё не загружена.</div>
+  </div>
+
   <div class="card">
     <div class="section">Статистика по сетам</div>
     <div class="tabs" id="setTabs"></div>
@@ -140,7 +152,7 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
 "use strict";
 const $=id=>document.getElementById(id);
 const emptyStats=()=>({sp:0,fi:0,fw:0,sp2:0,sw:0,a:0,df:0,fhw:0,bhw:0,fhue:0,bhue:0,fe:0,net:0,bpf:0,bps:0,r1p:0,r1w:0,r2p:0,r2w:0,ptsWon:0});
-const defaultState=()=>({names:["Mykyta","Opponent"],set:[0,0],game:[0,0],pt:[0,0],srv:0,sn:1,marked:false,tb:false,st:[emptyStats(),emptyStats()],setStats:[[emptyStats(),emptyStats()]],hist:[],log:[],last:-1,curSet:0,selectedSet:0});
+const defaultState=()=>({names:["Mykyta","Opponent"],set:[0,0],game:[0,0],pt:[0,0],srv:0,sn:1,marked:false,tb:false,st:[emptyStats(),emptyStats()],setStats:[[emptyStats(),emptyStats()]],hist:[],log:[],last:-1,curSet:0,selectedSet:0,matchOver:false,savedMatchId:null,setScores:[],tbFirstServer:null,tieBreakScores:[]});
 let S=defaultState();
 const pct=(a,b)=>b?Math.round(a/b*100)+"%":"—";
 function ensureSet(){if(!S.setStats[S.curSet])S.setStats[S.curSet]=[emptyStats(),emptyStats()]}
@@ -151,6 +163,7 @@ function inc(o,k){o[k]=(o[k]||0)+1}
 function firstIn(){if(S.marked)return;snapshot();S.marked=true;S.sn=1;save()}
 function firstOut(){if(S.marked)return;snapshot();S.marked=true;S.sn=2;save()}
 function finish(type){
+  if(S.matchOver)return;
   snapshot();ensureSet();
   let sv=S.srv,rc=1-sv,w=null,bp=isBP(sv),serv=S.st[sv],ret=S.st[rc],ss=S.setStats[S.curSet][sv],sr=S.setStats[S.curSet][rc];
   if(!S.marked)S.marked=true;
@@ -178,20 +191,37 @@ function addPoint(w){
   let l=1-w;
   if(S.tb){
     S.pt[w]++;let total=S.pt[0]+S.pt[1];
-    if(S.pt[w]>=7&&S.pt[w]-S.pt[l]>=2){S.game[w]++;S.pt=[0,0];S.tb=false;winSet(w)}
+    if(S.pt[w]>=7&&S.pt[w]-S.pt[l]>=2){
+      S.tieBreakScores[S.curSet]=[...S.pt];
+      S.game[w]++;
+      const nextSetServer=1-S.tbFirstServer;
+      S.pt=[0,0];S.tb=false;S.tbFirstServer=null;S.srv=nextSetServer;winSet(w)
+    }
     else if(total%2===1)S.srv=1-S.srv;return
   }
   S.pt[w]++;
   if(S.pt[w]>=4&&S.pt[w]-S.pt[l]>=2){
     S.game[w]++;S.pt=[0,0];S.srv=1-S.srv;
     if(S.game[w]>=6&&S.game[w]-S.game[l]>=2)winSet(w);
-    else if(S.game[0]===6&&S.game[1]===6)S.tb=true
+    else if(S.game[0]===6&&S.game[1]===6){S.tb=true;S.tbFirstServer=S.srv}
   }
 }
-function winSet(w){S.set[w]++;S.game=[0,0];S.pt=[0,0];S.tb=false;S.curSet++;ensureSet();S.selectedSet=S.curSet}
+function winSet(w){
+  const finishedGames=[...S.game];
+  S.setScores.push(finishedGames);
+  S.set[w]++;S.game=[0,0];S.pt=[0,0];S.tb=false;S.tbFirstServer=null;
+  if(S.set[w]>=2){
+    S.matchOver=true;
+    S.selectedSet=S.curSet;
+    save();
+    saveCompletedMatch();
+    return;
+  }
+  S.curSet++;ensureSet();S.selectedSet=S.curSet
+}
 function pointText(i){if(S.tb)return S.pt[i];let a=S.pt[i],b=S.pt[1-i];if(a>=3&&b>=3)return a===b?"40":a>b?"AD":"40";return["0","15","30","40"][Math.min(a,3)]}
 function markRally(r){if(S.last<0)return;snapshot();S.log[S.last].rally=r;save()}
-function changeServer(){snapshot();S.srv=1-S.srv;S.sn=1;S.marked=false;save()}
+function changeServer(){if(S.matchOver)return;snapshot();S.srv=1-S.srv;S.sn=1;S.marked=false;save()}
 function undo(){if(!S.hist.length)return;let h=S.hist.pop(),hist=S.hist;S=JSON.parse(h);S.hist=hist;save()}
 function selectSet(i){S.selectedSet=i;save()}
 function statsTable(){
@@ -244,8 +274,52 @@ function render(){
   <div class="kpi"><div class="small">1st Serve %</div><div class="v">${pct(a.fi,a.sp)} – ${pct(b.fi,b.sp)}</div></div>
   <div class="kpi"><div class="small">2nd Serve Won</div><div class="v">${pct(a.sw,a.sp2)} – ${pct(b.sw,b.sp2)}</div></div>
   <div class="kpi"><div class="small">Winners / UE</div><div class="v">${a.fhw+a.bhw}/${a.fhue+a.bhue} – ${b.fhw+b.bhw}/${b.fhue+b.bhue}</div></div>`;
-  $("summary").innerHTML=conclusions().map(x=>"<li>"+x+"</li>").join("");drawChart()
+  $("summary").innerHTML=conclusions().map(x=>"<li>"+x+"</li>").join("");
+  $("matchOverCard").classList.toggle("hidden",!S.matchOver);
+  if(S.matchOver){
+    const w=S.set[0]>S.set[1]?0:1;
+    $("matchOverText").textContent="🏆 Победитель: "+S.names[w]+" · "+S.set[0]+"–"+S.set[1]+" по сетам";
+  }
+  document.querySelectorAll('#matchScreen button:not(#newMatchBtn):not(#exportBtn):not(#refreshHistoryBtn):not([data-history-delete])').forEach(b=>b.disabled=!!S.matchOver);
+  drawChart()
 }
+async function saveCompletedMatch(){
+  if(!S.matchOver||S.savedMatchId)return;
+  if(typeof db==="undefined")return;
+  try{
+    const payload={player1:S.names[0],player2:S.names[1],sets:{score:S.set,set_scores:S.setScores,tie_break_scores:S.tieBreakScores,stats:S.setStats,total_stats:S.st,log:S.log}};
+    const {data,error}=await db.from("matches").insert(payload).select("id").single();
+    if(error)throw error;
+    S.savedMatchId=data?.id||null;
+    try{localStorage.setItem("TennisTrackerOnline",JSON.stringify(S))}catch(e){}
+    loadHistory();
+  }catch(e){console.error("Supabase save error",e);alert("Матч завершён, но не удалось сохранить его в Supabase: "+e.message)}
+}
+function esc(x){return String(x??"").replace(/[&<>\"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'\"':"&quot;"}[c]))}
+async function loadHistory(){
+  const box=$("historyList");
+  if(typeof db==="undefined"){box.textContent="Supabase не подключён.";return}
+  box.textContent="Загрузка…";
+  try{
+    const {data,error}=await db.from("matches").select("id,created_at,player1,player2,sets").order("created_at",{ascending:false}).limit(50);
+    if(error)throw error;
+    if(!data?.length){box.textContent="Сохранённых матчей пока нет.";return}
+    box.innerHTML=data.map(m=>{
+      const sc=m.sets?.score||["?","?"]; const d=m.created_at?new Date(m.created_at).toLocaleString():"";
+      return `<div class="historyItem"><div class="historyTop"><div><div class="historyScore">${esc(m.player1)} ${esc(sc[0])}–${esc(sc[1])} ${esc(m.player2)}</div><div class="muted">${esc(d)}</div></div><button class="danger" data-history-delete="${m.id}" style="min-height:38px;padding:7px 10px">Удалить</button></div></div>`
+    }).join("");
+    box.querySelectorAll("[data-history-delete]").forEach(b=>b.onclick=()=>deleteHistoryMatch(b.dataset.historyDelete));
+  }catch(e){box.textContent="Не удалось загрузить историю: "+e.message}
+}
+async function deleteHistoryMatch(id){
+  if(!confirm("Удалить выбранный матч из статистики?"))return;
+  try{
+    const {error}=await db.from("matches").delete().eq("id",id); if(error)throw error;
+    if(String(S.savedMatchId)===String(id))S.savedMatchId=null;
+    loadHistory();
+  }catch(e){alert("Не удалось удалить матч: "+e.message)}
+}
+
 function exportCSV(){
   let rows=[["Set","Time","Server","Serve","Result","Winner","Rally"],...S.log.map(x=>[x.set,x.time,x.server,x.serve,x.result,x.winner,x.rally])];
   let text=rows.map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(",")).join("\n");
@@ -266,9 +340,10 @@ function newMatch(){
 $("startBtn").onclick=start;$("serveP1Btn").onclick=()=>chooseServer(0);$("serveP2Btn").onclick=()=>chooseServer(1);
 $("firstInBtn").onclick=firstIn;$("firstOutBtn").onclick=firstOut;$("aceBtn").onclick=()=>finish("ace");$("dfBtn").onclick=()=>finish("df");
 $("quickP1").onclick=()=>finish("p1_won");$("quickP2").onclick=()=>finish("p2_won");$("undoBtn").onclick=undo;$("changeServerBtn").onclick=changeServer;
-$("exportBtn").onclick=exportCSV;$("newMatchBtn").onclick=newMatch;
+$("exportBtn").onclick=exportCSV;$("newMatchBtn").onclick=newMatch;$("refreshHistoryBtn").onclick=loadHistory;
 document.querySelectorAll("[data-evt]").forEach(b=>b.onclick=()=>finish(b.dataset.evt));
 document.querySelectorAll("[data-rally]").forEach(b=>b.onclick=()=>markRally(b.dataset.rally));
+window.loadTennisHistory=loadHistory;
 })();
 </script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -280,6 +355,7 @@ const SUPABASE_URL = 'https://mfaptgcrzdqjjttfwuih.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_XmRbELPcRrzbAchxQ2MaXA_s6j4U_jh';
 
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+setTimeout(()=>{ if(typeof window.loadTennisHistory==="function") window.loadTennisHistory(); },0);
 
 </script></body>
 </html>

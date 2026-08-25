@@ -260,10 +260,34 @@ function conclusions(){
   return o
 }
 function render(){
-  $("scoreName1").textContent=(S.srv===0?"● ":"")+S.names[0];$("scoreName2").textContent=(S.srv===1?"● ":"")+S.names[1];
-  $("set1").textContent=S.set[0];$("set2").textContent=S.set[1];$("game1").textContent=S.game[0];$("game2").textContent=S.game[1];
-  $("point1").textContent=pointText(0);$("point2").textContent=pointText(1);
-  $("statusText").textContent=(S.tb?"Тай-брейк · ":"")+"Подаёт "+S.names[S.srv]+" · "+(S.sn===1?"первая":"вторая")+" подача";
+
+  $("scoreName1").textContent=(!S.matchOver&&S.srv===0?"● ":"")+S.names[0];
+
+  $("scoreName2").textContent=(!S.matchOver&&S.srv===1?"● ":"")+S.names[1];
+
+  $("set1").textContent=S.set[0];
+
+  $("set2").textContent=S.set[1];
+
+  $("game1").textContent=S.game[0];
+
+  $("game2").textContent=S.game[1];
+
+  $("point1").textContent=S.matchOver?"0":pointText(0);
+
+  $("point2").textContent=S.matchOver?"0":pointText(1);
+
+  if(S.matchOver){
+
+    const w=S.set[0]>S.set[1]?0:1;
+
+    $("statusText").textContent="🏆 Матч завершён · Победитель: "+S.names[w];
+
+  }else{
+
+    $("statusText").textContent=(S.tb?"Тай-брейк · ":"")+"Подаёт "+S.names[S.srv]+" · "+(S.sn===1?"первая":"вторая")+" подача";
+
+  }
   $("p1Section").textContent=S.names[0]+" — окончание очка";$("p2Section").textContent=S.names[1]+" — окончание очка";
   $("quickP1").textContent=S.names[0]+" +";$("quickP2").textContent=S.names[1]+" +";
   $("setTabs").innerHTML=S.setStats.map((_,i)=>`<button data-set="${i}" class="${S.selectedSet===i?'active':''}">Set ${i+1}</button>`).join("");

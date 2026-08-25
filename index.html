@@ -63,7 +63,7 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
     <div class="name" id="scoreName2"></div><div class="num" id="set2">0</div><div class="num" id="game2">0</div><div class="num" id="point2">0</div>
   </div>
 
-  <div class="card">
+  <div class="card" id="serveCard">
     <div class="status" id="statusText"></div>
     <div class="grid2">
       <button id="firstInBtn" class="servebtn">1st IN</button>
@@ -73,7 +73,7 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
     </div>
   </div>
 
-  <div class="card">
+  <div class="card" id="p1PointCard">
     <div class="section" id="p1Section"></div>
     <div class="grid2">
       <button class="good" data-evt="p1_fhw">FH Winner</button>
@@ -85,7 +85,7 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
     </div>
   </div>
 
-  <div class="card">
+  <div class="card" id="p2PointCard">
     <div class="section" id="p2Section"></div>
     <div class="grid2">
       <button class="good" data-evt="p2_fhw">FH Winner</button>
@@ -97,7 +97,7 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
     </div>
   </div>
 
-  <div class="card">
+  <div class="card" id="quickPointCard">
     <div class="small">Быстрая запись очка</div>
     <div class="grid2" style="margin-top:8px">
       <button id="quickP1"></button>
@@ -105,7 +105,7 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
     </div>
   </div>
 
-  <div class="card">
+  <div class="card" id="rallyCard">
     <div class="small">Длина последнего розыгрыша</div>
     <div class="grid3" style="margin-top:8px">
       <button data-rally="0-4">0–4</button>
@@ -123,7 +123,7 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
 
   <div id="matchOverCard" class="card hidden">
     <div class="matchover" id="matchOverText"></div>
-    <div class="small" style="text-align:center">Матч завершён и будет сохранён в истории.</div>
+    <div class="small" style="text-align:center">Матч завершён и сохранён в истории.</div>
   </div>
 
   <div class="card">
@@ -152,7 +152,7 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
 "use strict";
 const $=id=>document.getElementById(id);
 const emptyStats=()=>({sp:0,fi:0,fw:0,sp2:0,sw:0,a:0,df:0,fhw:0,bhw:0,fhue:0,bhue:0,fe:0,net:0,bpf:0,bps:0,r1p:0,r1w:0,r2p:0,r2w:0,ptsWon:0});
-const defaultState=()=>({names:["Mykyta","Opponent"],set:[0,0],game:[0,0],pt:[0,0],srv:0,sn:1,marked:false,tb:false,st:[emptyStats(),emptyStats()],setStats:[[emptyStats(),emptyStats()]],hist:[],log:[],last:-1,curSet:0,selectedSet:0,matchOver:false,savedMatchId:null,setScores:[],tbFirstServer:null,tieBreakScores:[]});
+const defaultState=()=>({names:["Player 1","Player 2"],set:[0,0],game:[0,0],pt:[0,0],srv:0,sn:1,marked:false,tb:false,st:[emptyStats(),emptyStats()],setStats:[[emptyStats(),emptyStats()]],hist:[],log:[],last:-1,curSet:0,selectedSet:0,matchOver:false,savedMatchId:null,setScores:[],tbFirstServer:null,tieBreakScores:[]});
 let S=defaultState();
 const pct=(a,b)=>b?Math.round(a/b*100)+"%":"—";
 function ensureSet(){if(!S.setStats[S.curSet])S.setStats[S.curSet]=[emptyStats(),emptyStats()]}
@@ -160,8 +160,8 @@ function snapshot(){let copy=JSON.parse(JSON.stringify(S));copy.hist=[];S.hist.p
 function save(){try{localStorage.setItem("TennisTrackerOnline",JSON.stringify(S))}catch(e){}render()}
 function isBP(server){if(S.tb)return false;let r=1-server,rp=S.pt[r],sp=S.pt[server];if(rp<3)return false;if(rp===3&&sp<=2)return true;return rp>=3&&sp>=3&&rp===sp+1}
 function inc(o,k){o[k]=(o[k]||0)+1}
-function firstIn(){if(S.marked)return;snapshot();S.marked=true;S.sn=1;save()}
-function firstOut(){if(S.marked)return;snapshot();S.marked=true;S.sn=2;save()}
+function firstIn(){if(S.matchOver||S.marked)return;snapshot();S.marked=true;S.sn=1;save()}
+function firstOut(){if(S.matchOver||S.marked)return;snapshot();S.marked=true;S.sn=2;save()}
 function finish(type){
   if(S.matchOver)return;
   snapshot();ensureSet();
@@ -220,9 +220,34 @@ function winSet(w){
   S.curSet++;ensureSet();S.selectedSet=S.curSet
 }
 function pointText(i){if(S.tb)return S.pt[i];let a=S.pt[i],b=S.pt[1-i];if(a>=3&&b>=3)return a===b?"40":a>b?"AD":"40";return["0","15","30","40"][Math.min(a,3)]}
-function markRally(r){if(S.last<0)return;snapshot();S.log[S.last].rally=r;save()}
+function markRally(r){if(S.matchOver||S.last<0)return;snapshot();S.log[S.last].rally=r;save()}
 function changeServer(){if(S.matchOver)return;snapshot();S.srv=1-S.srv;S.sn=1;S.marked=false;save()}
-function undo(){if(!S.hist.length)return;let h=S.hist.pop(),hist=S.hist;S=JSON.parse(h);S.hist=hist;save()}
+
+async function undo(){
+  if(!S.hist.length)return;
+
+  const savedId=S.savedMatchId;
+  const h=S.hist[S.hist.length-1];
+  const restored=JSON.parse(h);
+  const newHist=S.hist.slice(0,-1);
+
+  if(savedId && typeof db!=="undefined"){
+    try{
+      const {error}=await db.from("matches").delete().eq("id",savedId);
+      if(error)throw error;
+    }catch(e){
+      alert("Не удалось удалить завершённый матч из Supabase: "+e.message);
+      return;
+    }
+  }
+
+  S=restored;
+  S.hist=newHist;
+  S.savedMatchId=null;
+  save();
+  if(savedId)loadHistory();
+}
+
 function selectSet(i){S.selectedSet=i;save()}
 function statsTable(){
   let s=S.setStats[S.selectedSet]||[emptyStats(),emptyStats()];
@@ -260,66 +285,97 @@ function conclusions(){
   return o
 }
 function render(){
-
   $("scoreName1").textContent=(!S.matchOver&&S.srv===0?"● ":"")+S.names[0];
-
   $("scoreName2").textContent=(!S.matchOver&&S.srv===1?"● ":"")+S.names[1];
 
   $("set1").textContent=S.set[0];
-
   $("set2").textContent=S.set[1];
-
   $("game1").textContent=S.game[0];
-
   $("game2").textContent=S.game[1];
 
   $("point1").textContent=S.matchOver?"0":pointText(0);
-
   $("point2").textContent=S.matchOver?"0":pointText(1);
 
   if(S.matchOver){
-
     const w=S.set[0]>S.set[1]?0:1;
-
     $("statusText").textContent="🏆 Матч завершён · Победитель: "+S.names[w];
-
   }else{
-
     $("statusText").textContent=(S.tb?"Тай-брейк · ":"")+"Подаёт "+S.names[S.srv]+" · "+(S.sn===1?"первая":"вторая")+" подача";
-
   }
-  $("p1Section").textContent=S.names[0]+" — окончание очка";$("p2Section").textContent=S.names[1]+" — окончание очка";
-  $("quickP1").textContent=S.names[0]+" +";$("quickP2").textContent=S.names[1]+" +";
+
+  $("serveCard").classList.toggle("hidden",S.matchOver);
+  $("p1PointCard").classList.toggle("hidden",S.matchOver);
+  $("p2PointCard").classList.toggle("hidden",S.matchOver);
+  $("quickPointCard").classList.toggle("hidden",S.matchOver);
+  $("rallyCard").classList.toggle("hidden",S.matchOver);
+
+  $("undoBtn").classList.remove("hidden");
+  $("exportBtn").classList.remove("hidden");
+  $("newMatchBtn").classList.remove("hidden");
+  $("changeServerBtn").classList.toggle("hidden",S.matchOver);
+
+  $("p1Section").textContent=S.names[0]+" — окончание очка";
+  $("p2Section").textContent=S.names[1]+" — окончание очка";
+  $("quickP1").textContent=S.names[0]+" +";
+  $("quickP2").textContent=S.names[1]+" +";
   $("setTabs").innerHTML=S.setStats.map((_,i)=>`<button data-set="${i}" class="${S.selectedSet===i?'active':''}">Set ${i+1}</button>`).join("");
   $("setTabs").querySelectorAll("button").forEach(b=>b.onclick=()=>selectSet(Number(b.dataset.set)));
   $("setStats").innerHTML=statsTable();
+
   let a=S.st[0],b=S.st[1];
   $("kpiBox").innerHTML=`<div class="kpi"><div class="small">Points won</div><div class="v">${a.ptsWon} – ${b.ptsWon}</div></div>
   <div class="kpi"><div class="small">1st Serve %</div><div class="v">${pct(a.fi,a.sp)} – ${pct(b.fi,b.sp)}</div></div>
   <div class="kpi"><div class="small">2nd Serve Won</div><div class="v">${pct(a.sw,a.sp2)} – ${pct(b.sw,b.sp2)}</div></div>
   <div class="kpi"><div class="small">Winners / UE</div><div class="v">${a.fhw+a.bhw}/${a.fhue+a.bhue} – ${b.fhw+b.bhw}/${b.fhue+b.bhue}</div></div>`;
   $("summary").innerHTML=conclusions().map(x=>"<li>"+x+"</li>").join("");
+
   $("matchOverCard").classList.toggle("hidden",!S.matchOver);
   if(S.matchOver){
     const w=S.set[0]>S.set[1]?0:1;
     $("matchOverText").textContent="🏆 Победитель: "+S.names[w]+" · "+S.set[0]+"–"+S.set[1]+" по сетам";
   }
-  document.querySelectorAll('#matchScreen button:not(#newMatchBtn):not(#exportBtn):not(#refreshHistoryBtn):not([data-history-delete])').forEach(b=>b.disabled=!!S.matchOver);
+
   drawChart()
 }
+
 async function saveCompletedMatch(){
   if(!S.matchOver||S.savedMatchId)return;
   if(typeof db==="undefined")return;
   try{
-    const payload={player1:S.names[0],player2:S.names[1],sets:{score:S.set,set_scores:S.setScores,tie_break_scores:S.tieBreakScores,stats:S.setStats,total_stats:S.st,log:S.log}};
+    const payload={
+      player1:S.names[0],
+      player2:S.names[1],
+      sets:{
+        score:S.set,
+        set_scores:S.setScores,
+        tie_break_scores:S.tieBreakScores,
+        stats:S.setStats,
+        total_stats:S.st,
+        log:S.log
+      }
+    };
     const {data,error}=await db.from("matches").insert(payload).select("id").single();
     if(error)throw error;
+
+    if(!S.matchOver){
+      if(data?.id){
+        const {error:delError}=await db.from("matches").delete().eq("id",data.id);
+        if(delError)console.error("Could not remove stale match after UNDO",delError);
+      }
+      loadHistory();
+      return;
+    }
+
     S.savedMatchId=data?.id||null;
     try{localStorage.setItem("TennisTrackerOnline",JSON.stringify(S))}catch(e){}
     loadHistory();
-  }catch(e){console.error("Supabase save error",e);alert("Матч завершён, но не удалось сохранить его в Supabase: "+e.message)}
+  }catch(e){
+    console.error("Supabase save error",e);
+    alert("Матч завершён, но не удалось сохранить его в Supabase: "+e.message)
+  }
 }
-function esc(x){return String(x??"").replace(/[&<>\"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'\"':"&quot;"}[c]))}
+
+function esc(x){return String(x??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
 async function loadHistory(){
   const box=$("historyList");
   if(typeof db==="undefined"){box.textContent="Supabase не подключён.";return}
@@ -329,7 +385,8 @@ async function loadHistory(){
     if(error)throw error;
     if(!data?.length){box.textContent="Сохранённых матчей пока нет.";return}
     box.innerHTML=data.map(m=>{
-      const sc=m.sets?.score||["?","?"]; const d=m.created_at?new Date(m.created_at).toLocaleString():"";
+      const sc=m.sets?.score||["?","?"];
+      const d=m.created_at?new Date(m.created_at).toLocaleString():"";
       return `<div class="historyItem"><div class="historyTop"><div><div class="historyScore">${esc(m.player1)} ${esc(sc[0])}–${esc(sc[1])} ${esc(m.player2)}</div><div class="muted">${esc(d)}</div></div><button class="danger" data-history-delete="${m.id}" style="min-height:38px;padding:7px 10px">Удалить</button></div></div>`
     }).join("");
     box.querySelectorAll("[data-history-delete]").forEach(b=>b.onclick=()=>deleteHistoryMatch(b.dataset.historyDelete));
@@ -338,7 +395,8 @@ async function loadHistory(){
 async function deleteHistoryMatch(id){
   if(!confirm("Удалить выбранный матч из статистики?"))return;
   try{
-    const {error}=await db.from("matches").delete().eq("id",id); if(error)throw error;
+    const {error}=await db.from("matches").delete().eq("id",id);
+    if(error)throw error;
     if(String(S.savedMatchId)===String(id))S.savedMatchId=null;
     loadHistory();
   }catch(e){alert("Не удалось удалить матч: "+e.message)}
@@ -346,25 +404,42 @@ async function deleteHistoryMatch(id){
 
 function exportCSV(){
   let rows=[["Set","Time","Server","Serve","Result","Winner","Rally"],...S.log.map(x=>[x.set,x.time,x.server,x.serve,x.result,x.winner,x.rally])];
-  let text=rows.map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(",")).join("\n");
+  let text=rows.map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(",")).join("
+");
   let blob=new Blob([text],{type:"text/csv;charset=utf-8"}),url=URL.createObjectURL(blob),a=document.createElement("a");
   a.href=url;a.download="tennis_match.csv";document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url)
 }
 function start(){
-  S=defaultState();S.names=[$("setupP1").value.trim()||"Player 1",$("setupP2").value.trim()||"Player 2"];
-  $("serveP1Btn").textContent=S.names[0]+" подаёт";$("serveP2Btn").textContent=S.names[1]+" подаёт";
-  $("setupScreen").classList.add("hidden");$("serverScreen").classList.remove("hidden")
+  S=defaultState();
+  S.names=[$("setupP1").value.trim()||"Player 1",$("setupP2").value.trim()||"Player 2"];
+  $("serveP1Btn").textContent=S.names[0]+" подаёт";
+  $("serveP2Btn").textContent=S.names[1]+" подаёт";
+  $("setupScreen").classList.add("hidden");
+  $("serverScreen").classList.remove("hidden")
 }
 function chooseServer(i){S.srv=i;$("serverScreen").classList.add("hidden");$("matchScreen").classList.remove("hidden");save()}
 function newMatch(){
   if(confirm("Начать новый матч?")){
-    S=defaultState();$("matchScreen").classList.add("hidden");$("serverScreen").classList.add("hidden");$("setupScreen").classList.remove("hidden")
+    S=defaultState();
+    $("matchScreen").classList.add("hidden");
+    $("serverScreen").classList.add("hidden");
+    $("setupScreen").classList.remove("hidden")
   }
 }
-$("startBtn").onclick=start;$("serveP1Btn").onclick=()=>chooseServer(0);$("serveP2Btn").onclick=()=>chooseServer(1);
-$("firstInBtn").onclick=firstIn;$("firstOutBtn").onclick=firstOut;$("aceBtn").onclick=()=>finish("ace");$("dfBtn").onclick=()=>finish("df");
-$("quickP1").onclick=()=>finish("p1_won");$("quickP2").onclick=()=>finish("p2_won");$("undoBtn").onclick=undo;$("changeServerBtn").onclick=changeServer;
-$("exportBtn").onclick=exportCSV;$("newMatchBtn").onclick=newMatch;$("refreshHistoryBtn").onclick=loadHistory;
+$("startBtn").onclick=start;
+$("serveP1Btn").onclick=()=>chooseServer(0);
+$("serveP2Btn").onclick=()=>chooseServer(1);
+$("firstInBtn").onclick=firstIn;
+$("firstOutBtn").onclick=firstOut;
+$("aceBtn").onclick=()=>finish("ace");
+$("dfBtn").onclick=()=>finish("df");
+$("quickP1").onclick=()=>finish("p1_won");
+$("quickP2").onclick=()=>finish("p2_won");
+$("undoBtn").onclick=undo;
+$("changeServerBtn").onclick=changeServer;
+$("exportBtn").onclick=exportCSV;
+$("newMatchBtn").onclick=newMatch;
+$("refreshHistoryBtn").onclick=loadHistory;
 document.querySelectorAll("[data-evt]").forEach(b=>b.onclick=()=>finish(b.dataset.evt));
 document.querySelectorAll("[data-rally]").forEach(b=>b.onclick=()=>markRally(b.dataset.rally));
 window.loadTennisHistory=loadHistory;
@@ -373,13 +448,10 @@ window.loadTennisHistory=loadHistory;
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script>
-
 const SUPABASE_URL = 'https://mfaptgcrzdqjjttfwuih.supabase.co';
-
 const SUPABASE_KEY = 'sb_publishable_XmRbELPcRrzbAchxQ2MaXA_s6j4U_jh';
-
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 setTimeout(()=>{ if(typeof window.loadTennisHistory==="function") window.loadTennisHistory(); },0);
-
-</script></body>
+</script>
+</body>
 </html>

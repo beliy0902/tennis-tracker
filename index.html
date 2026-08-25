@@ -404,8 +404,7 @@ async function deleteHistoryMatch(id){
 
 function exportCSV(){
   let rows=[["Set","Time","Server","Serve","Result","Winner","Rally"],...S.log.map(x=>[x.set,x.time,x.server,x.serve,x.result,x.winner,x.rally])];
-  let text=rows.map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(",")).join("
-");
+  let text=rows.map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(",")).join("\n");
   let blob=new Blob([text],{type:"text/csv;charset=utf-8"}),url=URL.createObjectURL(blob),a=document.createElement("a");
   a.href=url;a.download="tennis_match.csv";document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url)
 }

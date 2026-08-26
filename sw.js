@@ -1,4 +1,4 @@
-const CACHE_NAME = "tennis-tracker-v1";
+const CACHE_NAME = "tennis-tracker-v2";
 
 const APP_FILES = [
 
@@ -46,35 +46,71 @@ self.addEventListener("activate", event => {
 
 self.addEventListener("fetch", event => {
 
-  if (event.request.method !== "GET") return;
+  const request = event.request;
+
+  const url = new URL(request.url);
+
+  // Не трогаем Supabase, CDN и любые внешние запросы
+
+  if (url.origin !== self.location.origin) {
+
+    return;
+
+  }
+
+  // Только GET-запросы
+
+  if (request.method !== "GET") {
+
+    return;
+
+  }
 
   event.respondWith(
 
-    fetch(event.request)
+    fetch(request)
 
       .then(response => {
 
-        const copy = response.clone();
+        if (response && response.ok) {
 
-        caches.open(CACHE_NAME).then(cache => {
+          const copy = response.clone();
 
-          cache.put(event.request, copy);
+          caches.open(CACHE_NAME).then(cache => {
 
-        });
+            cache.put(request, copy);
+
+          });
+
+        }
 
         return response;
 
       })
 
-      .catch(() =>
+      .catch(async () => {
 
-        caches.match(event.request).then(cached => {
+        const cached = await caches.match(request);
 
-          return cached || caches.match("./index.html");
+        if (cached) {
 
-        })
+          return cached;
 
-      )
+        }
+
+        // index.html используем только для перехода на страницу,
+
+        // но никогда не вместо ответа Supabase/API
+
+        if (request.mode === "navigate") {
+
+          return caches.match("./index.html");
+
+        }
+
+        return Response.error();
+
+      })
 
   );
 

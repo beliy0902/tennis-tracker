@@ -27,7 +27,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:7px 5px;b
 canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:block}ul{padding-left:20px}li{margin:7px 0}
 .startTitle{font-size:25px;font-weight:900;text-align:center;margin:8px 0 2px}.startSub{text-align:center;color:#666;font-size:13px;margin-bottom:18px}
 .spacer{height:8px}
-.matchover{font-size:20px;font-weight:900;text-align:center;padding:8px 0}.historyItem{border-bottom:1px solid #eee;padding:10px 0}.historyItem:last-child{border-bottom:0}.historyTop{display:flex;justify-content:space-between;gap:8px;align-items:center}.historyScore{font-weight:850}.danger{background:#f4dddd}.muted{color:#666;font-size:12px}
+.matchover{font-size:20px;font-weight:900;text-align:center;padding:8px 0}.historyItem{border-bottom:1px solid #eee;padding:10px 0}.historyItem:last-child{border-bottom:0}.historyTop{display:flex;justify-content:space-between;gap:8px;align-items:center}.historyScore{font-weight:850}.danger{background:#f4dddd}.muted{color:#666;font-size:12px}.savebar{display:flex;justify-content:space-between;gap:10px;align-items:center}.saveStatus{font-size:12px;font-weight:750}.resumeBox{margin-top:12px;padding:12px;background:#f6f6f8;border-radius:14px}.resumeTitle{font-weight:850;margin-bottom:4px}
 </style>
 </head>
 <body>
@@ -43,6 +43,14 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
     <input id="setupP2" placeholder="Введите имя соперника">
     <div class="spacer"></div>
     <button id="startBtn" class="primary" style="width:100%">НАЧАТЬ МАТЧ</button>
+    <div id="resumeBox" class="resumeBox hidden">
+      <div class="resumeTitle">Найден незавершённый матч</div>
+      <div id="resumeText" class="small"></div>
+      <div class="grid2" style="margin-top:10px">
+        <button id="resumeBtn" class="primary">Продолжить матч</button>
+        <button id="discardResumeBtn" class="danger">Удалить сохранение</button>
+      </div>
+    </div>
   </div>
 </section>
 
@@ -61,6 +69,13 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
     <span></span><span class="head">SETS</span><span class="head">GAMES</span><span class="head">POINTS</span>
     <div class="name" id="scoreName1"></div><div class="num" id="set1">0</div><div class="num" id="game1">0</div><div class="num" id="point1">0</div>
     <div class="name" id="scoreName2"></div><div class="num" id="set2">0</div><div class="num" id="game2">0</div><div class="num" id="point2">0</div>
+  </div>
+
+  <div class="card savebar">
+    <div>
+      <div class="saveStatus" id="saveStatus">Сохранение…</div>
+      <div class="small" id="saveStatusDetail">Матч сохраняется на этом устройстве после каждого действия.</div>
+    </div>
   </div>
 
   <div class="card" id="serveCard">
@@ -152,12 +167,54 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
 "use strict";
 const $=id=>document.getElementById(id);
 const emptyStats=()=>({sp:0,fi:0,fw:0,sp2:0,sw:0,a:0,df:0,fhw:0,bhw:0,fhue:0,bhue:0,fe:0,net:0,bpf:0,bps:0,r1p:0,r1w:0,r2p:0,r2w:0,ptsWon:0});
-const defaultState=()=>({names:["Player 1","Player 2"],set:[0,0],game:[0,0],pt:[0,0],srv:0,sn:1,marked:false,tb:false,st:[emptyStats(),emptyStats()],setStats:[[emptyStats(),emptyStats()]],hist:[],log:[],last:-1,curSet:0,selectedSet:0,matchOver:false,savedMatchId:null,setScores:[],tbFirstServer:null,tieBreakScores:[]});
+const defaultState=()=>({names:["Player 1","Player 2"],set:[0,0],game:[0,0],pt:[0,0],srv:0,sn:1,marked:false,tb:false,st:[emptyStats(),emptyStats()],setStats:[[emptyStats(),emptyStats()]],hist:[],log:[],last:-1,curSet:0,selectedSet:0,matchOver:false,savedMatchId:null,setScores:[],tbFirstServer:null,tieBreakScores:[],started:false});
 let S=defaultState();
 const pct=(a,b)=>b?Math.round(a/b*100)+"%":"—";
 function ensureSet(){if(!S.setStats[S.curSet])S.setStats[S.curSet]=[emptyStats(),emptyStats()]}
 function snapshot(){let copy=JSON.parse(JSON.stringify(S));copy.hist=[];S.hist.push(JSON.stringify(copy));if(S.hist.length>200)S.hist.shift()}
-function save(){try{localStorage.setItem("TennisTrackerOnline",JSON.stringify(S))}catch(e){}render()}
+const STORAGE_KEY="TennisTrackerOnline";
+function normalizeState(x){
+  if(!x||typeof x!=="object")return defaultState();
+  const d=defaultState();
+  const z=Object.assign(d,x);
+  z.names=Array.isArray(z.names)&&z.names.length===2?z.names:d.names;
+  z.set=Array.isArray(z.set)?z.set:[0,0];z.game=Array.isArray(z.game)?z.game:[0,0];z.pt=Array.isArray(z.pt)?z.pt:[0,0];
+  z.st=Array.isArray(z.st)&&z.st.length===2?z.st:[emptyStats(),emptyStats()];
+  z.setStats=Array.isArray(z.setStats)&&z.setStats.length?z.setStats:[[emptyStats(),emptyStats()]];
+  z.hist=Array.isArray(z.hist)?z.hist:[];z.log=Array.isArray(z.log)?z.log:[];
+  z.setScores=Array.isArray(z.setScores)?z.setScores:[];z.tieBreakScores=Array.isArray(z.tieBreakScores)?z.tieBreakScores:[];
+  return z
+}
+function hasRecoverableMatch(x){
+  if(!x||x.matchOver)return false;
+  return !!(x.started||x.log?.length||x.hist?.length||x.marked||x.tb||x.set?.some(Boolean)||x.game?.some(Boolean)||x.pt?.some(Boolean));
+}
+function saveLocalOnly(){try{localStorage.setItem(STORAGE_KEY,JSON.stringify(S))}catch(e){console.error("Local save failed",e)}}
+function save(){saveLocalOnly();render();updateSaveStatus()}
+function clearLocal(){try{localStorage.removeItem(STORAGE_KEY)}catch(e){}}
+function updateSaveStatus(){
+  const a=$("saveStatus"),b=$("saveStatusDetail");if(!a||!b)return;
+  if(!navigator.onLine){a.textContent="🟠 Офлайн · сохранено на устройстве";b.textContent="Можно продолжать матч без интернета. Данные останутся на этом телефоне.";return}
+  if(S.matchOver&&S.savedMatchId){a.textContent="☁️ Синхронизировано";b.textContent="Матч сохранён на устройстве и в Supabase.";return}
+  a.textContent="🟢 Сохранено на устройстве";b.textContent="Каждое действие записывается локально. История синхронизируется с Supabase при наличии интернета."
+}
+function formatSetScore(i){
+  const g=S.setScores?.[i];if(!g)return "";let t=g[0]+"–"+g[1],tb=S.tieBreakScores?.[i];
+  if(tb&&Math.max(g[0],g[1])===7&&Math.min(g[0],g[1])===6)t+=" ("+tb[0]+"–"+tb[1]+")";
+  return t
+}
+function fullScore(){return (S.setScores||[]).map((_,i)=>formatSetScore(i)).filter(Boolean).join(", ")}
+function showResumeOffer(){
+  let raw=null;try{raw=localStorage.getItem(STORAGE_KEY)}catch(e){}if(!raw)return;
+  try{const x=normalizeState(JSON.parse(raw));if(!hasRecoverableMatch(x))return;
+    S=x;$("resumeText").textContent=S.names[0]+" vs "+S.names[1]+" · сеты "+S.set[0]+"–"+S.set[1]+", геймы "+S.game[0]+"–"+S.game[1]+(S.tb?", тай-брейк "+S.pt[0]+"–"+S.pt[1]:"");
+    $("resumeBox").classList.remove("hidden");
+  }catch(e){console.error("Restore preview failed",e)}
+}
+function resumeSavedMatch(){
+  $("setupScreen").classList.add("hidden");$("serverScreen").classList.add("hidden");$("matchScreen").classList.remove("hidden");render();updateSaveStatus();loadHistory();
+}
+function discardSavedMatch(){if(!confirm("Удалить локально сохранённый незавершённый матч?"))return;clearLocal();S=defaultState();$("resumeBox").classList.add("hidden")}
 function isBP(server){if(S.tb)return false;let r=1-server,rp=S.pt[r],sp=S.pt[server];if(rp<3)return false;if(rp===3&&sp<=2)return true;return rp>=3&&sp>=3&&rp===sp+1}
 function inc(o,k){o[k]=(o[k]||0)+1}
 function firstIn(){if(S.matchOver||S.marked)return;snapshot();S.marked=true;S.sn=1;save()}
@@ -260,6 +317,8 @@ function statsTable(){
   <tr><td>Double Faults</td><td>${s[0].df}</td><td>${s[1].df}</td></tr>
   <tr><td>Winners FH/BH</td><td>${s[0].fhw}/${s[0].bhw}</td><td>${s[1].fhw}/${s[1].bhw}</td></tr>
   <tr><td>UE FH/BH</td><td>${s[0].fhue}/${s[0].bhue}</td><td>${s[1].fhue}/${s[1].bhue}</td></tr>
+  <tr><td>Forced Errors Won</td><td>${s[0].fe}</td><td>${s[1].fe}</td></tr>
+  <tr><td>Net Points Won</td><td>${s[0].net}</td><td>${s[1].net}</td></tr>
   <tr><td>Break Points Saved</td><td>${s[0].bps}/${s[0].bpf}</td><td>${s[1].bps}/${s[1].bpf}</td></tr>
   <tr><td>Return vs 1st Won %</td><td>${pct(s[0].r1w,s[0].r1p)}</td><td>${pct(s[1].r1w,s[1].r1p)}</td></tr>
   <tr><td>Return vs 2nd Won %</td><td>${pct(s[0].r2w,s[0].r2p)}</td><td>${pct(s[1].r2w,s[1].r2p)}</td></tr></table>`
@@ -326,13 +385,16 @@ function render(){
   $("kpiBox").innerHTML=`<div class="kpi"><div class="small">Points won</div><div class="v">${a.ptsWon} – ${b.ptsWon}</div></div>
   <div class="kpi"><div class="small">1st Serve %</div><div class="v">${pct(a.fi,a.sp)} – ${pct(b.fi,b.sp)}</div></div>
   <div class="kpi"><div class="small">2nd Serve Won</div><div class="v">${pct(a.sw,a.sp2)} – ${pct(b.sw,b.sp2)}</div></div>
-  <div class="kpi"><div class="small">Winners / UE</div><div class="v">${a.fhw+a.bhw}/${a.fhue+a.bhue} – ${b.fhw+b.bhw}/${b.fhue+b.bhue}</div></div>`;
+  <div class="kpi"><div class="small">Winners / UE</div><div class="v">${a.fhw+a.bhw}/${a.fhue+a.bhue} – ${b.fhw+b.bhw}/${b.fhue+b.bhue}</div></div>
+  <div class="kpi"><div class="small">Forced Errors Won</div><div class="v">${a.fe} – ${b.fe}</div></div>
+  <div class="kpi"><div class="small">Net Points Won</div><div class="v">${a.net} – ${b.net}</div></div>`;
   $("summary").innerHTML=conclusions().map(x=>"<li>"+x+"</li>").join("");
 
   $("matchOverCard").classList.toggle("hidden",!S.matchOver);
   if(S.matchOver){
     const w=S.set[0]>S.set[1]?0:1;
-    $("matchOverText").textContent="🏆 Победитель: "+S.names[w]+" · "+S.set[0]+"–"+S.set[1]+" по сетам";
+    const fs=fullScore();
+    $("matchOverText").textContent="🏆 Победитель: "+S.names[w]+" · "+S.set[0]+"–"+S.set[1]+" по сетам"+(fs?" · "+fs:"");
   }
 
   drawChart()
@@ -367,7 +429,7 @@ async function saveCompletedMatch(){
     }
 
     S.savedMatchId=data?.id||null;
-    try{localStorage.setItem("TennisTrackerOnline",JSON.stringify(S))}catch(e){}
+    saveLocalOnly();updateSaveStatus();
     loadHistory();
   }catch(e){
     console.error("Supabase save error",e);
@@ -387,7 +449,9 @@ async function loadHistory(){
     box.innerHTML=data.map(m=>{
       const sc=m.sets?.score||["?","?"];
       const d=m.created_at?new Date(m.created_at).toLocaleString():"";
-      return `<div class="historyItem"><div class="historyTop"><div><div class="historyScore">${esc(m.player1)} ${esc(sc[0])}–${esc(sc[1])} ${esc(m.player2)}</div><div class="muted">${esc(d)}</div></div><button class="danger" data-history-delete="${m.id}" style="min-height:38px;padding:7px 10px">Удалить</button></div></div>`
+      const gs=Array.isArray(m.sets?.set_scores)?m.sets.set_scores:[];const tbs=Array.isArray(m.sets?.tie_break_scores)?m.sets.tie_break_scores:[];
+      const detail=gs.map((g,i)=>{if(!Array.isArray(g))return "";let z=g[0]+"–"+g[1],tb=tbs[i];if(Array.isArray(tb)&&Math.max(g[0],g[1])===7&&Math.min(g[0],g[1])===6)z+=" ("+tb[0]+"–"+tb[1]+")";return z}).filter(Boolean).join(", ");
+      return `<div class="historyItem"><div class="historyTop"><div><div class="historyScore">${esc(m.player1)} ${esc(sc[0])}–${esc(sc[1])} ${esc(m.player2)}</div><div class="muted">${esc(detail?detail+" · "+d:d)}</div></div><button class="danger" data-history-delete="${m.id}" style="min-height:38px;padding:7px 10px">Удалить</button></div></div>`
     }).join("");
     box.querySelectorAll("[data-history-delete]").forEach(b=>b.onclick=()=>deleteHistoryMatch(b.dataset.historyDelete));
   }catch(e){box.textContent="Не удалось загрузить историю: "+e.message}
@@ -409,17 +473,18 @@ function exportCSV(){
   a.href=url;a.download="tennis_match.csv";document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url)
 }
 function start(){
-  S=defaultState();
+  clearLocal();S=defaultState();
   S.names=[$("setupP1").value.trim()||"Player 1",$("setupP2").value.trim()||"Player 2"];
   $("serveP1Btn").textContent=S.names[0]+" подаёт";
   $("serveP2Btn").textContent=S.names[1]+" подаёт";
   $("setupScreen").classList.add("hidden");
   $("serverScreen").classList.remove("hidden")
 }
-function chooseServer(i){S.srv=i;$("serverScreen").classList.add("hidden");$("matchScreen").classList.remove("hidden");save()}
+function chooseServer(i){S.srv=i;S.started=true;$("serverScreen").classList.add("hidden");$("matchScreen").classList.remove("hidden");save()}
 function newMatch(){
   if(confirm("Начать новый матч?")){
-    S=defaultState();
+    clearLocal();S=defaultState();
+    $("resumeBox").classList.add("hidden");
     $("matchScreen").classList.add("hidden");
     $("serverScreen").classList.add("hidden");
     $("setupScreen").classList.remove("hidden")
@@ -439,8 +504,13 @@ $("changeServerBtn").onclick=changeServer;
 $("exportBtn").onclick=exportCSV;
 $("newMatchBtn").onclick=newMatch;
 $("refreshHistoryBtn").onclick=loadHistory;
+$("resumeBtn").onclick=resumeSavedMatch;
+$("discardResumeBtn").onclick=discardSavedMatch;
 document.querySelectorAll("[data-evt]").forEach(b=>b.onclick=()=>finish(b.dataset.evt));
 document.querySelectorAll("[data-rally]").forEach(b=>b.onclick=()=>markRally(b.dataset.rally));
+window.addEventListener("online",()=>{updateSaveStatus();if(S.matchOver&&!S.savedMatchId)saveCompletedMatch();loadHistory()});
+window.addEventListener("offline",updateSaveStatus);
+showResumeOffer();
 window.loadTennisHistory=loadHistory;
 })();
 </script>
@@ -450,6 +520,7 @@ window.loadTennisHistory=loadHistory;
 const SUPABASE_URL = 'https://mfaptgcrzdqjjttfwuih.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_XmRbELPcRrzbAchxQ2MaXA_s6j4U_jh';
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+if('serviceWorker' in navigator){navigator.serviceWorker.register('./sw.js').catch(e=>console.warn('Service worker registration failed',e));}
 setTimeout(()=>{ if(typeof window.loadTennisHistory==="function") window.loadTennisHistory(); },0);
 </script>
 </body>

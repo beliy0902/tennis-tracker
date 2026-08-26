@@ -166,7 +166,7 @@ function finish(type){
   if(S.matchOver)return;
   snapshot();ensureSet();
   let sv=S.srv,rc=1-sv,w=null,bp=isBP(sv),serv=S.st[sv],ret=S.st[rc],ss=S.setStats[S.curSet][sv],sr=S.setStats[S.curSet][rc];
-  if(!S.marked)S.marked=true;
+  if(type==="df"){S.marked=true;S.sn=2}else if(!S.marked)S.marked=true;
   [serv,ss].forEach(x=>{inc(x,"sp");if(S.sn===1)inc(x,"fi");else inc(x,"sp2")});
   [ret,sr].forEach(x=>{if(S.sn===1)inc(x,"r1p");else inc(x,"r2p")});
   if(bp)[serv,ss].forEach(x=>inc(x,"bpf"));

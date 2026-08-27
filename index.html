@@ -400,7 +400,7 @@ function render(){
   drawChart()
 }
 
-async const PENDING_MATCHES_KEY = "tennis_pending_matches_v1";
+const PENDING_MATCHES_KEY = "tennis_pending_matches_v1";
 
 function getPendingMatches(){
 
@@ -683,10 +683,19 @@ $("resumeBtn").onclick=resumeSavedMatch;
 $("discardResumeBtn").onclick=discardSavedMatch;
 document.querySelectorAll("[data-evt]").forEach(b=>b.onclick=()=>finish(b.dataset.evt));
 document.querySelectorAll("[data-rally]").forEach(b=>b.onclick=()=>markRally(b.dataset.rally));
-window.addEventListener("online",()=>{updateSaveStatus();if(S.matchOver&&!S.savedMatchId)saveCompletedMatch();loadHistory()});
+window.addEventListener("online",()=>{
+
+  updateSaveStatus();
+
+  syncPendingMatches();
+
+  loadHistory();
+
+});
 window.addEventListener("offline",updateSaveStatus);
 showResumeOffer();
 window.loadTennisHistory=loadHistory;
+window.syncPendingMatches=syncPendingMatches;
 })();
 </script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -696,7 +705,13 @@ const SUPABASE_URL = 'https://mfaptgcrzdqjjttfwuih.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_XmRbELPcRrzbAchxQ2MaXA_s6j4U_jh';
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 if('serviceWorker' in navigator){navigator.serviceWorker.register('./sw.js').catch(e=>console.warn('Service worker registration failed',e));}
-setTimeout(()=>{ if(typeof window.loadTennisHistory==="function") window.loadTennisHistory(); },0);
+setTimeout(()=>{
+
+  if(typeof window.syncPendingMatches==="function") window.syncPendingMatches();
+
+  if(typeof window.loadTennisHistory==="function") window.loadTennisHistory();
+
+},0);
 </script>
 </body>
 </html>

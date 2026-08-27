@@ -566,7 +566,17 @@ async function syncPendingMatches(){
 
       }
 
-    }catch(e){
+if(syncId && S.pendingSyncId === syncId){
+
+  S.savedMatchId = syncId;
+
+  S.pendingSyncId = null;
+
+  saveLocalOnly();
+
+}
+
+}catch(e){
 
       console.error("Pending match sync error",e);
 

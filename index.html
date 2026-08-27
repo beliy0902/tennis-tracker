@@ -400,41 +400,216 @@ function render(){
   drawChart()
 }
 
-async function saveCompletedMatch(){
-  if(!S.matchOver||S.savedMatchId)return;
-  if(typeof db==="undefined")return;
-  try{
-    const payload={
-      player1:S.names[0],
-      player2:S.names[1],
-      sets:{
-        score:S.set,
-        set_scores:S.setScores,
-        tie_break_scores:S.tieBreakScores,
-        stats:S.setStats,
-        total_stats:S.st,
-        log:S.log
-      }
-    };
-    const {data,error}=await db.from("matches").insert(payload).select("id").single();
-    if(error)throw error;
+async const PENDING_MATCHES_KEY = "tennis_pending_matches_v1";
 
-    if(!S.matchOver){
-      if(data?.id){
-        const {error:delError}=await db.from("matches").delete().eq("id",data.id);
-        if(delError)console.error("Could not remove stale match after UNDO",delError);
+function getPendingMatches(){
+
+  try{
+
+    return JSON.parse(localStorage.getItem(PENDING_MATCHES_KEY) || "[]");
+
+  }catch(e){
+
+    return [];
+
+  }
+
+}
+
+function setPendingMatches(items){
+
+  localStorage.setItem(PENDING_MATCHES_KEY, JSON.stringify(items));
+
+}
+
+function makeSyncId(){
+
+  return Date.now().toString(36) + "-" + Math.random().toString(36).slice(2);
+
+}
+
+function addPendingMatch(payload){
+
+  const items = getPendingMatches();
+
+  const syncId = payload.sets?.sync_id || makeSyncId();
+
+  payload.sets = {
+
+    ...payload.sets,
+
+    sync_id: syncId
+
+  };
+
+  if(!items.some(x => x.sets?.sync_id === syncId)){
+
+    items.push(payload);
+
+    setPendingMatches(items);
+
+  }
+
+  return syncId;
+
+}
+
+async function syncPendingMatches(){
+
+  if(typeof db === "undefined" || !navigator.onLine) return;
+
+  const items = getPendingMatches();
+
+  if(!items.length) return;
+
+  const remaining = [];
+
+  for(const payload of items){
+
+    try{
+
+      const syncId = payload.sets?.sync_id;
+
+      // Проверяем, не был ли этот матч уже записан раньше.
+
+      let alreadySaved = false;
+
+      if(syncId){
+
+        const {data:existing,error:checkError} = await db
+
+          .from("matches")
+
+          .select("id")
+
+          .contains("sets",{sync_id:syncId})
+
+          .limit(1);
+
+        if(checkError) throw checkError;
+
+        alreadySaved = Array.isArray(existing) && existing.length > 0;
+
       }
-      loadHistory();
-      return;
+
+      if(!alreadySaved){
+
+        const {error} = await db
+
+          .from("matches")
+
+          .insert(payload);
+
+        if(error) throw error;
+
+      }
+
+    }catch(e){
+
+      console.error("Pending match sync error",e);
+
+      remaining.push(payload);
+
     }
 
-    S.savedMatchId=data?.id||null;
-    saveLocalOnly();updateSaveStatus();
-    loadHistory();
-  }catch(e){
-    console.error("Supabase save error",e);
-    alert("Матч завершён, но не удалось сохранить его в Supabase: "+e.message)
   }
+
+  setPendingMatches(remaining);
+
+  if(remaining.length === 0){
+
+    updateSaveStatus();
+
+    loadHistory();
+
+  }
+
+}
+
+async function saveCompletedMatch(){
+
+  if(!S.matchOver || S.savedMatchId) return;
+
+  const payload = {
+
+    player1:S.names[0],
+
+    player2:S.names[1],
+
+    sets:{
+
+      score:S.set,
+
+      set_scores:S.setScores,
+
+      tie_break_scores:S.tieBreakScores,
+
+      stats:S.setStats,
+
+      total_stats:S.st,
+
+      log:S.log
+
+    }
+
+  };
+
+  // Сначала обязательно сохраняем завершённый матч локально.
+
+  const syncId = addPendingMatch(payload);
+
+  saveLocalOnly();
+
+  updateSaveStatus();
+
+  if(typeof db === "undefined" || !navigator.onLine){
+
+    alert(
+
+      "Матч завершён и сохранён на устройстве. " +
+
+      "Он автоматически синхронизируется с Supabase после появления интернета."
+
+    );
+
+    return;
+
+  }
+
+  try{
+
+    await syncPendingMatches();
+
+    const stillPending = getPendingMatches()
+
+      .some(x => x.sets?.sync_id === syncId);
+
+    if(!stillPending){
+
+      S.savedMatchId = syncId;
+
+      saveLocalOnly();
+
+      updateSaveStatus();
+
+      loadHistory();
+
+    }
+
+  }catch(e){
+
+    console.error("Supabase save error",e);
+
+    alert(
+
+      "Матч завершён и сохранён на устройстве. " +
+
+      "Синхронизация с Supabase будет повторена автоматически."
+
+    );
+
+  }
+
 }
 
 function esc(x){return String(x??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}

@@ -304,28 +304,67 @@ function markRally(r){if(S.matchOver||S.last<0)return;snapshot();S.log[S.last].r
 function changeServer(){if(S.matchOver)return;snapshot();S.srv=1-S.srv;S.sn=1;S.marked=false;save()}
 
 async function undo(){
+
   if(!S.hist.length)return;
 
   const savedId=S.savedMatchId;
+
+  const pendingId=S.pendingSyncId;
+
   const h=S.hist[S.hist.length-1];
+
   const restored=JSON.parse(h);
+
   const newHist=S.hist.slice(0,-1);
 
   if(savedId && typeof db!=="undefined"){
+
     try{
-      const {error}=await db.from("matches").delete().contains("sets",{sync_id:savedId});
+
+      const {error}=await db
+
+        .from("matches")
+
+        .delete()
+
+        .contains("sets",{sync_id:savedId});
+
       if(error)throw error;
+
     }catch(e){
+
       alert("Не удалось удалить завершённый матч из Supabase: "+e.message);
+
       return;
+
     }
+
+  }
+
+  if(pendingId){
+
+    const remaining=getPendingMatches().filter(
+
+      x=>x.sets?.sync_id!==pendingId
+
+    );
+
+    setPendingMatches(remaining);
+
   }
 
   S=restored;
+
   S.hist=newHist;
+
   S.savedMatchId=null;
+
+  S.pendingSyncId=null;
+
   save();
+
   if(savedId)loadHistory();
+
 }
 
 function selectSet(i){S.selectedSet=i;save()}

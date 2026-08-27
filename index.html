@@ -186,8 +186,31 @@ function normalizeState(x){
   return z
 }
 function hasRecoverableMatch(x){
-  if(!x||x.matchOver)return false;
-  return !!(x.started||x.log?.length||x.hist?.length||x.marked||x.tb||x.set?.some(Boolean)||x.game?.some(Boolean)||x.pt?.some(Boolean));
+
+  if(!x)return false;
+
+  return !!(
+
+    x.started ||
+
+    x.matchOver ||
+
+    x.log?.length ||
+
+    x.hist?.length ||
+
+    x.marked ||
+
+    x.tb ||
+
+    x.set?.some(Boolean) ||
+
+    x.game?.some(Boolean) ||
+
+    x.pt?.some(Boolean)
+
+  );
+
 }
 function saveLocalOnly(){try{localStorage.setItem(STORAGE_KEY,JSON.stringify(S))}catch(e){console.error("Local save failed",e)}}
 function save(){saveLocalOnly();render();updateSaveStatus()}

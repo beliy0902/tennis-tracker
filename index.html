@@ -189,11 +189,15 @@ function hasRecoverableMatch(x){
 
   if(!x)return false;
 
+  if(x.matchOver){
+
+    return !x.savedMatchId;
+
+  }
+
   return !!(
 
     x.started ||
-
-    x.matchOver ||
 
     x.log?.length ||
 

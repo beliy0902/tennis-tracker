@@ -893,7 +893,7 @@ saveLocalOnly();
 
 } 
 async function deleteHistoryMatch(id){
-  if(!confirm("Удалить выбранный матч из статистики?"))return;
+  if(!confirm("Удалить этот матч из истории полностью? Это действие нельзя отменить."))return;
   try{
     const {error}=await db.from("matches").delete().eq("id",id);
     if(error)throw error;

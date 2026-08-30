@@ -577,7 +577,7 @@ if(syncId && S.pendingSyncId === syncId){
   S.pendingSyncId = null;
 
   saveLocalOnly();
-
+$("resumeBox")?.classList.add("hidden");
 }
 
 }catch(e){

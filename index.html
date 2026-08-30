@@ -697,16 +697,95 @@ async function loadHistory(){
     const {data,error}=await db.from("matches").select("id,created_at,player1,player2,sets").order("created_at",{ascending:false}).limit(50);
     if(error)throw error;
     if(!data?.length){box.textContent="Сохранённых матчей пока нет.";return}
-    box.innerHTML=data.map(m=>{
+    box.innerHTML=data.map((m,index)=>{
+      const isLatest = index===0;
       const sc=m.sets?.score||["?","?"];
       const d=m.created_at?new Date(m.created_at).toLocaleString():"";
       const gs=Array.isArray(m.sets?.set_scores)?m.sets.set_scores:[];const tbs=Array.isArray(m.sets?.tie_break_scores)?m.sets.tie_break_scores:[];
       const detail=gs.map((g,i)=>{if(!Array.isArray(g))return "";let z=g[0]+"–"+g[1],tb=tbs[i];if(Array.isArray(tb)&&Math.max(g[0],g[1])===7&&Math.min(g[0],g[1])===6)z+=" ("+tb[0]+"–"+tb[1]+")";return z}).filter(Boolean).join(", ");
-      return `<div class="historyItem"><div class="historyTop"><div><div class="historyScore">${esc(m.player1)} ${esc(sc[0])}–${esc(sc[1])} ${esc(m.player2)}</div><div class="muted">${esc(detail?detail+" · "+d:d)}</div></div><button class="danger" data-history-delete="${m.id}" style="min-height:38px;padding:7px 10px">Удалить</button></div></div>`
+      return `<div class="historyItem"><div class="historyTop"><div><div class="historyScore">${esc(m.player1)} ${esc(sc[0])}–${esc(sc[1])} ${esc(m.player2)}</div><div class="muted">${esc(detail?detail+" · "+d:d)}</div></div><div style="display:flex;gap:6px">${isLatest?`<button data-history-edit="${m.id}" style="min-height:38px;padding:7px 10px">Исправить</button>`:""}<button class="danger" data-history-delete="${m.id}" style="min-height:38px;padding:7px 10px">Удалить</button></div></div></div>`
     }).join("");
     box.querySelectorAll("[data-history-delete]").forEach(b=>b.onclick=()=>deleteHistoryMatch(b.dataset.historyDelete));
+    box.querySelectorAll("[data-history-edit]").forEach(b=>b.onclick=()=>editLastMatch(b.dataset.historyEdit));
   }catch(e){box.textContent="Не удалось загрузить историю: "+e.message}
 }
+ async function editLastMatch(id){
+
+  if(!confirm("Исправить последний завершённый матч? Матч будет удалён из истории и открыт для исправления."))return;
+
+  try{
+
+    const {data,error}=await db
+
+      .from("matches")
+
+      .select("id,player1,player2,sets")
+
+      .eq("id",id)
+
+      .single();
+
+    if(error)throw error;
+
+    const {error:deleteError}=await db
+
+      .from("matches")
+
+      .delete()
+
+      .eq("id",id);
+
+    if(deleteError)throw deleteError;
+
+    S=defaultState();
+
+    S.names=[data.player1,data.player2];
+
+    S.set=Array.isArray(data.sets?.score)?data.sets.score:[0,0];
+
+    S.setScores=Array.isArray(data.sets?.set_scores)?data.sets.set_scores:[];
+
+    S.tieBreakScores=Array.isArray(data.sets?.tie_break_scores)?data.sets.tie_break_scores:[];
+
+    S.setStats=Array.isArray(data.sets?.stats)?data.sets.stats:[[emptyStats(),emptyStats()]];
+
+    S.st=Array.isArray(data.sets?.total_stats)?data.sets.total_stats:[emptyStats(),emptyStats()];
+
+    S.log=Array.isArray(data.sets?.log)?data.sets.log:[];
+
+    S.matchOver=true;
+
+    S.started=true;
+
+    S.savedMatchId=null;
+
+    S.pendingSyncId=null;
+
+    S.curSet=Math.max(0,S.setStats.length-1);
+
+    S.selectedSet=S.curSet;
+
+    saveLocalOnly();
+
+    $("setupScreen").classList.add("hidden");
+
+    $("serverScreen").classList.add("hidden");
+
+    $("matchScreen").classList.remove("hidden");
+
+    render();
+
+    updateSaveStatus();
+
+    loadHistory();
+
+  }catch(e){
+
+    alert("Не удалось открыть матч для исправления: "+e.message);
+
+  }
+
+} 
 async function deleteHistoryMatch(id){
   if(!confirm("Удалить выбранный матч из статистики?"))return;
   try{

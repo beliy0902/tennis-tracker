@@ -90,7 +90,31 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
     </div>
 
   </div>
+<div class="card">
 
+  <div class="section">Управление матчами</div>
+
+  <button id="managePlayerMatchesBtn" style="width:100%">
+
+    🗂 ВЫБРАТЬ МАТЧИ
+
+  </button>
+
+  <div id="playerMatchesManager" class="hidden" style="margin-top:12px">
+
+    <div id="playerMatchesList" class="small"></div>
+
+    <div class="spacer"></div>
+
+    <button id="deleteSelectedMatchesBtn" class="danger" style="width:100%">
+
+      🗑 УДАЛИТЬ ВЫБРАННЫЕ
+
+    </button>
+
+  </div>
+
+</div>
   <div class="card">
 
     <button id="backFromStatsBtn" style="width:100%">
@@ -894,6 +918,191 @@ function newMatch(){
     $("setupScreen").classList.remove("hidden")
   }
 }
+  async function loadPlayerMatchesManager(){
+
+  const name=$("statsPlayerName").value.trim();
+
+  const manager=$("playerMatchesManager");
+
+  const box=$("playerMatchesList");
+
+  if(!name){
+
+    alert("Введите имя игрока.");
+
+    return;
+
+  }
+
+  manager.classList.remove("hidden");
+
+  box.textContent="Загрузка матчей…";
+
+  try{
+
+    const {data,error}=await db
+
+      .from("matches")
+
+      .select("id,created_at,player1,player2,winner,score,sets")
+
+      .order("created_at",{ascending:false});
+
+    if(error)throw error;
+
+    const n=name.toLowerCase();
+
+    const matches=(data||[]).filter(m=>
+
+      String(m.player1||"").toLowerCase()===n ||
+
+      String(m.player2||"").toLowerCase()===n
+
+    );
+
+    if(!matches.length){
+
+      box.textContent="Матчи этого игрока не найдены.";
+
+      return;
+
+    }
+
+    box.innerHTML=matches.map(m=>{
+
+      const opponent=
+
+        String(m.player1||"").toLowerCase()===n
+
+          ? m.player2
+
+          : m.player1;
+
+      const score=
+
+        m.score ||
+
+        (Array.isArray(m.sets?.set_scores)
+
+          ? m.sets.set_scores.map(x=>x[0]+"–"+x[1]).join(", ")
+
+          : "");
+
+      const date=m.created_at
+
+        ? new Date(m.created_at).toLocaleString()
+
+        : "";
+
+      return `
+
+        <label style="
+
+          display:flex;
+
+          gap:10px;
+
+          align-items:flex-start;
+
+          padding:10px 0;
+
+          border-bottom:1px solid #eee
+
+        ">
+
+          <input
+
+            type="checkbox"
+
+            data-delete-match-id="${m.id}"
+
+            style="width:22px;height:22px;flex:0 0 22px"
+
+          >
+
+          <span>
+
+            <strong>${esc(name)} vs ${esc(opponent)}</strong><br>
+
+            ${esc(score)}<br>
+
+            <span class="muted">${esc(date)}</span>
+
+          </span>
+
+        </label>
+
+      `;
+
+    }).join("");
+
+  }catch(e){
+
+    box.textContent="Не удалось загрузить матчи: "+e.message;
+
+  }
+
+}
+
+async function deleteSelectedPlayerMatches(){
+
+  const boxes=[
+
+    ...document.querySelectorAll(
+
+      '#playerMatchesList [data-delete-match-id]:checked'
+
+    )
+
+  ];
+
+  if(!boxes.length){
+
+    alert("Выберите хотя бы один матч.");
+
+    return;
+
+  }
+
+  const ids=boxes.map(x=>Number(x.dataset.deleteMatchId));
+
+  if(!confirm(
+
+    "Удалить выбранные матчи ("+ids.length+")? Это действие нельзя отменить."
+
+  )) return;
+
+  try{
+
+    const {error}=await db
+
+      .from("matches")
+
+      .delete()
+
+      .in("id",ids);
+
+    if(error)throw error;
+
+    alert("Удалено матчей: "+ids.length);
+
+    await loadPlayerMatchesManager();
+
+    await loadPlayerStats();
+
+    if(typeof loadHistory==="function"){
+
+      loadHistory();
+
+    }
+
+  }catch(e){
+
+    alert("Не удалось удалить матчи: "+e.message);
+
+  }
+
+}
   async function loadPlayerStats(){
 
   const name=$("statsPlayerName").value.trim();
@@ -1197,6 +1406,9 @@ function newMatch(){
 }
 $("startBtn").onclick=start;
   $("loadPlayerStatsBtn").onclick=loadPlayerStats;
+  $("managePlayerMatchesBtn").onclick=loadPlayerMatchesManager;
+
+$("deleteSelectedMatchesBtn").onclick=deleteSelectedPlayerMatches;
   $("playerStatsBtn").onclick=()=>{
 
   $("setupScreen").classList.add("hidden");

@@ -624,7 +624,9 @@ async function saveCompletedMatch(){
 
       total_stats:S.st,
 
-      log:S.log
+      log:S.log,
+      server:S.srv,
+      edit_snapshot:S.hist.length?JSON.parse(S.hist[S.hist.length-1]):null
 
     }
 
@@ -727,6 +729,16 @@ async function loadHistory(){
 
     if(error)throw error;
 
+    const editSnapshot=data.sets?.edit_snapshot;
+
+if(!editSnapshot){
+
+  alert("Этот матч был сохранён до появления функции исправления и не может быть восстановлен по последнему очку.");
+
+  return;
+
+}
+
     const {error:deleteError}=await db
 
       .from("matches")
@@ -737,35 +749,23 @@ async function loadHistory(){
 
     if(deleteError)throw deleteError;
 
-    S=defaultState();
+    S=normalizeState(editSnapshot);
 
-    S.names=[data.player1,data.player2];
+S.matchOver=false;
 
-    S.set=Array.isArray(data.sets?.score)?data.sets.score:[0,0];
+S.started=true;
 
-    S.setScores=Array.isArray(data.sets?.set_scores)?data.sets.set_scores:[];
+S.savedMatchId=null;
+    
+S.pendingSyncId=null;
 
-    S.tieBreakScores=Array.isArray(data.sets?.tie_break_scores)?data.sets.tie_break_scores:[];
+S.marked=false;
 
-    S.setStats=Array.isArray(data.sets?.stats)?data.sets.stats:[[emptyStats(),emptyStats()]];
+S.sn=1;
 
-    S.st=Array.isArray(data.sets?.total_stats)?data.sets.total_stats:[emptyStats(),emptyStats()];
+S.hist=[];
 
-    S.log=Array.isArray(data.sets?.log)?data.sets.log:[];
-
-    S.matchOver=true;
-
-    S.started=true;
-
-    S.savedMatchId=null;
-
-    S.pendingSyncId=null;
-
-    S.curSet=Math.max(0,S.setStats.length-1);
-
-    S.selectedSet=S.curSet;
-
-    saveLocalOnly();
+saveLocalOnly();
 
     $("setupScreen").classList.add("hidden");
 

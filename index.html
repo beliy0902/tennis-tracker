@@ -606,31 +606,57 @@ async function saveCompletedMatch(){
 
   if(!S.matchOver || S.savedMatchId) return;
 
-  const payload = {
+  const winnerIndex = S.set[0] > S.set[1] ? 0 : 1;
 
-    player1:S.names[0],
+const winnerName = S.names[winnerIndex];
 
-    player2:S.names[1],
+const matchScore = fullScore();
 
-    sets:{
+const payload = {
 
-      score:S.set,
+  player1:S.names[0],
 
-      set_scores:S.setScores,
+  player2:S.names[1],
 
-      tie_break_scores:S.tieBreakScores,
+  winner:winnerName,
 
-      stats:S.setStats,
+  score:matchScore,
 
-      total_stats:S.st,
+  stats:{
 
-      log:S.log,
-      server:S.srv,
-      edit_snapshot:S.hist.length?JSON.parse(S.hist[S.hist.length-1]):null
+    player1:S.st[0],
 
-    }
+    player2:S.st[1]
 
-  };
+  },
+
+  points:S.log,
+
+  sets:{
+
+    score:S.set,
+
+    set_scores:S.setScores,
+
+    tie_break_scores:S.tieBreakScores,
+
+    stats:S.setStats,
+
+    total_stats:S.st,
+
+    log:S.log,
+
+    server:S.srv,
+
+    edit_snapshot:S.hist.length
+
+      ? JSON.parse(S.hist[S.hist.length-1])
+
+      : null
+
+  }
+
+};
 
   // Сначала обязательно сохраняем завершённый матч локально.
 

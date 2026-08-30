@@ -122,6 +122,26 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
 
 </div>
 
+  <div id="selectedMatchDetails" class="hidden" style="margin-top:14px">
+
+  <div class="section" id="selectedMatchTitle">
+
+    Статистика матча
+
+  </div>
+
+  <div id="selectedMatchContent"></div>
+
+  <div class="spacer"></div>
+
+  <button id="closeMatchDetailsBtn" style="width:100%">
+
+    ← ЗАКРЫТЬ МАТЧ
+
+  </button>
+
+</div>
+
 </div>
   <div class="card">
 
@@ -962,7 +982,7 @@ async function loadPlayerMatchesManager(){
 
       .from("matches")
 
-      .select("id,created_at,player1,player2,winner,score,sets")
+      .select("id,created_at,player1,player2,winner,score,sets,stats,points")
 
       .order("created_at",{ascending:false});
 
@@ -1052,6 +1072,22 @@ async function loadPlayerMatchesManager(){
 
             <span class="muted">${esc(date)}</span>
 
+            <br><br>
+
+<button
+
+  type="button"
+
+  data-open-match-id="${m.id}"
+
+  style="min-height:38px;padding:7px 12px"
+
+>
+
+  📊 ОТКРЫТЬ
+
+</button>
+
           </span>
 
         </label>
@@ -1060,6 +1096,12 @@ async function loadPlayerMatchesManager(){
 
     }).join("");
 
+    box.querySelectorAll("[data-open-match-id]").forEach(btn=>{
+
+  btn.onclick=()=>openPlayerMatchDetails(btn.dataset.openMatchId);
+
+});
+
   }catch(e){
 
     box.textContent="Не удалось загрузить матчи: "+e.message;
@@ -1067,7 +1109,253 @@ async function loadPlayerMatchesManager(){
   }
 
 }
+async function openPlayerMatchDetails(matchId){
 
+  const match=playerStatsMatchesCache.find(
+
+    m=>Number(m.id)===Number(matchId)
+
+  );
+
+  if(!match){
+
+    alert("Матч не найден.");
+
+    return;
+
+  }
+
+  const details=$("selectedMatchDetails");
+
+  const title=$("selectedMatchTitle");
+
+  const content=$("selectedMatchContent");
+
+  if(!details || !title || !content){
+
+    alert("Блок статистики матча не найден.");
+
+    return;
+
+  }
+
+  const p1=String(match.player1||"Игрок 1");
+
+  const p2=String(match.player2||"Игрок 2");
+
+  const date=match.created_at
+
+    ? new Date(match.created_at).toLocaleString("ru-RU")
+
+    : "—";
+
+  const score=match.score || "—";
+
+  const winner=match.winner || "—";
+
+  let st1=null;
+
+  let st2=null;
+
+  if(match.stats && typeof match.stats==="object"){
+
+    st1=match.stats.player1 || null;
+
+    st2=match.stats.player2 || null;
+
+  }
+
+  if((!st1 || !st2) && Array.isArray(match.sets?.total_stats)){
+
+    st1=st1 || match.sets.total_stats[0];
+
+    st2=st2 || match.sets.total_stats[1];
+
+  }
+
+  st1=st1 || emptyStats();
+
+  st2=st2 || emptyStats();
+
+  const winners1=Number(st1.fhw||0)+Number(st1.bhw||0);
+
+  const winners2=Number(st2.fhw||0)+Number(st2.bhw||0);
+
+  const ue1=Number(st1.fhue||0)+Number(st1.bhue||0);
+
+  const ue2=Number(st2.fhue||0)+Number(st2.bhue||0);
+
+  title.textContent=`${p1} vs ${p2}`;
+
+  content.innerHTML=`
+
+    <div class="small">
+
+      ${esc(date)}
+
+    </div>
+
+    <div style="height:10px"></div>
+
+    <div class="kpis">
+
+      <div class="kpi">
+
+        <div class="small">Счёт</div>
+
+        <div class="v">${esc(score)}</div>
+
+      </div>
+
+      <div class="kpi">
+
+        <div class="small">Победитель</div>
+
+        <div class="v">${esc(winner)}</div>
+
+      </div>
+
+    </div>
+
+    <div style="height:14px"></div>
+
+    <table>
+
+      <tr>
+
+        <th>Показатель</th>
+
+        <th>${esc(p1)}</th>
+
+        <th>${esc(p2)}</th>
+
+      </tr>
+
+      <tr>
+
+        <td>Points won</td>
+
+        <td>${Number(st1.ptsWon||0)}</td>
+
+        <td>${Number(st2.ptsWon||0)}</td>
+
+      </tr>
+
+      <tr>
+
+        <td>1st Serve %</td>
+
+        <td>${pct(st1.fi,st1.sp)}</td>
+
+        <td>${pct(st2.fi,st2.sp)}</td>
+
+      </tr>
+
+      <tr>
+
+        <td>1st Serve Won %</td>
+
+        <td>${pct(st1.fw,st1.fi)}</td>
+
+        <td>${pct(st2.fw,st2.fi)}</td>
+
+      </tr>
+
+      <tr>
+
+        <td>2nd Serve Won %</td>
+
+        <td>${pct(st1.sw,st1.sp2)}</td>
+
+        <td>${pct(st2.sw,st2.sp2)}</td>
+
+      </tr>
+
+      <tr>
+
+        <td>Aces</td>
+
+        <td>${Number(st1.a||0)}</td>
+
+        <td>${Number(st2.a||0)}</td>
+
+      </tr>
+
+      <tr>
+
+        <td>Double Faults</td>
+
+        <td>${Number(st1.df||0)}</td>
+
+        <td>${Number(st2.df||0)}</td>
+
+      </tr>
+
+      <tr>
+
+        <td>Winners</td>
+
+        <td>${winners1}</td>
+
+        <td>${winners2}</td>
+
+      </tr>
+
+      <tr>
+
+        <td>Unforced Errors</td>
+
+        <td>${ue1}</td>
+
+        <td>${ue2}</td>
+
+      </tr>
+
+      <tr>
+
+        <td>Break Points Saved</td>
+
+        <td>${Number(st1.bps||0)}/${Number(st1.bpf||0)}</td>
+
+        <td>${Number(st2.bps||0)}/${Number(st2.bpf||0)}</td>
+
+      </tr>
+
+      <tr>
+
+        <td>Return vs 1st Won %</td>
+
+        <td>${pct(st1.r1w,st1.r1p)}</td>
+
+        <td>${pct(st2.r1w,st2.r1p)}</td>
+
+      </tr>
+
+      <tr>
+
+        <td>Return vs 2nd Won %</td>
+
+        <td>${pct(st1.r2w,st1.r2p)}</td>
+
+        <td>${pct(st2.r2w,st2.r2p)}</td>
+
+      </tr>
+
+    </table>
+
+  `;
+
+  details.classList.remove("hidden");
+
+  details.scrollIntoView({
+
+    behavior:"smooth",
+
+    block:"start"
+
+  });
+
+}
 async function savePlayerStatsSelection(){
 
   const boxes=[
@@ -1453,6 +1741,12 @@ $("startBtn").onclick=start;
   $("managePlayerMatchesBtn").onclick=loadPlayerMatchesManager;
 
 $("saveStatsSelectionBtn").onclick=savePlayerStatsSelection;
+
+  $("closeMatchDetailsBtn").onclick=()=>{
+
+  $("selectedMatchDetails").classList.add("hidden");
+
+};
   $("playerStatsBtn").onclick=()=>{
 
   $("setupScreen").classList.add("hidden");

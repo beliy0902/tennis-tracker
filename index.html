@@ -102,17 +102,25 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
 
   <div id="playerMatchesManager" class="hidden" style="margin-top:12px">
 
-    <div id="playerMatchesList" class="small"></div>
+  <div class="small" style="margin-bottom:10px">
 
-    <div class="spacer"></div>
+    ☑️ отмечен — матч учитывается в статистике.<br>
 
-    <button id="deleteSelectedMatchesBtn" class="danger" style="width:100%">
-
-      🗑 УДАЛИТЬ ВЫБРАННЫЕ
-
-    </button>
+    ⬜ снята галочка — матч остаётся в истории, но не учитывается.
 
   </div>
+
+  <div id="playerMatchesList" class="small"></div>
+
+  <div class="spacer"></div>
+
+  <button id="saveStatsSelectionBtn" class="primary" style="width:100%">
+
+    💾 СОХРАНИТЬ ВЫБОР
+
+  </button>
+
+</div>
 
 </div>
   <div class="card">
@@ -918,7 +926,9 @@ function newMatch(){
     $("setupScreen").classList.remove("hidden")
   }
 }
-  async function loadPlayerMatchesManager(){
+  let playerStatsMatchesCache=[];
+
+async function loadPlayerMatchesManager(){
 
   const name=$("statsPlayerName").value.trim();
 
@@ -929,6 +939,14 @@ function newMatch(){
   if(!name){
 
     alert("Введите имя игрока.");
+
+    return;
+
+  }
+
+  if(typeof db==="undefined"){
+
+    box.textContent="Supabase не подключён.";
 
     return;
 
@@ -959,6 +977,8 @@ function newMatch(){
       String(m.player2||"").toLowerCase()===n
 
     );
+
+    playerStatsMatchesCache=matches;
 
     if(!matches.length){
 
@@ -994,6 +1014,8 @@ function newMatch(){
 
         : "";
 
+      const included=m.sets?.include_in_stats!==false;
+
       return `
 
         <label style="
@@ -1014,7 +1036,9 @@ function newMatch(){
 
             type="checkbox"
 
-            data-delete-match-id="${m.id}"
+            data-stats-match-id="${m.id}"
+
+            ${included?"checked":""}
 
             style="width:22px;height:22px;flex:0 0 22px"
 
@@ -1044,13 +1068,13 @@ function newMatch(){
 
 }
 
-async function deleteSelectedPlayerMatches(){
+async function savePlayerStatsSelection(){
 
   const boxes=[
 
     ...document.querySelectorAll(
 
-      '#playerMatchesList [data-delete-match-id]:checked'
+      '#playerMatchesList [data-stats-match-id]'
 
     )
 
@@ -1058,47 +1082,61 @@ async function deleteSelectedPlayerMatches(){
 
   if(!boxes.length){
 
-    alert("Выберите хотя бы один матч.");
+    alert("Список матчей пуст.");
 
     return;
 
   }
 
-  const ids=boxes.map(x=>Number(x.dataset.deleteMatchId));
-
-  if(!confirm(
-
-    "Удалить выбранные матчи ("+ids.length+")? Это действие нельзя отменить."
-
-  )) return;
-
   try{
 
-    const {error}=await db
+    for(const checkbox of boxes){
 
-      .from("matches")
+      const id=Number(checkbox.dataset.statsMatchId);
 
-      .delete()
+      const match=playerStatsMatchesCache.find(
 
-      .in("id",ids);
+        m=>Number(m.id)===id
 
-    if(error)throw error;
+      );
 
-    alert("Удалено матчей: "+ids.length);
+      if(!match)continue;
 
-    await loadPlayerMatchesManager();
+      const newSets={
 
-    await loadPlayerStats();
+        ...(match.sets||{}),
 
-    if(typeof loadHistory==="function"){
+        include_in_stats:checkbox.checked
 
-      loadHistory();
+      };
+
+      const {error}=await db
+
+        .from("matches")
+
+        .update({
+
+          sets:newSets
+
+        })
+
+        .eq("id",id);
+
+      if(error)throw error;
+
+      match.sets=newSets;
 
     }
 
+    alert("Выбор матчей сохранён.");
+
+    await loadPlayerStats();
+
+    await loadPlayerMatchesManager();
+
   }catch(e){
 
-    alert("Не удалось удалить матчи: "+e.message);
+    alert("Не удалось сохранить выбор: "+e.message);
 
   }
 
@@ -1145,11 +1183,17 @@ async function deleteSelectedPlayerMatches(){
 
     const matches=(data||[]).filter(m=>
 
-      String(m.player1||"").toLowerCase()===playerName ||
+  (
 
-      String(m.player2||"").toLowerCase()===playerName
+    String(m.player1||"").toLowerCase()===playerName ||
 
-    );
+    String(m.player2||"").toLowerCase()===playerName
+
+  )
+
+  && m.sets?.include_in_stats!==false
+
+);
 
     if(!matches.length){
 
@@ -1408,7 +1452,7 @@ $("startBtn").onclick=start;
   $("loadPlayerStatsBtn").onclick=loadPlayerStats;
   $("managePlayerMatchesBtn").onclick=loadPlayerMatchesManager;
 
-$("deleteSelectedMatchesBtn").onclick=deleteSelectedPlayerMatches;
+$("saveStatsSelectionBtn").onclick=savePlayerStatsSelection;
   $("playerStatsBtn").onclick=()=>{
 
   $("setupScreen").classList.add("hidden");

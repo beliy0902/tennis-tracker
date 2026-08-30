@@ -43,6 +43,10 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
     <input id="setupP2" placeholder="Введите имя соперника">
     <div class="spacer"></div>
     <button id="startBtn" class="primary" style="width:100%">НАЧАТЬ МАТЧ</button>
+
+    <div class="spacer"></div>
+
+<button id="playerStatsBtn" style="width:100%">📊 СТАТИСТИКА ИГРОКА</button>
     <div id="resumeBox" class="resumeBox hidden">
       <div class="resumeTitle">Найден незавершённый матч</div>
       <div id="resumeText" class="small"></div>
@@ -53,7 +57,51 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
     </div>
   </div>
 </section>
+<section id="playerStatsScreen" class="hidden">
 
+  <div class="card">
+
+    <div class="startTitle">📊 Статистика игрока</div>
+
+    <div class="startSub">Общая статистика по сохранённым матчам</div>
+
+    <div class="label">Игрок</div>
+
+    <input id="statsPlayerName" value="Mykyta" placeholder="Введите имя игрока">
+
+    <div class="spacer"></div>
+
+    <button id="loadPlayerStatsBtn" class="primary" style="width:100%">
+
+      ПОКАЗАТЬ СТАТИСТИКУ
+
+    </button>
+
+  </div>
+
+  <div class="card">
+
+    <div class="section" id="playerStatsTitle">Результаты</div>
+
+    <div id="playerStatsContent" class="small">
+
+      Нажмите «Показать статистику».
+
+    </div>
+
+  </div>
+
+  <div class="card">
+
+    <button id="backFromStatsBtn" style="width:100%">
+
+      ← НАЗАД
+
+    </button>
+
+  </div>
+
+</section>
 <section id="serverScreen" class="hidden">
   <div class="card">
     <h1>Кто подаёт первым?</h1>
@@ -846,7 +894,324 @@ function newMatch(){
     $("setupScreen").classList.remove("hidden")
   }
 }
+  async function loadPlayerStats(){
+
+  const name=$("statsPlayerName").value.trim();
+
+  const box=$("playerStatsContent");
+
+  const title=$("playerStatsTitle");
+
+  if(!name){
+
+    alert("Введите имя игрока.");
+
+    return;
+
+  }
+
+  if(typeof db==="undefined"){
+
+    box.textContent="Supabase не подключён.";
+
+    return;
+
+  }
+
+  box.textContent="Загрузка статистики…";
+
+  try{
+
+    const {data,error}=await db
+
+      .from("matches")
+
+      .select("created_at,player1,player2,winner,score,sets,stats,points")
+
+      .order("created_at",{ascending:false});
+
+    if(error)throw error;
+
+    const playerName=name.toLowerCase();
+
+    const matches=(data||[]).filter(m=>
+
+      String(m.player1||"").toLowerCase()===playerName ||
+
+      String(m.player2||"").toLowerCase()===playerName
+
+    );
+
+    if(!matches.length){
+
+      title.textContent="Статистика: "+name;
+
+      box.textContent="Матчи этого игрока не найдены.";
+
+      return;
+
+    }
+
+    let wins=0;
+
+    let losses=0;
+
+    let setsWon=0;
+
+    let setsLost=0;
+
+    const total=emptyStats();
+
+    let matchesWithStats=0;
+
+    matches.forEach(m=>{
+
+      const playerIndex=
+
+        String(m.player1||"").toLowerCase()===playerName ? 0 : 1;
+
+      const setScore=Array.isArray(m.sets?.score)
+
+        ? m.sets.score
+
+        : null;
+
+      let winner=m.winner;
+
+      if(!winner && setScore){
+
+        if(setScore[0]>setScore[1]) winner=m.player1;
+
+        else if(setScore[1]>setScore[0]) winner=m.player2;
+
+      }
+
+      if(winner){
+
+        if(String(winner).toLowerCase()===playerName) wins++;
+
+        else losses++;
+
+      }
+
+      if(setScore){
+
+        setsWon+=Number(setScore[playerIndex]||0);
+
+        setsLost+=Number(setScore[1-playerIndex]||0);
+
+      }
+
+      let st=null;
+
+      if(m.stats && typeof m.stats==="object"){
+
+        st=playerIndex===0
+
+          ? m.stats.player1
+
+          : m.stats.player2;
+
+      }
+
+      if(!st && Array.isArray(m.sets?.total_stats)){
+
+        st=m.sets.total_stats[playerIndex];
+
+      }
+
+      if(st && typeof st==="object"){
+
+        matchesWithStats++;
+
+        Object.keys(total).forEach(k=>{
+
+          total[k]+=Number(st[k]||0);
+
+        });
+
+      }
+
+    });
+
+    const decided=wins+losses;
+
+    const winPct=decided
+
+      ? Math.round(wins/decided*100)+"%"
+
+      : "—";
+
+    const winners=total.fhw+total.bhw;
+
+    const ue=total.fhue+total.bhue;
+
+    title.textContent="Статистика: "+name;
+
+    box.innerHTML=`
+
+      <div class="kpis">
+
+        <div class="kpi">
+
+          <div class="small">Матчи</div>
+
+          <div class="v">${matches.length}</div>
+
+        </div>
+
+        <div class="kpi">
+
+          <div class="small">Победы / поражения</div>
+
+          <div class="v">${wins}–${losses}</div>
+
+        </div>
+
+        <div class="kpi">
+
+          <div class="small">Win %</div>
+
+          <div class="v">${winPct}</div>
+
+        </div>
+
+        <div class="kpi">
+
+          <div class="small">Сеты</div>
+
+          <div class="v">${setsWon}–${setsLost}</div>
+
+        </div>
+
+      </div>
+
+      <div style="height:12px"></div>
+
+      <table>
+
+        <tr>
+
+          <td>Points won</td>
+
+          <td>${total.ptsWon}</td>
+
+        </tr>
+
+        <tr>
+
+          <td>1st Serve %</td>
+
+          <td>${pct(total.fi,total.sp)}</td>
+
+        </tr>
+
+        <tr>
+
+          <td>1st Serve Won %</td>
+
+          <td>${pct(total.fw,total.fi)}</td>
+
+        </tr>
+
+        <tr>
+
+          <td>2nd Serve Won %</td>
+
+          <td>${pct(total.sw,total.sp2)}</td>
+
+        </tr>
+
+        <tr>
+
+          <td>Aces</td>
+
+          <td>${total.a}</td>
+
+        </tr>
+
+        <tr>
+
+          <td>Double Faults</td>
+
+          <td>${total.df}</td>
+
+        </tr>
+
+        <tr>
+
+          <td>Winners</td>
+
+          <td>${winners}</td>
+
+        </tr>
+
+        <tr>
+
+          <td>Unforced Errors</td>
+
+          <td>${ue}</td>
+
+        </tr>
+
+        <tr>
+
+          <td>Break Points Saved</td>
+
+          <td>${total.bps}/${total.bpf}</td>
+
+        </tr>
+
+        <tr>
+
+          <td>Return vs 1st Won %</td>
+
+          <td>${pct(total.r1w,total.r1p)}</td>
+
+        </tr>
+
+        <tr>
+
+          <td>Return vs 2nd Won %</td>
+
+          <td>${pct(total.r2w,total.r2p)}</td>
+
+        </tr>
+
+      </table>
+
+      <div class="small" style="margin-top:12px">
+
+        Расширенная статистика рассчитана по ${matchesWithStats} матчам.
+
+      </div>
+
+    `;
+
+  }catch(e){
+
+    box.textContent="Не удалось загрузить статистику: "+e.message;
+
+  }
+
+}
 $("startBtn").onclick=start;
+  $("loadPlayerStatsBtn").onclick=loadPlayerStats;
+  $("playerStatsBtn").onclick=()=>{
+
+  $("setupScreen").classList.add("hidden");
+
+  $("playerStatsScreen").classList.remove("hidden");
+
+};
+
+$("backFromStatsBtn").onclick=()=>{
+
+  $("playerStatsScreen").classList.add("hidden");
+
+  $("setupScreen").classList.remove("hidden");
+
+};
 $("serveP1Btn").onclick=()=>chooseServer(0);
 $("serveP2Btn").onclick=()=>chooseServer(1);
 $("firstInBtn").onclick=firstIn;

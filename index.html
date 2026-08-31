@@ -1149,9 +1149,69 @@ async function openPlayerMatchDetails(matchId){
 
     : "—";
 
-  const score=match.score || "—";
+  let score=match.score || "";
 
-  const winner=match.winner || "—";
+if(!score && Array.isArray(match.sets?.set_scores)){
+
+  score=match.sets.set_scores
+
+    .map((g,i)=>{
+
+      if(!Array.isArray(g)) return "";
+
+      let text=g[0]+"–"+g[1];
+
+      const tb=Array.isArray(match.sets?.tie_break_scores)
+
+        ? match.sets.tie_break_scores[i]
+
+        : null;
+
+      if(
+
+        Array.isArray(tb) &&
+
+        Math.max(g[0],g[1])===7 &&
+
+        Math.min(g[0],g[1])===6
+
+      ){
+
+        text+=" ("+tb[0]+"–"+tb[1]+")";
+
+      }
+
+      return text;
+
+    })
+
+    .filter(Boolean)
+
+    .join(", ");
+
+}
+
+if(!score) score="—";
+
+let winner=match.winner || "";
+
+if(!winner && Array.isArray(match.sets?.score)){
+
+  const setScore=match.sets.score;
+
+  if(Number(setScore[0])>Number(setScore[1])){
+
+    winner=p1;
+
+  }else if(Number(setScore[1])>Number(setScore[0])){
+
+    winner=p2;
+
+  }
+
+}
+
+if(!winner) winner="—";
 
   let st1=null;
 

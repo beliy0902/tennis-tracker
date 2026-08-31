@@ -2361,6 +2361,46 @@ function buildRecommendationsBox(r1,r2,p1,p2){
 
 }
 
+const p1IsWinner =
+
+  String(winner).toLowerCase() === String(p1).toLowerCase();
+
+const p2IsWinner =
+
+  String(winner).toLowerCase() === String(p2).toLowerCase();
+
+const coachSummary1 = buildCoachSummary(
+
+  p1,
+
+  st1,
+
+  p2,
+
+  st2,
+
+  p1IsWinner,
+
+  score
+
+);
+
+const coachSummary2 = buildCoachSummary(
+
+  p2,
+
+  st2,
+
+  p1,
+
+  st1,
+
+  p2IsWinner,
+
+  score
+
+);
+  
 const coach1 = buildCoachReport(
 
   p1,
@@ -2390,6 +2430,12 @@ const analysisHtml = `
   <div class="section">
 
     Анализ матча
+
+${coachSummary1}
+
+${coachSummary2}
+
+<div style="height:14px"></div>
 
     ${coach1.html}
 

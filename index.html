@@ -1941,6 +1941,342 @@ function buildCoachReport(name, st, opponentName, opponentSt){
 
 }
 
+  function buildCoachSummary(name, st, opponentName, opponentSt, isWinner, score){
+
+  const factors = [];
+
+  const priorities = [];
+
+  const firstServeIn = numPct(st.fi, st.sp);
+
+  const firstServeWon = numPct(st.fw, st.fi);
+
+  const secondServeWon = numPct(st.sw, st.sp2);
+
+  const return1 = numPct(st.r1w, st.r1p);
+
+  const return2 = numPct(st.r2w, st.r2p);
+
+  const secondServeAttempts = Number(st.sp2 || 0);
+
+  const df = Number(st.df || 0);
+
+  const winners =
+
+    Number(st.fhw || 0) +
+
+    Number(st.bhw || 0);
+
+  const ue =
+
+    Number(st.fhue || 0) +
+
+    Number(st.bhue || 0);
+
+  const pointsWon = Number(st.ptsWon || 0);
+
+  const opponentPointsWon = Number(opponentSt.ptsWon || 0);
+
+  // =================================
+
+  // КЛЮЧЕВЫЕ ФАКТОРЫ
+
+  // =================================
+
+  if(firstServeIn !== null && firstServeIn < 50){
+
+    factors.push(
+
+      `🔴 Низкий процент первой подачи — ${firstServeIn}%.`
+
+    );
+
+    priorities.push(
+
+      "Стабильность первой подачи"
+
+    );
+
+  } else if(firstServeWon !== null && firstServeWon >= 70){
+
+    factors.push(
+
+      `🟢 Высокая эффективность первой подачи — ${firstServeWon}% выигранных очков.`
+
+    );
+
+  }
+
+  if(secondServeAttempts >= 4){
+
+    if(secondServeWon < 45){
+
+      factors.push(
+
+        `🔴 Вторая подача — только ${secondServeWon}% выигранных очков.`
+
+      );
+
+      priorities.push(
+
+        "Качество и надёжность второй подачи"
+
+      );
+
+    } else if(secondServeWon >= 55){
+
+      factors.push(
+
+        `🟢 Хорошая вторая подача — ${secondServeWon}% выигранных очков.`
+
+      );
+
+    }
+
+  }
+
+  if(df >= 4){
+
+    factors.push(
+
+      `🔴 Двойные ошибки — ${df}.`
+
+    );
+
+    priorities.push(
+
+      "Снизить количество двойных ошибок"
+
+    );
+
+  }
+
+  if(return1 !== null){
+
+    if(return1 < 25){
+
+      factors.push(
+
+        `🔴 Приём первой подачи соперника — только ${return1}% выигранных очков.`
+
+      );
+
+      priorities.push(
+
+        "Приём первой подачи"
+
+      );
+
+    } else if(return1 >= 40){
+
+      factors.push(
+
+        `🟢 Сильный приём первой подачи — ${return1}% выигранных очков.`
+
+      );
+
+    }
+
+  }
+
+  if(return2 !== null && return2 >= 50){
+
+    factors.push(
+
+      `🟢 Давление на вторую подачу соперника — ${return2}% выигранных очков.`
+
+    );
+
+  }
+
+  if(ue >= 5 && ue > winners){
+
+    factors.push(
+
+      `🔴 Отрицательный баланс Winners / UE — ${winners}/${ue}.`
+
+    );
+
+    priorities.push(
+
+      "Снизить количество невынужденных ошибок"
+
+    );
+
+  } else if(winners > ue && winners >= 5){
+
+    factors.push(
+
+      `🟢 Положительный баланс Winners / UE — ${winners}/${ue}.`
+
+    );
+
+  }
+
+  // Если факторов мало — используем общий баланс очков
+
+  if(factors.length < 3){
+
+    if(pointsWon > opponentPointsWon){
+
+      factors.push(
+
+        `🟢 Преимущество по выигранным очкам — ${pointsWon}–${opponentPointsWon}.`
+
+      );
+
+    } else if(pointsWon < opponentPointsWon){
+
+      factors.push(
+
+        `🔴 Уступил по выигранным очкам — ${pointsWon}–${opponentPointsWon}.`
+
+      );
+
+    }
+
+  }
+
+  const topFactors = factors.slice(0,3);
+
+  const uniquePriorities =
+
+    [...new Set(priorities)].slice(0,3);
+
+  let priorityHtml = "";
+
+  if(uniquePriorities.length){
+
+    priorityHtml = `
+
+      <div style="
+
+        font-weight:850;
+
+        margin-top:14px;
+
+        margin-bottom:6px;
+
+      ">
+
+        Тренировочный приоритет
+
+      </div>
+
+      <ol style="
+
+        margin:6px 0 0;
+
+        padding-left:24px;
+
+      ">
+
+        ${uniquePriorities.map(x=>
+
+          `<li style="margin-bottom:6px">${x}</li>`
+
+        ).join("")}
+
+      </ol>
+
+    `;
+
+  } else {
+
+    priorityHtml = `
+
+      <div style="
+
+        margin-top:14px;
+
+        line-height:1.45;
+
+      ">
+
+        ✅ Явных критических проблем по записанной статистике не обнаружено.
+
+      </div>
+
+    `;
+
+  }
+
+  return `
+
+    <div style="
+
+      border:2px solid #111;
+
+      border-radius:16px;
+
+      padding:14px;
+
+      margin-bottom:16px;
+
+    ">
+
+      <div style="
+
+        font-size:20px;
+
+        font-weight:900;
+
+        margin-bottom:10px;
+
+      ">
+
+        🎾 Coach Summary — ${esc(name)}
+
+      </div>
+
+      <div style="
+
+        font-weight:850;
+
+        margin-bottom:12px;
+
+      ">
+
+        ${isWinner ? "🏆 Победа" : "❌ Поражение"} · ${esc(score)}
+
+      </div>
+
+      <div style="
+
+        font-weight:850;
+
+        margin-bottom:6px;
+
+      ">
+
+        ${isWinner ? "Ключевые факторы победы" : "Ключевые факторы поражения"}
+
+      </div>
+
+      <ol style="
+
+        margin:6px 0 0;
+
+        padding-left:24px;
+
+      ">
+
+        ${topFactors.map(x=>
+
+          `<li style="margin-bottom:8px">${x}</li>`
+
+        ).join("")}
+
+      </ol>
+
+      ${priorityHtml}
+
+    </div>
+
+  `;
+
+}
+
 function buildRecommendationsBox(r1,r2,p1,p2){
 
   function playerRecommendations(name,data){

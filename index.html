@@ -1617,6 +1617,212 @@ if(!winner) winner="—";
 
 </div>
 
+    <div style="height:14px"></div>
+
+    <div class="section">Анализ матча</div>
+
+    <div style="
+
+      background:#f6f6f8;
+
+      border-radius:14px;
+
+      padding:12px;
+
+      line-height:1.55;
+
+    ">
+
+      ${(()=>{
+
+        const notes=[];
+
+        const p1Points=Number(st1.ptsWon||0);
+
+        const p2Points=Number(st2.ptsWon||0);
+
+        const p1FirstWon=pct(st1.fw,st1.fi);
+
+        const p2FirstWon=pct(st2.fw,st2.fi);
+
+        const p1SecondWon=pct(st1.sw,st1.sp2);
+
+        const p2SecondWon=pct(st2.sw,st2.sp2);
+
+        const p1Return1=pct(st1.r1w,st1.r1p);
+
+        const p2Return1=pct(st2.r1w,st2.r1p);
+
+        const p1Return2=pct(st1.r2w,st1.r2p);
+
+        const p2Return2=pct(st2.r2w,st2.r2p);
+
+        if(st1.fi){
+
+          notes.push(
+
+            `🔥 <strong>${esc(p1)}</strong>: выиграно ${p1FirstWon} очков на первой подаче.`
+
+          );
+
+        }
+
+        if(st2.fi){
+
+          notes.push(
+
+            `🎾 <strong>${esc(p2)}</strong>: выиграно ${p2FirstWon} очков на первой подаче.`
+
+          );
+
+        }
+
+        if(st1.sp2){
+
+          notes.push(
+
+            `⚡ Вторая подача ${esc(p1)}: ${p1SecondWon} выигранных очков.`
+
+          );
+
+        }else{
+
+          notes.push(
+
+            `📌 У ${esc(p1)} недостаточно данных по второй подаче.`
+
+          );
+
+        }
+
+        if(st2.sp2){
+
+          notes.push(
+
+            `⚡ Вторая подача ${esc(p2)}: ${p2SecondWon} выигранных очков.`
+
+          );
+
+        }else{
+
+          notes.push(
+
+            `📌 У ${esc(p2)} недостаточно данных по второй подаче.`
+
+          );
+
+        }
+
+        if(st1.r1p){
+
+          notes.push(
+
+            `🎯 Приём ${esc(p1)} против первой подачи: ${p1Return1}.`
+
+          );
+
+        }
+
+        if(st2.r1p){
+
+          notes.push(
+
+            `🎯 Приём ${esc(p2)} против первой подачи: ${p2Return1}.`
+
+          );
+
+        }
+
+        if(st1.r2p){
+
+          notes.push(
+
+            `↩️ Приём ${esc(p1)} против второй подачи: ${p1Return2}.`
+
+          );
+
+        }
+
+        if(st2.r2p){
+
+          notes.push(
+
+            `↩️ Приём ${esc(p2)} против второй подачи: ${p2Return2}.`
+
+          );
+
+        }
+
+        if(st1.bpf || st2.bpf){
+
+          notes.push(
+
+            `🛡 Break Points Saved: ${esc(p1)} ${Number(st1.bps||0)}/${Number(st1.bpf||0)}, ` +
+
+            `${esc(p2)} ${Number(st2.bps||0)}/${Number(st2.bpf||0)}.`
+
+          );
+
+        }
+
+        if(Math.abs(p1Points-p2Points)>=10){
+
+          const dominant=p1Points>p2Points?p1:p2;
+
+          notes.push(
+
+            `💪 Явное преимущество по очкам у <strong>${esc(dominant)}</strong>: ` +
+
+            `${p1Points}–${p2Points}.`
+
+          );
+
+        }
+
+        const w1=Number(st1.fhw||0)+Number(st1.bhw||0);
+
+        const w2=Number(st2.fhw||0)+Number(st2.bhw||0);
+
+        const ueA=Number(st1.fhue||0)+Number(st1.bhue||0);
+
+        const ueB=Number(st2.fhue||0)+Number(st2.bhue||0);
+
+        if(w1 || w2){
+
+          notes.push(
+
+            `🏹 Winners: ${esc(p1)} ${w1}, ${esc(p2)} ${w2}.`
+
+          );
+
+        }
+
+        if(ueA || ueB){
+
+          notes.push(
+
+            `⚠️ Unforced Errors: ${esc(p1)} ${ueA}, ${esc(p2)} ${ueB}.`
+
+          );
+
+        }
+
+        if(!notes.length){
+
+          notes.push("Недостаточно данных для автоматического анализа.");
+
+        }
+
+        return notes
+
+          .map(x=>`<div style="margin:5px 0">${x}</div>`)
+
+          .join("");
+
+      })()}
+
+    </div>
+
     <div class="section">Итог матча</div>
 
     <table>

@@ -1589,7 +1589,95 @@ function buildCoachReport(name, st, opponentName, opponentSt){
 
     }
 
-    з
+        else{
+
+      warning.push(
+
+        `🟡 <b>${name}:</b> выиграно ${firstServeWon}% очков на первой подаче.`
+
+      );
+
+    }
+
+  }
+
+  // =========================
+
+  // ВТОРАЯ ПОДАЧА
+
+  // =========================
+
+  const secondServeAttempts = Number(st.sp2 || 0);
+
+  if(secondServeAttempts === 0){
+
+    warning.push(
+
+      `📌 У <b>${name}</b> не было вторых подач — показатель не оценивается.`
+
+    );
+
+  } else if(secondServeAttempts <= 3){
+
+    warning.push(
+
+      `📌 <b>${name}:</b> вторая подача — ${secondServeWon}% выигранных очков, но выборка мала (${secondServeAttempts} розыгр.), поэтому вывод делать рано.`
+
+    );
+
+  } else if(secondServeWon >= 55){
+
+    good.push(
+
+      `🟢 <b>${name}:</b> хорошая эффективность второй подачи — ${secondServeWon}% выигранных очков.`
+
+    );
+
+  } else if(secondServeWon < 45){
+
+    problems.push(
+
+      `🔴 <b>${name}:</b> слабая вторая подача — только ${secondServeWon}% выигранных очков.`
+
+    );
+
+    recommendations.push(
+
+      `работать над качеством второй подачи`
+
+    );
+
+  } else {
+
+    warning.push(
+
+      `🟡 <b>${name}:</b> выиграно ${secondServeWon}% очков на второй подаче.`
+
+    );
+
+  }
+
+  // =========================
+
+  // DOUBLE FAULTS
+
+  // =========================
+
+  if(df >= 5){
+
+    problems.push(
+
+      `🔴 <b>${name}:</b> много двойных ошибок — ${df}.`
+
+    );
+
+    recommendations.push(
+
+      `снизить количество двойных ошибок`
+
+    );
+
+  } else if(df === 0){
 
     good.push(
 

@@ -1455,6 +1455,656 @@ if(!winner) winner="—";
 
   }
 
+  function numPct(a,b){
+
+  return Number(b)>0
+
+    ? Math.round(Number(a||0)/Number(b)*100)
+
+    : null;
+
+}
+
+function analysePlayer(name,st,opponentSt){
+
+  const notes=[];
+
+  const problems=[];
+
+  const firstServeIn=numPct(st.fi,st.sp);
+
+  const firstServeWon=numPct(st.fw,st.fi);
+
+  const secondServeWon=numPct(st.sw,st.sp2);
+
+  const returnFirst=numPct(st.r1w,st.r1p);
+
+  const returnSecond=numPct(st.r2w,st.r2p);
+
+  const winners=
+
+    Number(st.fhw||0)+
+
+    Number(st.bhw||0);
+
+  const ue=
+
+    Number(st.fhue||0)+
+
+    Number(st.bhue||0);
+
+  const bpFaced=Number(st.bpf||0);
+
+  const bpSaved=Number(st.bps||0);
+
+  const points=Number(st.ptsWon||0);
+
+  const opponentPoints=Number(opponentSt.ptsWon||0);
+
+  // ===== ПЕРВАЯ ПОДАЧА % =====
+
+  if(firstServeIn!==null){
+
+    if(firstServeIn>=65){
+
+      notes.push(
+
+        `🟢 <strong>${esc(name)}</strong>: хороший процент первой подачи — ${firstServeIn}%.`
+
+      );
+
+    }else if(firstServeIn>=55){
+
+      notes.push(
+
+        `🟡 <strong>${esc(name)}</strong>: первая подача — ${firstServeIn}%. Есть резерв для улучшения.`
+
+      );
+
+      problems.push({
+
+        severity:1,
+
+        text:"повысить процент первой подачи"
+
+      });
+
+    }else{
+
+      notes.push(
+
+        `🔴 <strong>${esc(name)}</strong>: низкий процент первой подачи — ${firstServeIn}%.`
+
+      );
+
+      problems.push({
+
+        severity:3,
+
+        text:"стабилизировать первую подачу"
+
+      });
+
+    }
+
+  }
+
+  // ===== ВЫИГРЫШ НА ПЕРВОЙ ПОДАЧЕ =====
+
+  if(firstServeWon!==null){
+
+    if(firstServeWon>=70){
+
+      notes.push(
+
+        `🔥 <strong>${esc(name)}</strong>: высокая эффективность первой подачи — выиграно ${firstServeWon}% очков.`
+
+      );
+
+    }else if(firstServeWon>=55){
+
+      notes.push(
+
+        `🟡 <strong>${esc(name)}</strong>: на первой подаче выиграно ${firstServeWon}% очков.`
+
+      );
+
+      problems.push({
+
+        severity:1,
+
+        text:"повысить эффективность первой подачи"
+
+      });
+
+    }else{
+
+      notes.push(
+
+        `🔴 <strong>${esc(name)}</strong>: только ${firstServeWon}% выигранных очков на первой подаче.`
+
+      );
+
+      problems.push({
+
+        severity:3,
+
+        text:"повысить эффективность первой подачи"
+
+      });
+
+    }
+
+  }
+
+  // ===== ВТОРАЯ ПОДАЧА =====
+
+  if(secondServeWon===null){
+
+    notes.push(
+
+      `📌 У <strong>${esc(name)}</strong> недостаточно данных по второй подаче.`
+
+    );
+
+  }else if(secondServeWon>=55){
+
+    notes.push(
+
+      `🟢 <strong>${esc(name)}</strong>: хорошая эффективность второй подачи — ${secondServeWon}%.`
+
+    );
+
+  }else if(secondServeWon>=45){
+
+    notes.push(
+
+      `🟡 <strong>${esc(name)}</strong>: на второй подаче выиграно ${secondServeWon}% очков.`
+
+    );
+
+    problems.push({
+
+      severity:2,
+
+      text:"повысить эффективность второй подачи"
+
+    });
+
+  }else{
+
+    notes.push(
+
+      `🔴 <strong>${esc(name)}</strong>: слабая вторая подача — только ${secondServeWon}% выигранных очков.`
+
+    );
+
+    problems.push({
+
+      severity:4,
+
+      text:"работать над качеством второй подачи"
+
+    });
+
+  }
+
+  // ===== WINNERS / UE =====
+
+  if(winners || ue){
+
+    if(winners>ue){
+
+      notes.push(
+
+        `🟢 <strong>${esc(name)}</strong>: положительный баланс Winners / UE — ${winners}/${ue}.`
+
+      );
+
+    }else if(ue>winners){
+
+      notes.push(
+
+        `🔴 <strong>${esc(name)}</strong>: невынужденных ошибок больше, чем winners — ${winners}/${ue}.`
+
+      );
+
+      problems.push({
+
+        severity:4,
+
+        text:"снизить количество невынужденных ошибок"
+
+      });
+
+    }else{
+
+      notes.push(
+
+        `🟡 <strong>${esc(name)}</strong>: баланс Winners / UE — ${winners}/${ue}.`
+
+      );
+
+    }
+
+  }
+
+  // ===== ПРИЁМ ПЕРВОЙ =====
+
+  if(returnFirst!==null){
+
+    if(returnFirst>=40){
+
+      notes.push(
+
+        `🎯 <strong>${esc(name)}</strong>: сильный приём первой подачи — выиграно ${returnFirst}% очков.`
+
+      );
+
+    }else if(returnFirst<25){
+
+      notes.push(
+
+        `🔴 <strong>${esc(name)}</strong>: слабый приём первой подачи — выиграно только ${returnFirst}% очков.`
+
+      );
+
+      problems.push({
+
+        severity:3,
+
+        text:"улучшить приём первой подачи"
+
+      });
+
+    }else{
+
+      notes.push(
+
+        `🟡 <strong>${esc(name)}</strong>: на приёме первой подачи выиграно ${returnFirst}% очков.`
+
+      );
+
+    }
+
+  }
+
+  // ===== ПРИЁМ ВТОРОЙ =====
+
+  if(returnSecond!==null){
+
+    if(returnSecond>=55){
+
+      notes.push(
+
+        `🎯 <strong>${esc(name)}</strong>: сильная игра против второй подачи — ${returnSecond}% выигранных очков.`
+
+      );
+
+    }else if(returnSecond<40){
+
+      notes.push(
+
+        `🔴 <strong>${esc(name)}</strong>: против второй подачи выиграно только ${returnSecond}% очков.`
+
+      );
+
+      problems.push({
+
+        severity:3,
+
+        text:"агрессивнее играть на второй подаче соперника"
+
+      });
+
+    }else{
+
+      notes.push(
+
+        `🟡 <strong>${esc(name)}</strong>: приём второй подачи — ${returnSecond}%.`
+
+      );
+
+    }
+
+  }
+
+  // ===== BREAK POINTS =====
+
+  if(bpFaced>0){
+
+    const bpSavedPct=Math.round(bpSaved/bpFaced*100);
+
+    if(bpSavedPct>=60){
+
+      notes.push(
+
+        `🛡️ <strong>${esc(name)}</strong>: хорошая защита брейк-пойнтов — спасено ${bpSaved}/${bpFaced}.`
+
+      );
+
+    }else{
+
+      notes.push(
+
+        `⚠️ <strong>${esc(name)}</strong>: спасено ${bpSaved}/${bpFaced} брейк-пойнтов.`
+
+      );
+
+      problems.push({
+
+        severity:2,
+
+        text:"улучшить игру на важных очках под давлением"
+
+      });
+
+    }
+
+  }else{
+
+    notes.push(
+
+      `🛡️ <strong>${esc(name)}</strong>: брейк-пойнтов на своей подаче не допущено.`
+
+    );
+
+  }
+
+  // ===== ОБЩЕЕ КОЛИЧЕСТВО ОЧКОВ =====
+
+  if(points>opponentPoints){
+
+    notes.push(
+
+      `💪 <strong>${esc(name)}</strong> выиграл больше очков: ${points}–${opponentPoints}.`
+
+    );
+
+  }else if(points<opponentPoints){
+
+    notes.push(
+
+      `📉 <strong>${esc(name)}</strong> уступил по общему количеству очков: ${points}–${opponentPoints}.`
+
+    );
+
+  }
+
+  problems.sort((a,b)=>b.severity-a.severity);
+
+  return {
+
+    notes,
+
+    problems
+
+  };
+
+}
+
+const analysis1=analysePlayer(p1,st1,st2);
+
+const analysis2=analysePlayer(p2,st2,st1);
+
+// Берём максимум 3 наиболее серьёзные проблемы каждого игрока
+
+const priorities1=[
+
+  ...new Map(
+
+    analysis1.problems.map(x=>[x.text,x])
+
+  ).values()
+
+]
+
+.sort((a,b)=>b.severity-a.severity)
+
+.slice(0,3);
+
+const priorities2=[
+
+  ...new Map(
+
+    analysis2.problems.map(x=>[x.text,x])
+
+  ).values()
+
+]
+
+.sort((a,b)=>b.severity-a.severity)
+
+.slice(0,3);
+
+const analysisHtml=`
+
+<div class="section">
+
+  Анализ матча
+
+</div>
+
+<div style="
+
+  background:#f6f6f8;
+
+  border-radius:14px;
+
+  padding:12px;
+
+  line-height:1.5;
+
+">
+
+  <div style="
+
+    font-size:17px;
+
+    font-weight:900;
+
+    margin-bottom:10px;
+
+  ">
+
+    ${esc(p1)}
+
+  </div>
+
+  ${
+
+    analysis1.notes
+
+      .map(x=>`
+
+        <div style="margin-bottom:8px">
+
+          ${x}
+
+        </div>
+
+      `)
+
+      .join("")
+
+  }
+
+  <div style="
+
+    margin-top:16px;
+
+    padding-top:14px;
+
+    border-top:1px solid #ddd;
+
+    font-size:17px;
+
+    font-weight:900;
+
+    margin-bottom:10px;
+
+  ">
+
+    ${esc(p2)}
+
+  </div>
+
+  ${
+
+    analysis2.notes
+
+      .map(x=>`
+
+        <div style="margin-bottom:8px">
+
+          ${x}
+
+        </div>
+
+      `)
+
+      .join("")
+
+  }
+
+</div>
+
+<div style="height:12px"></div>
+
+<div style="
+
+  background:#fff;
+
+  border:1px solid #e3e3e7;
+
+  border-radius:14px;
+
+  padding:12px;
+
+">
+
+  <div style="
+
+    font-size:17px;
+
+    font-weight:900;
+
+    margin-bottom:12px;
+
+  ">
+
+    🎾 Рекомендации тренеру
+
+  </div>
+
+  <div style="
+
+    font-weight:850;
+
+    margin-bottom:6px;
+
+  ">
+
+    ${esc(p1)}
+
+  </div>
+
+  ${
+
+    priorities1.length
+
+      ? `
+
+        <ol style="
+
+          margin:4px 0 14px;
+
+          padding-left:22px;
+
+        ">
+
+          ${
+
+            priorities1
+
+              .map(x=>`<li style="margin-bottom:5px">${esc(x.text)}</li>`)
+
+              .join("")
+
+          }
+
+        </ol>
+
+      `
+
+      : `
+
+        <div style="margin-bottom:14px">
+
+          ✅ Явных проблем по записанной статистике не обнаружено.
+
+        </div>
+
+      `
+
+  }
+
+  <div style="
+
+    font-weight:850;
+
+    margin-bottom:6px;
+
+  ">
+
+    ${esc(p2)}
+
+  </div>
+
+  ${
+
+    priorities2.length
+
+      ? `
+
+        <ol style="
+
+          margin:4px 0 0;
+
+          padding-left:22px;
+
+        ">
+
+          ${
+
+            priorities2
+
+              .map(x=>`<li style="margin-bottom:5px">${esc(x.text)}</li>`)
+
+              .join("")
+
+          }
+
+        </ol>
+
+      `
+
+      : `
+
+        <div>
+
+          ✅ Явных проблем по записанной статистике не обнаружено.
+
+        </div>
+
+      `
+
+  }
+
+</div>
+
+`;
+
   title.textContent=`${p1} vs ${p2}`;
 
   const setsHtml=setStats.length
@@ -1619,209 +2269,9 @@ if(!winner) winner="—";
 
     <div style="height:14px"></div>
 
-    <div class="section">Анализ матча</div>
+    ${analysisHtml}
 
-    <div style="
-
-      background:#f6f6f8;
-
-      border-radius:14px;
-
-      padding:12px;
-
-      line-height:1.55;
-
-    ">
-
-      ${(()=>{
-
-        const notes=[];
-
-        const p1Points=Number(st1.ptsWon||0);
-
-        const p2Points=Number(st2.ptsWon||0);
-
-        const p1FirstWon=pct(st1.fw,st1.fi);
-
-        const p2FirstWon=pct(st2.fw,st2.fi);
-
-        const p1SecondWon=pct(st1.sw,st1.sp2);
-
-        const p2SecondWon=pct(st2.sw,st2.sp2);
-
-        const p1Return1=pct(st1.r1w,st1.r1p);
-
-        const p2Return1=pct(st2.r1w,st2.r1p);
-
-        const p1Return2=pct(st1.r2w,st1.r2p);
-
-        const p2Return2=pct(st2.r2w,st2.r2p);
-
-        if(st1.fi){
-
-          notes.push(
-
-            `🔥 <strong>${esc(p1)}</strong>: выиграно ${p1FirstWon} очков на первой подаче.`
-
-          );
-
-        }
-
-        if(st2.fi){
-
-          notes.push(
-
-            `🎾 <strong>${esc(p2)}</strong>: выиграно ${p2FirstWon} очков на первой подаче.`
-
-          );
-
-        }
-
-        if(st1.sp2){
-
-          notes.push(
-
-            `⚡ Вторая подача ${esc(p1)}: ${p1SecondWon} выигранных очков.`
-
-          );
-
-        }else{
-
-          notes.push(
-
-            `📌 У ${esc(p1)} недостаточно данных по второй подаче.`
-
-          );
-
-        }
-
-        if(st2.sp2){
-
-          notes.push(
-
-            `⚡ Вторая подача ${esc(p2)}: ${p2SecondWon} выигранных очков.`
-
-          );
-
-        }else{
-
-          notes.push(
-
-            `📌 У ${esc(p2)} недостаточно данных по второй подаче.`
-
-          );
-
-        }
-
-        if(st1.r1p){
-
-          notes.push(
-
-            `🎯 Приём ${esc(p1)} против первой подачи: ${p1Return1}.`
-
-          );
-
-        }
-
-        if(st2.r1p){
-
-          notes.push(
-
-            `🎯 Приём ${esc(p2)} против первой подачи: ${p2Return1}.`
-
-          );
-
-        }
-
-        if(st1.r2p){
-
-          notes.push(
-
-            `↩️ Приём ${esc(p1)} против второй подачи: ${p1Return2}.`
-
-          );
-
-        }
-
-        if(st2.r2p){
-
-          notes.push(
-
-            `↩️ Приём ${esc(p2)} против второй подачи: ${p2Return2}.`
-
-          );
-
-        }
-
-        if(st1.bpf || st2.bpf){
-
-          notes.push(
-
-            `🛡 Break Points Saved: ${esc(p1)} ${Number(st1.bps||0)}/${Number(st1.bpf||0)}, ` +
-
-            `${esc(p2)} ${Number(st2.bps||0)}/${Number(st2.bpf||0)}.`
-
-          );
-
-        }
-
-        if(Math.abs(p1Points-p2Points)>=10){
-
-          const dominant=p1Points>p2Points?p1:p2;
-
-          notes.push(
-
-            `💪 Явное преимущество по очкам у <strong>${esc(dominant)}</strong>: ` +
-
-            `${p1Points}–${p2Points}.`
-
-          );
-
-        }
-
-        const w1=Number(st1.fhw||0)+Number(st1.bhw||0);
-
-        const w2=Number(st2.fhw||0)+Number(st2.bhw||0);
-
-        const ueA=Number(st1.fhue||0)+Number(st1.bhue||0);
-
-        const ueB=Number(st2.fhue||0)+Number(st2.bhue||0);
-
-        if(w1 || w2){
-
-          notes.push(
-
-            `🏹 Winners: ${esc(p1)} ${w1}, ${esc(p2)} ${w2}.`
-
-          );
-
-        }
-
-        if(ueA || ueB){
-
-          notes.push(
-
-            `⚠️ Unforced Errors: ${esc(p1)} ${ueA}, ${esc(p2)} ${ueB}.`
-
-          );
-
-        }
-
-        if(!notes.length){
-
-          notes.push("Недостаточно данных для автоматического анализа.");
-
-        }
-
-        return notes
-
-          .map(x=>`<div style="margin:5px 0">${x}</div>`)
-
-          .join("");
-
-      })()}
-
-    </div>
+<div style="height:14px"></div>
 
     <div class="section">Итог матча</div>
 

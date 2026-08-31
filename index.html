@@ -1185,7 +1185,239 @@ async function openPlayerMatchDetails(matchId){
 
   const ue2=Number(st2.fhue||0)+Number(st2.bhue||0);
 
+  const setStats=Array.isArray(match.sets?.stats)
+
+    ? match.sets.stats
+
+    : [];
+
+  const setScores=Array.isArray(match.sets?.set_scores)
+
+    ? match.sets.set_scores
+
+    : [];
+
+  const tieBreakScores=Array.isArray(match.sets?.tie_break_scores)
+
+    ? match.sets.tie_break_scores
+
+    : [];
+
+  function setScoreText(index){
+
+    const g=setScores[index];
+
+    if(!Array.isArray(g)) return "—";
+
+    let text=g[0]+"–"+g[1];
+
+    const tb=tieBreakScores[index];
+
+    if(
+
+      Array.isArray(tb) &&
+
+      Math.max(g[0],g[1])===7 &&
+
+      Math.min(g[0],g[1])===6
+
+    ){
+
+      text+=" ("+tb[0]+"–"+tb[1]+")";
+
+    }
+
+    return text;
+
+  }
+
+  function setStatsTable(setData,index){
+
+    const a=setData?.[0] || emptyStats();
+
+    const b=setData?.[1] || emptyStats();
+
+    const wa=Number(a.fhw||0)+Number(a.bhw||0);
+
+    const wb=Number(b.fhw||0)+Number(b.bhw||0);
+
+    const uea=Number(a.fhue||0)+Number(a.bhue||0);
+
+    const ueb=Number(b.fhue||0)+Number(b.bhue||0);
+
+    return `
+
+      <div style="
+
+        margin-top:16px;
+
+        background:#f6f6f8;
+
+        border-radius:14px;
+
+        padding:12px
+
+      ">
+
+        <div class="section">
+
+          Set ${index+1} · ${esc(setScoreText(index))}
+
+        </div>
+
+        <table>
+
+          <tr>
+
+            <th>Показатель</th>
+
+            <th>${esc(p1)}</th>
+
+            <th>${esc(p2)}</th>
+
+          </tr>
+
+          <tr>
+
+            <td>Points won</td>
+
+            <td>${Number(a.ptsWon||0)}</td>
+
+            <td>${Number(b.ptsWon||0)}</td>
+
+          </tr>
+
+          <tr>
+
+            <td>1st Serve %</td>
+
+            <td>${pct(a.fi,a.sp)}</td>
+
+            <td>${pct(b.fi,b.sp)}</td>
+
+          </tr>
+
+          <tr>
+
+            <td>1st Serve Won %</td>
+
+            <td>${pct(a.fw,a.fi)}</td>
+
+            <td>${pct(b.fw,b.fi)}</td>
+
+          </tr>
+
+          <tr>
+
+            <td>2nd Serve Won %</td>
+
+            <td>${pct(a.sw,a.sp2)}</td>
+
+            <td>${pct(b.sw,b.sp2)}</td>
+
+          </tr>
+
+          <tr>
+
+            <td>Aces</td>
+
+            <td>${Number(a.a||0)}</td>
+
+            <td>${Number(b.a||0)}</td>
+
+          </tr>
+
+          <tr>
+
+            <td>Double Faults</td>
+
+            <td>${Number(a.df||0)}</td>
+
+            <td>${Number(b.df||0)}</td>
+
+          </tr>
+
+          <tr>
+
+            <td>Winners</td>
+
+            <td>${wa}</td>
+
+            <td>${wb}</td>
+
+          </tr>
+
+          <tr>
+
+            <td>Unforced Errors</td>
+
+            <td>${uea}</td>
+
+            <td>${ueb}</td>
+
+          </tr>
+
+          <tr>
+
+            <td>Break Points Saved</td>
+
+            <td>${Number(a.bps||0)}/${Number(a.bpf||0)}</td>
+
+            <td>${Number(b.bps||0)}/${Number(b.bpf||0)}</td>
+
+          </tr>
+
+          <tr>
+
+            <td>Return vs 1st Won %</td>
+
+            <td>${pct(a.r1w,a.r1p)}</td>
+
+            <td>${pct(b.r1w,b.r1p)}</td>
+
+          </tr>
+
+          <tr>
+
+            <td>Return vs 2nd Won %</td>
+
+            <td>${pct(a.r2w,a.r2p)}</td>
+
+            <td>${pct(b.r2w,b.r2p)}</td>
+
+          </tr>
+
+        </table>
+
+      </div>
+
+    `;
+
+  }
+
   title.textContent=`${p1} vs ${p2}`;
+
+  const setsHtml=setStats.length
+
+    ? `
+
+      <div style="height:16px"></div>
+
+      <div class="section">Статистика по сетам</div>
+
+      ${setStats.map((s,i)=>setStatsTable(s,i)).join("")}
+
+    `
+
+    : `
+
+      <div class="small" style="margin-top:16px">
+
+        Для этого матча статистика по сетам не сохранена.
+
+      </div>
+
+    `;
 
   content.innerHTML=`
 
@@ -1218,6 +1450,8 @@ async function openPlayerMatchDetails(matchId){
     </div>
 
     <div style="height:14px"></div>
+
+    <div class="section">Итог матча</div>
 
     <table>
 
@@ -1342,6 +1576,8 @@ async function openPlayerMatchDetails(matchId){
       </tr>
 
     </table>
+
+    ${setsHtml}
 
   `;
 

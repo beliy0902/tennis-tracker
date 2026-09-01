@@ -2641,13 +2641,29 @@ const reverseScore = String(score)
 
   .split(",")
 
-  .map(s=>{
+  .map(setText => {
 
-    const parts=s.trim().split(/[–-]/);
+    const s = setText.trim();
 
-    if(parts.length!==2)return s.trim();
+    const m = s.match(
 
-    return parts[1].trim()+"–"+parts[0].trim();
+      /^(\d+)\s*[–-]\s*(\d+)(?:\s*\((\d+)\s*[–-]\s*(\d+)\))?$/
+
+    );
+
+    if(!m) return s;
+
+    const [, a, b, tbA, tbB] = m;
+
+    let reversed = `${b}–${a}`;
+
+    if(tbA !== undefined && tbB !== undefined){
+
+      reversed += ` (${tbB}–${tbA})`;
+
+    }
+
+    return reversed;
 
   })
 

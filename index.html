@@ -2357,35 +2357,211 @@ function buildCoachReport(name, st, opponentName, opponentSt){
 
   // =================================
 
-  // УБИРАЕМ ПОВТОРЫ
+// УБИРАЕМ ПОВТОРЫ
 
-  // =================================
+// =================================
 
-  const uniqueFactors =
+const uniqueFactors =
 
-    [...new Set(factors)];
+  [...new Set(factors)];
 
-  const uniquePriorities =
+const uniquePriorities =
 
-    [...new Set(priorities)];
+  [...new Set(priorities)];
 
-  // =================================
+// =================================
 
-  // ВЫБИРАЕМ 3 ГЛАВНЫХ ФАКТОРА
+// ОЦЕНКА ВАЖНОСТИ ФАКТОРОВ
 
-  // =================================
+// =================================
 
-  let topFactors = uniqueFactors.slice(0,3);
+function factorImportance(text){
 
-  if(topFactors.length === 0){
+  let score = 0;
 
-    topFactors = [
+  // Двойные ошибки — очень важный фактор
 
-      "📌 По записанной статистике нет достаточно выраженных различий для уверенного вывода."
+  if(text.includes("Двойные ошибки")){
 
-    ];
+    score += 100;
 
   }
+
+  // Вторая подача
+
+  if(
+
+    text.includes("Вторая подача") ||
+
+    text.includes("второй подачи")
+
+  ){
+
+    score += 90;
+
+  }
+
+  // Невынужденные ошибки
+
+  if(
+
+    text.includes("Winners / UE") ||
+
+    text.includes("невынужден")
+
+  ){
+
+    score += 85;
+
+  }
+
+  // Эффективность первой подачи
+
+  if(
+
+    text.includes("эффективность первой подачи") ||
+
+    text.includes("Эффективность первой подачи")
+
+  ){
+
+    score += 80;
+
+  }
+
+  // Приём
+
+  if(
+
+    text.includes("приём первой подачи") ||
+
+    text.includes("Приём первой подачи")
+
+  ){
+
+    score += 75;
+
+  }
+
+  if(
+
+    text.includes("вторую подачу соперника") ||
+
+    text.includes("второй подаче соперника")
+
+  ){
+
+    score += 75;
+
+  }
+
+  // Процент попадания первой подачи
+
+  if(
+
+    text.includes("процент первой подачи") ||
+
+    text.includes("процент попадания первой подачи")
+
+  ){
+
+    score += 70;
+
+  }
+
+  // Сравнение с соперником
+
+  if(
+
+    text.includes("преимущество") ||
+
+    text.includes("отставание")
+
+  ){
+
+    score += 65;
+
+  }
+
+  // Эйсы
+
+  if(text.includes("эйсов")){
+
+    score += 55;
+
+  }
+
+  // Общий баланс очков
+
+  if(
+
+    text.includes("выигранным очкам") ||
+
+    text.includes("Контроль матча")
+
+  ){
+
+    score += 45;
+
+  }
+
+  // Красный фактор важнее зелёного
+
+  if(text.includes("🔴")){
+
+    score += 25;
+
+  }
+
+  if(text.includes("🟢")){
+
+    score += 5;
+
+  }
+
+  return score;
+
+}
+
+// =================================
+
+// ВЫБИРАЕМ 3 ГЛАВНЫХ ФАКТОРА
+
+// =================================
+
+let topFactors = uniqueFactors
+
+  .map((text,index)=>({
+
+    text,
+
+    index,
+
+    importance:factorImportance(text)
+
+  }))
+
+  .sort((a,b)=>
+
+    b.importance-a.importance ||
+
+    a.index-b.index
+
+  )
+
+  .slice(0,3)
+
+  .map(x=>x.text);
+
+if(topFactors.length === 0){
+
+  topFactors = [
+
+    "📌 По записанной статистике нет достаточно выраженных различий для уверенного вывода."
+
+  ];
+
+}
 
   // =================================
 

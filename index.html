@@ -2637,6 +2637,22 @@ const p2IsWinner =
 
   String(winner).toLowerCase() === String(p2).toLowerCase();
 
+const reverseScore = String(score)
+
+  .split(",")
+
+  .map(s=>{
+
+    const parts=s.trim().split(/[–-]/);
+
+    if(parts.length!==2)return s.trim();
+
+    return parts[1].trim()+"–"+parts[0].trim();
+
+  })
+
+  .join(", ");
+
 const coachSummary1 = buildCoachSummary(
 
   p1,
@@ -2665,7 +2681,7 @@ const coachSummary2 = buildCoachSummary(
 
   p2IsWinner,
 
-  score
+  reverseScore
 
 );
   

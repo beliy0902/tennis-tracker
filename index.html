@@ -2599,15 +2599,109 @@ if(topFactors.length === 0){
 
         ${uniquePriorities
 
-          .slice(0,3)
+  .map((text,index)=>({
 
-          .map(x =>
+    text,
 
-            `<li style="margin-bottom:6px">${x}</li>`
+    index,
 
-          )
+    importance:(()=>{
 
-          .join("")}
+      let score=0;
+
+      if(text.toLowerCase().includes("двойн")){
+
+        score+=100;
+
+      }
+
+      if(
+
+        text.toLowerCase().includes("второй подачи") ||
+
+        text.toLowerCase().includes("вторая подача")
+
+      ){
+
+        score+=90;
+
+      }
+
+      if(
+
+        text.toLowerCase().includes("невынужден") ||
+
+        text.toLowerCase().includes("ошиб")
+
+      ){
+
+        score+=85;
+
+      }
+
+      if(
+
+        text.toLowerCase().includes("эффективность первой подачи")
+
+      ){
+
+        score+=80;
+
+      }
+
+      if(
+
+        text.toLowerCase().includes("приём первой подачи")
+
+      ){
+
+        score+=75;
+
+      }
+
+      if(
+
+        text.toLowerCase().includes("приёме второй подачи")
+
+      ){
+
+        score+=75;
+
+      }
+
+      if(
+
+        text.toLowerCase().includes("стабильность первой подачи")
+
+      ){
+
+        score+=70;
+
+      }
+
+      return score;
+
+    })()
+
+  }))
+
+  .sort((a,b)=>
+
+    b.importance-a.importance ||
+
+    a.index-b.index
+
+  )
+
+  .slice(0,3)
+
+  .map(x =>
+
+    `<li style="margin-bottom:6px">${x.text}</li>`
+
+  )
+
+  .join("")}
 
       </ol>
 

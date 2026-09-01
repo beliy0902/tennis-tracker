@@ -3001,9 +3001,9 @@ const analysisHtml = `
 
     Анализ матча
 
-${coachSummary1}
+${coachSummary1.html}
 
-${coachSummary2}
+${coachSummary2.html}
 
 <div style="height:14px"></div>
 
@@ -3011,19 +3011,19 @@ ${coachSummary2}
 
     ${coach2.html}
 
-    ${buildRecommendationsBox(
+${buildRecommendationsBox(
 
-      coach1.recommendations,
+  coachSummary1.priorities,
 
-      coach2.recommendations,
+  coachSummary2.priorities,
 
-      p1,
+  p1,
 
-      p2,
+  p2,
 
-      winner
+  winner
 
-    )}
+)}
 
   </div>
 

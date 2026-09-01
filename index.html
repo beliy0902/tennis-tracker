@@ -1959,7 +1959,15 @@ function buildCoachReport(name, st, opponentName, opponentSt){
 
   const secondServeAttempts = Number(st.sp2 || 0);
 
+  const firstServeAttempts = Number(st.fi || 0);
+
+  const return1Attempts = Number(st.r1p || 0);
+
+  const return2Attempts = Number(st.r2p || 0);
+
   const df = Number(st.df || 0);
+
+  const aces = Number(st.a || 0);
 
   const winners =
 
@@ -1977,43 +1985,101 @@ function buildCoachReport(name, st, opponentName, opponentSt){
 
   const opponentPointsWon = Number(opponentSt.ptsWon || 0);
 
+  const opponentFirstServeWon =
+
+    numPct(opponentSt.fw, opponentSt.fi);
+
+  const opponentSecondServeWon =
+
+    numPct(opponentSt.sw, opponentSt.sp2);
+
   // =================================
 
-  // КЛЮЧЕВЫЕ ФАКТОРЫ
+  // 1. ПЕРВАЯ ПОДАЧА
 
   // =================================
 
-  if(firstServeIn !== null && firstServeIn < 50){
+  if(firstServeIn !== null){
 
-    factors.push(
+    if(firstServeIn < 50){
 
-      `🔴 Низкий процент первой подачи — ${firstServeIn}%.`
+      factors.push(
 
-    );
+        `🔴 Низкий процент первой подачи — ${firstServeIn}%.`
 
-    priorities.push(
+      );
 
-      "Стабильность первой подачи"
+      priorities.push(
 
-    );
+        "Стабильность первой подачи"
 
-  } else if(firstServeWon !== null && firstServeWon >= 70){
+      );
 
-    factors.push(
+    } else if(firstServeIn >= 65){
 
-      `🟢 Высокая эффективность первой подачи — ${firstServeWon}% выигранных очков.`
+      factors.push(
 
-    );
+        `🟢 Хороший процент попадания первой подачи — ${firstServeIn}%.`
+
+      );
+
+    }
 
   }
 
-  if(secondServeAttempts >= 4){
+  // =================================
+
+  // 2. ЭФФЕКТИВНОСТЬ ПЕРВОЙ ПОДАЧИ
+
+  // =================================
+
+  if(firstServeWon !== null && firstServeAttempts >= 4){
+
+    if(firstServeWon < 55){
+
+      factors.push(
+
+        `🔴 Низкая эффективность первой подачи — ${firstServeWon}% выигранных очков.`
+
+      );
+
+      priorities.push(
+
+        "Эффективность первой подачи"
+
+      );
+
+    } else if(firstServeWon >= 70){
+
+      factors.push(
+
+        `🟢 Высокая эффективность первой подачи — ${firstServeWon}% выигранных очков.`
+
+      );
+
+    }
+
+  }
+
+  // =================================
+
+  // 3. ВТОРАЯ ПОДАЧА
+
+  // =================================
+
+  if(secondServeAttempts === 0){
+
+    // Не добавляем это как ключевой фактор.
+
+    // Просто недостаточно данных.
+
+  } else if(secondServeAttempts >= 4){
 
     if(secondServeWon < 45){
 
       factors.push(
 
-        `🔴 Вторая подача — только ${secondServeWon}% выигранных очков.`
+        `🔴 Вторая подача дала только ${secondServeWon}% выигранных очков.`
 
       );
 
@@ -2027,7 +2093,7 @@ function buildCoachReport(name, st, opponentName, opponentSt){
 
       factors.push(
 
-        `🟢 Хорошая вторая подача — ${secondServeWon}% выигранных очков.`
+        `🟢 Хорошая эффективность второй подачи — ${secondServeWon}% выигранных очков.`
 
       );
 
@@ -2035,11 +2101,17 @@ function buildCoachReport(name, st, opponentName, opponentSt){
 
   }
 
+  // =================================
+
+  // 4. DOUBLE FAULTS
+
+  // =================================
+
   if(df >= 4){
 
     factors.push(
 
-      `🔴 Двойные ошибки — ${df}.`
+      `🔴 Двойные ошибки серьёзно влияли на матч — ${df}.`
 
     );
 
@@ -2049,45 +2121,37 @@ function buildCoachReport(name, st, opponentName, opponentSt){
 
     );
 
-  }
-
-  if(return1 !== null){
-
-    if(return1 < 25){
-
-      factors.push(
-
-        `🔴 Приём первой подачи соперника — только ${return1}% выигранных очков.`
-
-      );
-
-      priorities.push(
-
-        "Приём первой подачи"
-
-      );
-
-    } else if(return1 >= 40){
-
-      factors.push(
-
-        `🟢 Сильный приём первой подачи — ${return1}% выигранных очков.`
-
-      );
-
-    }
-
-  }
-
-  if(return2 !== null && return2 >= 50){
+  } else if(df === 0 && Number(st.sp || 0) >= 8){
 
     factors.push(
 
-      `🟢 Давление на вторую подачу соперника — ${return2}% выигранных очков.`
+      `🟢 Матч проведён без двойных ошибок.`
 
     );
 
   }
+
+  // =================================
+
+  // 5. ACES
+
+  // =================================
+
+  if(aces >= 5){
+
+    factors.push(
+
+      `🟢 Подача создавала прямое давление — ${aces} эйсов.`
+
+    );
+
+  }
+
+  // =================================
+
+  // 6. WINNERS / UE
+
+  // =================================
 
   if(ue >= 5 && ue > winners){
 
@@ -2103,7 +2167,7 @@ function buildCoachReport(name, st, opponentName, opponentSt){
 
     );
 
-  } else if(winners > ue && winners >= 5){
+  } else if(winners >= 5 && winners > ue){
 
     factors.push(
 
@@ -2113,23 +2177,33 @@ function buildCoachReport(name, st, opponentName, opponentSt){
 
   }
 
-  // Если факторов мало — используем общий баланс очков
+  // =================================
 
-  if(factors.length < 3){
+  // 7. ПРИЁМ ПЕРВОЙ ПОДАЧИ
 
-    if(pointsWon > opponentPointsWon){
+  // =================================
+
+  if(return1 !== null && return1Attempts >= 4){
+
+    if(return1 < 25){
 
       factors.push(
 
-        `🟢 Преимущество по выигранным очкам — ${pointsWon}–${opponentPointsWon}.`
+        `🔴 Низкая эффективность приёма первой подачи соперника — ${return1}%.`
 
       );
 
-    } else if(pointsWon < opponentPointsWon){
+      priorities.push(
+
+        "Приём первой подачи"
+
+      );
+
+    } else if(return1 >= 40){
 
       factors.push(
 
-        `🔴 Уступил по выигранным очкам — ${pointsWon}–${opponentPointsWon}.`
+        `🟢 Сильный приём первой подачи соперника — ${return1}% выигранных очков.`
 
       );
 
@@ -2137,11 +2211,187 @@ function buildCoachReport(name, st, opponentName, opponentSt){
 
   }
 
-  const topFactors = factors.slice(0,3);
+  // =================================
+
+  // 8. ПРИЁМ ВТОРОЙ ПОДАЧИ
+
+  // =================================
+
+  if(return2 !== null && return2Attempts >= 4){
+
+    if(return2 >= 50){
+
+      factors.push(
+
+        `🟢 Хорошее давление на вторую подачу соперника — ${return2}% выигранных очков.`
+
+      );
+
+    } else if(return2 < 35){
+
+      factors.push(
+
+        `🔴 Недостаточно давления на вторую подачу соперника — ${return2}%.`
+
+      );
+
+      priorities.push(
+
+        "Агрессивнее играть на второй подаче соперника"
+
+      );
+
+    }
+
+  }
+
+  // =================================
+
+  // 9. СРАВНЕНИЕ С СОПЕРНИКОМ
+
+  // =================================
+
+  if(
+
+    firstServeWon !== null &&
+
+    opponentFirstServeWon !== null &&
+
+    firstServeAttempts >= 4 &&
+
+    Number(opponentSt.fi || 0) >= 4
+
+  ){
+
+    const diff = firstServeWon - opponentFirstServeWon;
+
+    if(diff >= 15){
+
+      factors.push(
+
+        `🟢 Заметное преимущество по первой подаче: ${firstServeWon}% против ${opponentFirstServeWon}%.`
+
+      );
+
+    } else if(diff <= -15){
+
+      factors.push(
+
+        `🔴 Существенное отставание по эффективности первой подачи: ${firstServeWon}% против ${opponentFirstServeWon}%.`
+
+      );
+
+    }
+
+  }
+
+  if(
+
+    secondServeWon !== null &&
+
+    opponentSecondServeWon !== null &&
+
+    secondServeAttempts >= 4 &&
+
+    Number(opponentSt.sp2 || 0) >= 4
+
+  ){
+
+    const diff = secondServeWon - opponentSecondServeWon;
+
+    if(diff >= 15){
+
+      factors.push(
+
+        `🟢 Преимущество по второй подаче: ${secondServeWon}% против ${opponentSecondServeWon}%.`
+
+      );
+
+    } else if(diff <= -15){
+
+      factors.push(
+
+        `🔴 Вторая подача заметно уступала сопернику: ${secondServeWon}% против ${opponentSecondServeWon}%.`
+
+      );
+
+    }
+
+  }
+
+  // =================================
+
+  // 10. ОБЩИЙ БАЛАНС ОЧКОВ
+
+  // =================================
+
+  const totalPoints =
+
+    pointsWon + opponentPointsWon;
+
+  if(totalPoints > 0){
+
+    const pointShare =
+
+      Math.round(pointsWon / totalPoints * 100);
+
+    if(pointShare >= 60){
+
+      factors.push(
+
+        `🟢 Контроль матча по выигранным очкам — ${pointsWon}–${opponentPointsWon}.`
+
+      );
+
+    } else if(pointShare <= 40){
+
+      factors.push(
+
+        `🔴 Существенное отставание по выигранным очкам — ${pointsWon}–${opponentPointsWon}.`
+
+      );
+
+    }
+
+  }
+
+  // =================================
+
+  // УБИРАЕМ ПОВТОРЫ
+
+  // =================================
+
+  const uniqueFactors =
+
+    [...new Set(factors)];
 
   const uniquePriorities =
 
-    [...new Set(priorities)].slice(0,3);
+    [...new Set(priorities)];
+
+  // =================================
+
+  // ВЫБИРАЕМ 3 ГЛАВНЫХ ФАКТОРА
+
+  // =================================
+
+  let topFactors = uniqueFactors.slice(0,3);
+
+  if(topFactors.length === 0){
+
+    topFactors = [
+
+      "📌 По записанной статистике нет достаточно выраженных различий для уверенного вывода."
+
+    ];
+
+  }
+
+  // =================================
+
+  // ВЫБИРАЕМ 3 ПРИОРИТЕТА
+
+  // =================================
 
   let priorityHtml = "";
 
@@ -2171,11 +2421,17 @@ function buildCoachReport(name, st, opponentName, opponentSt){
 
       ">
 
-        ${uniquePriorities.map(x=>
+        ${uniquePriorities
 
-          `<li style="margin-bottom:6px">${x}</li>`
+          .slice(0,3)
 
-        ).join("")}
+          .map(x =>
+
+            `<li style="margin-bottom:6px">${x}</li>`
+
+          )
+
+          .join("")}
 
       </ol>
 
@@ -2249,7 +2505,15 @@ function buildCoachReport(name, st, opponentName, opponentSt){
 
       ">
 
-        ${isWinner ? "Ключевые факторы победы" : "Ключевые факторы поражения"}
+        ${
+
+          isWinner
+
+            ? "Ключевые статистические факторы победы"
+
+            : "Ключевые статистические факторы поражения"
+
+        }
 
       </div>
 
@@ -2261,11 +2525,15 @@ function buildCoachReport(name, st, opponentName, opponentSt){
 
       ">
 
-        ${topFactors.map(x=>
+        ${topFactors
 
-          `<li style="margin-bottom:8px">${x}</li>`
+          .map(x =>
 
-        ).join("")}
+            `<li style="margin-bottom:8px">${x}</li>`
+
+          )
+
+          .join("")}
 
       </ol>
 

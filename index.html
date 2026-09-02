@@ -32,7 +32,23 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
 </head>
 <body>
 
-<section id="setupScreen">
+<section id="accessGate">
+
+  <div class="card">
+
+    <div class="startTitle">🎾 Tennis Match Tracker Pro</div>
+
+    <div id="accessGateText" class="startSub">
+
+      Проверка доступа через Telegram…
+
+    </div>
+
+  </div>
+
+</section>
+
+<section id="setupScreen" class="hidden">
   <div class="card">
     <div class="startTitle">🎾 Tennis Match Tracker Pro</div>
     <div class="startSub">Быстрая запись матча для двух игроков</div>
@@ -262,6 +278,151 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
   </div>
 </section>
 
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+<script>
+
+(async function(){
+
+  const gate = document.getElementById("accessGate");
+
+  const gateText = document.getElementById("accessGateText");
+
+  const setup = document.getElementById("setupScreen");
+
+  function deny(message){
+
+    if(gate) gate.classList.remove("hidden");
+
+    if(gateText){
+
+      gateText.innerHTML = `
+
+        <div style="
+
+          font-size:18px;
+
+          font-weight:800;
+
+          color:#b00020;
+
+          margin-top:16px;
+
+          line-height:1.45;
+
+        ">
+
+          ⛔ Доступ запрещён
+
+        </div>
+
+        <div style="
+
+          margin-top:12px;
+
+          line-height:1.45;
+
+        ">
+
+          ${message}
+
+        </div>
+
+      `;
+
+    }
+
+    if(setup) setup.classList.add("hidden");
+
+  }
+
+  try {
+
+    const tg = window.Telegram?.WebApp;
+
+    if(!tg || !tg.initData){
+
+      deny(
+
+        "Откройте Tennis Tracker через разрешённый Telegram-бот."
+
+      );
+
+      return;
+
+    }
+
+    tg.ready();
+
+    tg.expand();
+
+    const response = await fetch(
+
+      "https://mfaptgcrzdqjjttfwuih.supabase.co/functions/v1/telegram-auth",
+
+      {
+
+        method:"POST",
+
+        headers:{
+
+          "Content-Type":"application/json"
+
+        },
+
+        body:JSON.stringify({
+
+          initData:tg.initData
+
+        })
+
+      }
+
+    );
+
+    const result = await response.json();
+
+    if(
+
+      !response.ok ||
+
+      !result.ok ||
+
+      !result.authorized
+
+    ){
+
+      deny(
+
+        "Ваш Telegram-аккаунт не имеет доступа к Tennis Tracker."
+
+      );
+
+      return;
+
+    }
+
+    window.TENNIS_AUTH_USER = result.user;
+
+    if(gate) gate.classList.add("hidden");
+
+    if(setup) setup.classList.remove("hidden");
+
+  } catch(error){
+
+    console.error("Telegram authorization error",error);
+
+    deny(
+
+      "Не удалось проверить доступ. Закройте приложение и откройте его снова через Telegram."
+
+    );
+
+  }
+
+})();
+
+</script>
 <script>
 (function(){
 "use strict";

@@ -484,6 +484,106 @@ async function liveMatchRequest(path="",options={}){
   return result;
 
 }
+
+async function ensureLiveMatch(){
+
+  if(S.liveMatchId) return S.liveMatchId;
+
+  if(!S.clientMatchId){
+
+    S.clientMatchId=crypto.randomUUID();
+
+    saveLocalOnly();
+
+  }
+
+  const result=await liveMatchRequest("",{
+
+    method:"POST",
+
+    body:JSON.stringify({
+
+      client_match_id:S.clientMatchId,
+
+      player_profile_id:PLAYER_PROFILE_ID,
+
+      player2:S.names[1],
+
+      match_data:S
+
+    })
+
+  });
+
+  S.liveMatchId=result.match.id;
+
+  if(result.match.player1){
+
+    S.names[0]=result.match.player1;
+
+  }
+
+  saveLocalOnly();
+
+  return S.liveMatchId;
+
+}
+
+async function syncLiveMatch(){
+
+  if(!S.started || S.matchOver) return;
+
+  try{
+
+    const id=await ensureLiveMatch();
+
+    await liveMatchRequest("/"+id,{
+
+      method:"PATCH",
+
+      body:JSON.stringify({
+
+        player2:S.names[1],
+
+        match_data:S
+
+      })
+
+    });
+
+  }catch(error){
+
+    console.error("Live Match sync error",error);
+
+  }
+
+}
+
+async function finishLiveMatch(){
+
+  try{
+
+    const id=await ensureLiveMatch();
+
+    await liveMatchRequest("/"+id+"/finish",{
+
+      method:"POST",
+
+      body:JSON.stringify({
+
+        match_data:S
+
+      })
+
+    });
+
+  }catch(error){
+
+    console.error("Live Match finish error",error);
+
+  }
+
+}
   
 const $=id=>document.getElementById(id);
 const emptyStats=()=>({sp:0,fi:0,fw:0,sp2:0,sw:0,a:0,df:0,fhw:0,bhw:0,fhue:0,bhue:0,fe:0,net:0,bpf:0,bps:0,r1p:0,r1w:0,r2p:0,r2w:0,ptsWon:0});
@@ -537,7 +637,7 @@ function hasRecoverableMatch(x){
 
 }
 function saveLocalOnly(){try{localStorage.setItem(STORAGE_KEY,JSON.stringify(S))}catch(e){console.error("Local save failed",e)}}
-function save(){saveLocalOnly();render();updateSaveStatus()}
+function save(){saveLocalOnly();render();updateSaveStatus();syncLiveMatch()}
 function clearLocal(){try{localStorage.removeItem(STORAGE_KEY)}catch(e){}}
 function updateSaveStatus(){
   const a=$("saveStatus"),b=$("saveStatusDetail");if(!a||!b)return;
@@ -618,6 +718,7 @@ function winSet(w){
     S.matchOver=true;
     S.selectedSet=S.curSet;
     save();
+    finishLiveMatch();
     saveCompletedMatch();
     return;
   }

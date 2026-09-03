@@ -403,7 +403,7 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
     }
 
     window.TENNIS_AUTH_USER = result.user;
-
+    window.TENNIS_INIT_DATA = tg.initData;
     if(gate) gate.classList.add("hidden");
 
     if(setup) setup.classList.remove("hidden");
@@ -426,9 +426,68 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
 <script>
 (function(){
 "use strict";
+
+const LIVE_MATCH_API =
+
+  "https://mfaptgcrzdqjjttfwuih.supabase.co/functions/v1/live-match";
+
+const PLAYER_PROFILE_ID =
+
+  "98616cd4-de72-4c5c-a7d1-0f588b85927f";
+
+async function liveMatchRequest(path="",options={}){
+
+  const initData=window.TENNIS_INIT_DATA;
+
+  if(!initData){
+
+    throw new Error("Telegram initData is not available");
+
+  }
+
+  const response=await fetch(
+
+    LIVE_MATCH_API+path,
+
+    {
+
+      ...options,
+
+      headers:{
+
+        "Content-Type":"application/json",
+
+        "X-Telegram-Init-Data":initData,
+
+        ...(options.headers||{})
+
+      }
+
+    }
+
+  );
+
+  const result=await response.json().catch(()=>({}));
+
+  if(!response.ok){
+
+    throw new Error(
+
+      result?.error?.message ||
+
+      "Live Match request failed"
+
+    );
+
+  }
+
+  return result;
+
+}
+  
 const $=id=>document.getElementById(id);
 const emptyStats=()=>({sp:0,fi:0,fw:0,sp2:0,sw:0,a:0,df:0,fhw:0,bhw:0,fhue:0,bhue:0,fe:0,net:0,bpf:0,bps:0,r1p:0,r1w:0,r2p:0,r2w:0,ptsWon:0});
-const defaultState=()=>({names:["Player 1","Player 2"],set:[0,0],game:[0,0],pt:[0,0],srv:0,sn:1,marked:false,tb:false,st:[emptyStats(),emptyStats()],setStats:[[emptyStats(),emptyStats()]],hist:[],log:[],last:-1,curSet:0,selectedSet:0,matchOver:false,savedMatchId:null,pendingSyncId:null,setScores:[],tbFirstServer:null,tieBreakScores:[],started:false});
+const defaultState=()=>({names:["Player 1","Player 2"],set:[0,0],game:[0,0],pt:[0,0],srv:0,sn:1,marked:false,tb:false,st:[emptyStats(),emptyStats()],setStats:[[emptyStats(),emptyStats()]],hist:[],log:[],last:-1,curSet:0,selectedSet:0,matchOver:false,savedMatchId:null,pendingSyncId:null,liveMatchId:null,clientMatchId:null,setScores:[],tbFirstServer:null,tieBreakScores:[],started:false});
 let S=defaultState();
 const pct=(a,b)=>b?Math.round(a/b*100)+"%":"—";
 function ensureSet(){if(!S.setStats[S.curSet])S.setStats[S.curSet]=[emptyStats(),emptyStats()]}

@@ -785,10 +785,47 @@ function save(){
 }
 function clearLocal(){try{localStorage.removeItem(STORAGE_KEY)}catch(e){}}
 function updateSaveStatus(){
-  const a=$("saveStatus"),b=$("saveStatusDetail");if(!a||!b)return;
-  if(!navigator.onLine){a.textContent="🟠 Офлайн · сохранено на устройстве";b.textContent="Можно продолжать матч без интернета. Данные останутся на этом телефоне.";return}
-  if(S.matchOver&&S.savedMatchId){a.textContent="☁️ Синхронизировано";b.textContent="Матч сохранён на устройстве и в Supabase.";return}
-  a.textContent="🟢 Сохранено на устройстве";b.textContent="Каждое действие записывается локально. История синхронизируется с Supabase при наличии интернета."
+
+  const a=$("saveStatus");
+
+  const b=$("saveStatusDetail");
+
+  if(!a||!b)return;
+
+  if(liveMatchReadOnly){
+
+    a.textContent="👁 Только просмотр";
+
+    b.textContent="Счёт ведёт другой пользователь. Изменение счёта отключено.";
+
+    return;
+
+  }
+
+  if(!navigator.onLine){
+
+    a.textContent="🟠 Офлайн · сохранено на устройстве";
+
+    b.textContent="Можно продолжать матч без интернета. Данные останутся на этом телефоне.";
+
+    return;
+
+  }
+
+  if(S.matchOver&&S.savedMatchId){
+
+    a.textContent="☁️ Синхронизировано";
+
+    b.textContent="Матч сохранён на устройстве и в Supabase.";
+
+    return;
+
+  }
+
+  a.textContent="🟢 Сохранено на устройстве";
+
+  b.textContent="Каждое действие записывается локально. История синхронизируется с Supabase при наличии интернета.";
+
 }
 function formatSetScore(i){
   const g=S.setScores?.[i];if(!g)return "";let t=g[0]+"–"+g[1],tb=S.tieBreakScores?.[i];

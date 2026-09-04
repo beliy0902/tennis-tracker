@@ -1,4 +1,5 @@
 <!doctype html>
+<!-- UPDATED: LIVE parent viewer, automatic refresh every 2 seconds -->
 <html lang="ru">
 <head>
 <meta charset="utf-8">
@@ -196,7 +197,7 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
 
   <div class="card" id="serveCard">
     <div class="status" id="statusText"></div>
-    <div class="grid2">
+    <div class="grid2" id="serveButtons">
       <button id="firstInBtn" class="servebtn">1st IN</button>
       <button id="firstOutBtn" class="servebtn">1st OUT</button>
       <button id="aceBtn" class="good">ACE</button>
@@ -245,7 +246,7 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
     </div>
   </div>
 
-  <div class="card grid2">
+  <div class="card grid2" id="matchActionsCard">
     <button id="undoBtn">↶ UNDO</button>
     <button id="changeServerBtn">⇄ Подающий</button>
     <button id="exportBtn">Export CSV</button>
@@ -257,7 +258,7 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
     <div class="small" style="text-align:center">Матч завершён и сохранён в истории.</div>
   </div>
 
-  <div class="card">
+  <div class="card" id="historyCard">
     <div class="section">История матчей</div>
     <button id="refreshHistoryBtn" style="width:100%;min-height:42px">Обновить историю</button>
     <div id="historyList" class="small" style="margin-top:8px">История ещё не загружена.</div>
@@ -649,15 +650,19 @@ function setLiveMatchAccess(match){
 
 }
 
-async function loadActiveLiveMatchFromServer(){
+function applyLiveMatchState(match,preserveSelectedSet=false){
 
-  const match=await findActiveLiveMatch();
+  if(!match || !match.id){
 
-  if(!match){
-
-    return false;
+    throw new Error("Live Match data is incomplete");
 
   }
+
+  const previousSelectedSet=Number.isInteger(S?.selectedSet)
+
+    ? S.selectedSet
+
+    : 0;
 
   setLiveMatchAccess(match);
 
@@ -687,7 +692,159 @@ async function loadActiveLiveMatchFromServer(){
 
   }
 
+  const lastSetIndex=Math.max(
+
+    0,
+
+    serverState.setStats.length-1
+
+  );
+
+  if(preserveSelectedSet){
+
+    serverState.selectedSet=Math.min(
+
+      Math.max(0,previousSelectedSet),
+
+      lastSetIndex
+
+    );
+
+  }else{
+
+    serverState.selectedSet=Math.min(
+
+      Math.max(0,Number(serverState.selectedSet)||0),
+
+      lastSetIndex
+
+    );
+
+  }
+
   S=serverState;
+
+  liveMatchLastUpdatedAt=
+
+    match.updated_at || new Date().toISOString();
+
+  liveMatchRefreshError="";
+
+  return match.status || "live";
+
+}
+
+function stopLiveMatchRefresh(){
+
+  if(liveMatchRefreshTimer!==null){
+
+    clearInterval(liveMatchRefreshTimer);
+
+    liveMatchRefreshTimer=null;
+
+  }
+
+}
+
+async function refreshReadOnlyLiveMatch(){
+
+  if(
+
+    !liveMatchReadOnly ||
+
+    !S.liveMatchId ||
+
+    document.hidden ||
+
+    liveMatchRefreshInProgress
+
+  ){
+
+    return;
+
+  }
+
+  liveMatchRefreshInProgress=true;
+
+  try{
+
+    const result=await liveMatchRequest(
+
+      "/"+encodeURIComponent(S.liveMatchId),
+
+      {method:"GET"}
+
+    );
+
+    const status=applyLiveMatchState(
+
+      result.match,
+
+      true
+
+    );
+
+    render();
+
+    updateSaveStatus();
+
+    if(status==="finished" || S.matchOver){
+
+      stopLiveMatchRefresh();
+
+    }
+
+  }catch(error){
+
+    console.error("Live Match refresh error",error);
+
+    liveMatchRefreshError=String(
+
+      error?.message || "Не удалось обновить счёт"
+
+    );
+
+    updateSaveStatus();
+
+  }finally{
+
+    liveMatchRefreshInProgress=false;
+
+  }
+
+}
+
+function startLiveMatchRefresh(){
+
+  stopLiveMatchRefresh();
+
+  if(!liveMatchReadOnly || !S.liveMatchId){
+
+    return;
+
+  }
+
+  liveMatchRefreshTimer=setInterval(
+
+    refreshReadOnlyLiveMatch,
+
+    LIVE_MATCH_REFRESH_MS
+
+  );
+
+}
+
+async function loadActiveLiveMatchFromServer(){
+
+  const match=await findActiveLiveMatch();
+
+  if(!match){
+
+    return false;
+
+  }
+
+  applyLiveMatchState(match);
 
   $("setupScreen").classList.add("hidden");
 
@@ -699,7 +856,13 @@ async function loadActiveLiveMatchFromServer(){
 
   updateSaveStatus();
 
-  loadHistory();
+  if(!liveMatchReadOnly){
+
+    loadHistory();
+
+  }
+
+  startLiveMatchRefresh();
 
   return true;
 
@@ -713,6 +876,10 @@ let S=defaultState();
 let liveMatchReadOnly=false;
 let activeLiveMatchCreatorId=null;
 let liveMatchRefreshTimer=null;
+let liveMatchRefreshInProgress=false;
+let liveMatchLastUpdatedAt=null;
+let liveMatchRefreshError="";
+const LIVE_MATCH_REFRESH_MS=2000;
   
 const pct=(a,b)=>b?Math.round(a/b*100)+"%":"—";
 function ensureSet(){if(!S.setStats[S.curSet])S.setStats[S.curSet]=[emptyStats(),emptyStats()]}
@@ -794,9 +961,71 @@ function updateSaveStatus(){
 
   if(liveMatchReadOnly){
 
-    a.textContent="👁 Только просмотр";
+    if(S.matchOver){
 
-    b.textContent="Счёт ведёт другой пользователь. Изменение счёта отключено.";
+      a.textContent="🏁 LIVE · Матч завершён";
+
+      b.textContent="Показан окончательный счёт матча.";
+
+      return;
+
+    }
+
+    if(!navigator.onLine){
+
+      a.textContent="🟠 LIVE · Офлайн";
+
+      b.textContent="Нет подключения к интернету. Показан последний полученный счёт.";
+
+      return;
+
+    }
+
+    if(liveMatchRefreshError){
+
+      a.textContent="🟠 LIVE · Нет обновления";
+
+      b.textContent=
+
+        liveMatchRefreshError+
+
+        ". Проверьте интернет или откройте приложение заново.";
+
+      return;
+
+    }
+
+    a.textContent="🔴 LIVE · Только просмотр";
+
+    let updatedText="";
+
+    if(liveMatchLastUpdatedAt){
+
+      const updatedDate=new Date(liveMatchLastUpdatedAt);
+
+      if(!Number.isNaN(updatedDate.getTime())){
+
+        updatedText=" Последнее обновление: "+
+
+          updatedDate.toLocaleTimeString("ru-RU",{
+
+            hour:"2-digit",
+
+            minute:"2-digit",
+
+            second:"2-digit"
+
+          })+".";
+
+      }
+
+    }
+
+    b.textContent=
+
+      "Счёт обновляется автоматически каждые 2 секунды."+
+
+      updatedText;
 
     return;
 
@@ -846,10 +1075,10 @@ function resumeSavedMatch(){
 function discardSavedMatch(){if(!confirm("Удалить локально сохранённый незавершённый матч?"))return;clearLocal();S=defaultState();$("resumeBox").classList.add("hidden")}
 function isBP(server){if(S.tb)return false;let r=1-server,rp=S.pt[r],sp=S.pt[server];if(rp<3)return false;if(rp===3&&sp<=2)return true;return rp>=3&&sp>=3&&rp===sp+1}
 function inc(o,k){o[k]=(o[k]||0)+1}
-function firstIn(){if(S.matchOver||S.marked)return;snapshot();S.marked=true;S.sn=1;save()}
-function firstOut(){if(S.matchOver||S.marked)return;snapshot();S.marked=true;S.sn=2;save()}
+function firstIn(){if(liveMatchReadOnly||S.matchOver||S.marked)return;snapshot();S.marked=true;S.sn=1;save()}
+function firstOut(){if(liveMatchReadOnly||S.matchOver||S.marked)return;snapshot();S.marked=true;S.sn=2;save()}
 function finish(type){
-  if(S.matchOver)return;
+  if(liveMatchReadOnly||S.matchOver)return;
   snapshot();ensureSet();
   let sv=S.srv,rc=1-sv,w=null,bp=isBP(sv),serv=S.st[sv],ret=S.st[rc],ss=S.setStats[S.curSet][sv],sr=S.setStats[S.curSet][rc];
   if(type==="df"){S.marked=true;S.sn=2}else if(!S.marked)S.marked=true;
@@ -907,12 +1136,12 @@ function winSet(w){
   S.curSet++;ensureSet();S.selectedSet=S.curSet
 }
 function pointText(i){if(S.tb)return S.pt[i];let a=S.pt[i],b=S.pt[1-i];if(a>=3&&b>=3)return a===b?"40":a>b?"AD":"40";return["0","15","30","40"][Math.min(a,3)]}
-function markRally(r){if(S.matchOver||S.last<0)return;snapshot();S.log[S.last].rally=r;save()}
-function changeServer(){if(S.matchOver)return;snapshot();S.srv=1-S.srv;S.sn=1;S.marked=false;save()}
+function markRally(r){if(liveMatchReadOnly||S.matchOver||S.last<0)return;snapshot();S.log[S.last].rally=r;save()}
+function changeServer(){if(liveMatchReadOnly||S.matchOver)return;snapshot();S.srv=1-S.srv;S.sn=1;S.marked=false;save()}
 
 async function undo(){
 
-  if(!S.hist.length)return;
+  if(liveMatchReadOnly||!S.hist.length)return;
 
   const savedId=S.savedMatchId;
 
@@ -1032,10 +1261,34 @@ function render(){
   }
 
   $("serveCard").classList.toggle("hidden",S.matchOver);
-  $("p1PointCard").classList.toggle("hidden",S.matchOver);
-  $("p2PointCard").classList.toggle("hidden",S.matchOver);
-  $("quickPointCard").classList.toggle("hidden",S.matchOver);
-  $("rallyCard").classList.toggle("hidden",S.matchOver);
+  $("serveButtons").classList.toggle(
+    "hidden",
+    S.matchOver||liveMatchReadOnly
+  );
+  $("p1PointCard").classList.toggle(
+    "hidden",
+    S.matchOver||liveMatchReadOnly
+  );
+  $("p2PointCard").classList.toggle(
+    "hidden",
+    S.matchOver||liveMatchReadOnly
+  );
+  $("quickPointCard").classList.toggle(
+    "hidden",
+    S.matchOver||liveMatchReadOnly
+  );
+  $("rallyCard").classList.toggle(
+    "hidden",
+    S.matchOver||liveMatchReadOnly
+  );
+  $("matchActionsCard").classList.toggle(
+    "hidden",
+    liveMatchReadOnly
+  );
+  $("historyCard").classList.toggle(
+    "hidden",
+    liveMatchReadOnly
+  );
 
   $("undoBtn").classList.remove("hidden");
   $("exportBtn").classList.remove("hidden");
@@ -1063,14 +1316,6 @@ liveEditButtons.forEach(btn=>{
   btn.style.opacity=liveMatchReadOnly ? "0.45" : "";
 
 });
-
-if(liveMatchReadOnly){
-
-  $("saveStatus").textContent="👁 Только просмотр";
-
-  $("saveStatusDetail").textContent="Счёт ведёт другой пользователь. Изменение счёта отключено.";
-
-}
   
   $("p1Section").textContent=S.names[0]+" — окончание очка";
   $("p2Section").textContent=S.names[1]+" — окончание очка";
@@ -1462,6 +1707,11 @@ function exportCSV(){
   a.href=url;a.download="tennis_match.csv";document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url)
 }
 function start(){
+  stopLiveMatchRefresh();
+  liveMatchReadOnly=false;
+  activeLiveMatchCreatorId=null;
+  liveMatchLastUpdatedAt=null;
+  liveMatchRefreshError="";
   clearLocal();S=defaultState();
   S.names=[$("setupP1").value.trim()||"Player 1",$("setupP2").value.trim()||"Player 2"];
   $("serveP1Btn").textContent=S.names[0]+" подаёт";
@@ -1471,7 +1721,12 @@ function start(){
 }
 function chooseServer(i){S.srv=i;S.started=true;$("serverScreen").classList.add("hidden");$("matchScreen").classList.remove("hidden");save()}
 function newMatch(){
+  if(liveMatchReadOnly)return;
   if(confirm("Начать новый матч?")){
+    stopLiveMatchRefresh();
+    activeLiveMatchCreatorId=null;
+    liveMatchLastUpdatedAt=null;
+    liveMatchRefreshError="";
     clearLocal();S=defaultState();
     $("resumeBox").classList.add("hidden");
     $("matchScreen").classList.add("hidden");
@@ -4297,12 +4552,31 @@ window.addEventListener("online",()=>{
 
   updateSaveStatus();
 
+  if(liveMatchReadOnly){
+
+    refreshReadOnlyLiveMatch();
+
+    return;
+
+  }
+
   syncPendingMatches();
 
   loadHistory();
 
 });
 window.addEventListener("offline",updateSaveStatus);
+
+document.addEventListener("visibilitychange",()=>{
+
+  if(!document.hidden && liveMatchReadOnly){
+
+    refreshReadOnlyLiveMatch();
+
+  }
+
+});
+
 showResumeOffer();
 
 let liveMatchStartupAttempts=0;

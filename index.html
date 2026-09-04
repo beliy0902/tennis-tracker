@@ -706,7 +706,27 @@ function hasRecoverableMatch(x){
 
 }
 function saveLocalOnly(){try{localStorage.setItem(STORAGE_KEY,JSON.stringify(S))}catch(e){console.error("Local save failed",e)}}
-function save(){saveLocalOnly();render();updateSaveStatus();syncLiveMatch()}
+function save(){
+
+  if(liveMatchReadOnly){
+
+    render();
+
+    updateSaveStatus();
+
+    return;
+
+  }
+
+  saveLocalOnly();
+
+  render();
+
+  updateSaveStatus();
+
+  syncLiveMatch();
+
+}
 function clearLocal(){try{localStorage.removeItem(STORAGE_KEY)}catch(e){}}
 function updateSaveStatus(){
   const a=$("saveStatus"),b=$("saveStatusDetail");if(!a||!b)return;

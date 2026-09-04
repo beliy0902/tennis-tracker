@@ -618,11 +618,46 @@ async function findActiveLiveMatch(){
   }
 
 }
+
+function currentTelegramUserId(){
+
+  return Number(
+
+    window.Telegram?.WebApp?.initDataUnsafe?.user?.id || 0
+
+  );
+
+}
+
+function setLiveMatchAccess(match){
+
+  activeLiveMatchCreatorId=
+
+    Number(match?.created_by_telegram_id || 0);
+
+  const myTelegramId=currentTelegramUserId();
+
+  liveMatchReadOnly=!!(
+
+    activeLiveMatchCreatorId &&
+
+    myTelegramId &&
+
+    activeLiveMatchCreatorId!==myTelegramId
+
+  );
+
+}
   
 const $=id=>document.getElementById(id);
 const emptyStats=()=>({sp:0,fi:0,fw:0,sp2:0,sw:0,a:0,df:0,fhw:0,bhw:0,fhue:0,bhue:0,fe:0,net:0,bpf:0,bps:0,r1p:0,r1w:0,r2p:0,r2w:0,ptsWon:0});
 const defaultState=()=>({names:["Player 1","Player 2"],set:[0,0],game:[0,0],pt:[0,0],srv:0,sn:1,marked:false,tb:false,st:[emptyStats(),emptyStats()],setStats:[[emptyStats(),emptyStats()]],hist:[],log:[],last:-1,curSet:0,selectedSet:0,matchOver:false,savedMatchId:null,pendingSyncId:null,liveMatchId:null,clientMatchId:null,setScores:[],tbFirstServer:null,tieBreakScores:[],started:false});
 let S=defaultState();
+
+let liveMatchReadOnly=false;
+let activeLiveMatchCreatorId=null;
+let liveMatchRefreshTimer=null;
+  
 const pct=(a,b)=>b?Math.round(a/b*100)+"%":"—";
 function ensureSet(){if(!S.setStats[S.curSet])S.setStats[S.curSet]=[emptyStats(),emptyStats()]}
 function snapshot(){let copy=JSON.parse(JSON.stringify(S));copy.hist=[];S.hist.push(JSON.stringify(copy));if(S.hist.length>200)S.hist.shift()}

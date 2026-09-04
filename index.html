@@ -4305,11 +4305,27 @@ window.addEventListener("online",()=>{
 window.addEventListener("offline",updateSaveStatus);
 showResumeOffer();
 
-setTimeout(async()=>{
+let liveMatchStartupAttempts=0;
 
-  if(!window.TENNIS_INIT_DATA) return;
+const liveMatchStartupTimer=setInterval(async()=>{
 
-  await loadActiveLiveMatchFromServer();
+  liveMatchStartupAttempts++;
+
+  if(window.TENNIS_INIT_DATA){
+
+    clearInterval(liveMatchStartupTimer);
+
+    await loadActiveLiveMatchFromServer();
+
+    return;
+
+  }
+
+  if(liveMatchStartupAttempts>=20){
+
+    clearInterval(liveMatchStartupTimer);
+
+  }
 
 },500);
   

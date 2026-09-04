@@ -648,6 +648,62 @@ function setLiveMatchAccess(match){
   );
 
 }
+
+async function loadActiveLiveMatchFromServer(){
+
+  const match=await findActiveLiveMatch();
+
+  if(!match){
+
+    return false;
+
+  }
+
+  setLiveMatchAccess(match);
+
+  const serverState=normalizeState(
+
+    match.match_data || {}
+
+  );
+
+  serverState.liveMatchId=match.id;
+
+  if(match.client_match_id){
+
+    serverState.clientMatchId=match.client_match_id;
+
+  }
+
+  if(match.player1){
+
+    serverState.names[0]=match.player1;
+
+  }
+
+  if(match.player2){
+
+    serverState.names[1]=match.player2;
+
+  }
+
+  S=serverState;
+
+  $("setupScreen").classList.add("hidden");
+
+  $("serverScreen").classList.add("hidden");
+
+  $("matchScreen").classList.remove("hidden");
+
+  render();
+
+  updateSaveStatus();
+
+  loadHistory();
+
+  return true;
+
+}
   
 const $=id=>document.getElementById(id);
 const emptyStats=()=>({sp:0,fi:0,fw:0,sp2:0,sw:0,a:0,df:0,fhw:0,bhw:0,fhue:0,bhue:0,fe:0,net:0,bpf:0,bps:0,r1p:0,r1w:0,r2p:0,r2w:0,ptsWon:0});

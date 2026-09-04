@@ -1005,6 +1005,36 @@ function render(){
   $("newMatchBtn").classList.remove("hidden");
   $("changeServerBtn").classList.toggle("hidden",S.matchOver);
 
+const liveEditButtons=[
+
+  ...document.querySelectorAll(
+
+    "#serveCard button, #p1PointCard button, #p2PointCard button, #quickPointCard button, #rallyCard button"
+
+  ),
+
+  $("undoBtn"),
+
+  $("changeServerBtn")
+
+].filter(Boolean);
+
+liveEditButtons.forEach(btn=>{
+
+  btn.disabled=liveMatchReadOnly;
+
+  btn.style.opacity=liveMatchReadOnly ? "0.45" : "";
+
+});
+
+if(liveMatchReadOnly){
+
+  $("saveStatus").textContent="👁 Только просмотр";
+
+  $("saveStatusDetail").textContent="Счёт ведёт другой пользователь. Изменение счёта отключено.";
+
+}
+  
   $("p1Section").textContent=S.names[0]+" — окончание очка";
   $("p2Section").textContent=S.names[1]+" — окончание очка";
   $("quickP1").textContent=S.names[0]+" +";
@@ -4237,6 +4267,15 @@ window.addEventListener("online",()=>{
 });
 window.addEventListener("offline",updateSaveStatus);
 showResumeOffer();
+
+setTimeout(async()=>{
+
+  if(!window.TENNIS_INIT_DATA) return;
+
+  await loadActiveLiveMatchFromServer();
+
+},500);
+  
 window.loadTennisHistory=loadHistory;
 window.syncPendingMatches=syncPendingMatches;
 })();

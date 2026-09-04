@@ -584,6 +584,40 @@ async function finishLiveMatch(){
   }
 
 }
+
+async function findActiveLiveMatch(){
+
+  try{
+
+    const result=await liveMatchRequest("?status=live",{
+
+      method:"GET"
+
+    });
+
+    const matches=Array.isArray(result.matches)
+
+      ? result.matches
+
+      : [];
+
+    if(!matches.length){
+
+      return null;
+
+    }
+
+    return matches[0];
+
+  }catch(error){
+
+    console.error("Find active Live Match error",error);
+
+    return null;
+
+  }
+
+}
   
 const $=id=>document.getElementById(id);
 const emptyStats=()=>({sp:0,fi:0,fw:0,sp2:0,sw:0,a:0,df:0,fhw:0,bhw:0,fhue:0,bhue:0,fe:0,net:0,bpf:0,bps:0,r1p:0,r1w:0,r2p:0,r2w:0,ptsWon:0});

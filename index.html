@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- UPDATED: LIVE parent viewer, automatic refresh every 2 seconds -->
+<!-- UPDATED: LIVE parent viewer + safe cancellation of unfinished matches -->
 <html lang="ru">
 <head>
 <meta charset="utf-8">
@@ -255,7 +255,7 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
 
   <div id="matchOverCard" class="card hidden">
     <div class="matchover" id="matchOverText"></div>
-    <div class="small" style="text-align:center">Матч завершён и сохранён в истории.</div>
+    <div class="small" id="matchOverDetail" style="text-align:center">Матч завершён и сохранён в истории.</div>
   </div>
 
   <div class="card" id="historyCard">
@@ -532,7 +532,7 @@ async function ensureLiveMatch(){
 
 async function syncLiveMatch(){
 
-  if(!S.started || S.matchOver) return;
+  if(!S.started || S.matchOver || liveMatchClosing) return;
 
   try{
 
@@ -557,6 +557,38 @@ async function syncLiveMatch(){
     console.error("Live Match sync error",error);
 
   }
+
+}
+
+async function cancelLiveMatch(){
+
+  if(!S.started || S.matchOver) return;
+
+  const id=await ensureLiveMatch();
+
+  const cancelledState=JSON.parse(JSON.stringify(S));
+
+  cancelledState.cancelled=true;
+
+  cancelledState.cancelledAt=new Date().toISOString();
+
+  await liveMatchRequest(
+
+    "/"+encodeURIComponent(id)+"/finish",
+
+    {
+
+      method:"POST",
+
+      body:JSON.stringify({
+
+        match_data:cancelledState
+
+      })
+
+    }
+
+  );
 
 }
 
@@ -788,7 +820,7 @@ async function refreshReadOnlyLiveMatch(){
 
     updateSaveStatus();
 
-    if(status==="finished" || S.matchOver){
+    if(status==="finished" || S.matchOver || S.cancelled){
 
       stopLiveMatchRefresh();
 
@@ -870,7 +902,7 @@ async function loadActiveLiveMatchFromServer(){
   
 const $=id=>document.getElementById(id);
 const emptyStats=()=>({sp:0,fi:0,fw:0,sp2:0,sw:0,a:0,df:0,fhw:0,bhw:0,fhue:0,bhue:0,fe:0,net:0,bpf:0,bps:0,r1p:0,r1w:0,r2p:0,r2w:0,ptsWon:0});
-const defaultState=()=>({names:["Player 1","Player 2"],set:[0,0],game:[0,0],pt:[0,0],srv:0,sn:1,marked:false,tb:false,st:[emptyStats(),emptyStats()],setStats:[[emptyStats(),emptyStats()]],hist:[],log:[],last:-1,curSet:0,selectedSet:0,matchOver:false,savedMatchId:null,pendingSyncId:null,liveMatchId:null,clientMatchId:null,setScores:[],tbFirstServer:null,tieBreakScores:[],started:false});
+const defaultState=()=>({names:["Player 1","Player 2"],set:[0,0],game:[0,0],pt:[0,0],srv:0,sn:1,marked:false,tb:false,st:[emptyStats(),emptyStats()],setStats:[[emptyStats(),emptyStats()]],hist:[],log:[],last:-1,curSet:0,selectedSet:0,matchOver:false,cancelled:false,cancelledAt:null,savedMatchId:null,pendingSyncId:null,liveMatchId:null,clientMatchId:null,setScores:[],tbFirstServer:null,tieBreakScores:[],started:false});
 let S=defaultState();
 
 let liveMatchReadOnly=false;
@@ -879,6 +911,7 @@ let liveMatchRefreshTimer=null;
 let liveMatchRefreshInProgress=false;
 let liveMatchLastUpdatedAt=null;
 let liveMatchRefreshError="";
+let liveMatchClosing=false;
 const LIVE_MATCH_REFRESH_MS=2000;
   
 const pct=(a,b)=>b?Math.round(a/b*100)+"%":"—";
@@ -960,6 +993,16 @@ function updateSaveStatus(){
   if(!a||!b)return;
 
   if(liveMatchReadOnly){
+
+    if(S.cancelled){
+
+      a.textContent="⚪ LIVE · Матч отменён";
+
+      b.textContent="Пользователь начал новый матч. Отменённый матч не сохранён в истории.";
+
+      return;
+
+    }
 
     if(S.matchOver){
 
@@ -1242,8 +1285,10 @@ function conclusions(){
   return o
 }
 function render(){
-  $("scoreName1").textContent=(!S.matchOver&&S.srv===0?"● ":"")+S.names[0];
-  $("scoreName2").textContent=(!S.matchOver&&S.srv===1?"● ":"")+S.names[1];
+  const matchClosed=S.matchOver||S.cancelled;
+
+  $("scoreName1").textContent=(!matchClosed&&S.srv===0?"● ":"")+S.names[0];
+  $("scoreName2").textContent=(!matchClosed&&S.srv===1?"● ":"")+S.names[1];
 
   $("set1").textContent=S.set[0];
   $("set2").textContent=S.set[1];
@@ -1253,33 +1298,35 @@ function render(){
   $("point1").textContent=S.matchOver?"0":pointText(0);
   $("point2").textContent=S.matchOver?"0":pointText(1);
 
-  if(S.matchOver){
+  if(S.cancelled){
+    $("statusText").textContent="Матч отменён";
+  }else if(S.matchOver){
     const w=S.set[0]>S.set[1]?0:1;
     $("statusText").textContent="🏆 Матч завершён · Победитель: "+S.names[w];
   }else{
     $("statusText").textContent=(S.tb?"Тай-брейк · ":"")+"Подаёт "+S.names[S.srv]+" · "+(S.sn===1?"первая":"вторая")+" подача";
   }
 
-  $("serveCard").classList.toggle("hidden",S.matchOver);
+  $("serveCard").classList.toggle("hidden",matchClosed);
   $("serveButtons").classList.toggle(
     "hidden",
-    S.matchOver||liveMatchReadOnly
+    matchClosed||liveMatchReadOnly
   );
   $("p1PointCard").classList.toggle(
     "hidden",
-    S.matchOver||liveMatchReadOnly
+    matchClosed||liveMatchReadOnly
   );
   $("p2PointCard").classList.toggle(
     "hidden",
-    S.matchOver||liveMatchReadOnly
+    matchClosed||liveMatchReadOnly
   );
   $("quickPointCard").classList.toggle(
     "hidden",
-    S.matchOver||liveMatchReadOnly
+    matchClosed||liveMatchReadOnly
   );
   $("rallyCard").classList.toggle(
     "hidden",
-    S.matchOver||liveMatchReadOnly
+    matchClosed||liveMatchReadOnly
   );
   $("matchActionsCard").classList.toggle(
     "hidden",
@@ -1293,7 +1340,7 @@ function render(){
   $("undoBtn").classList.remove("hidden");
   $("exportBtn").classList.remove("hidden");
   $("newMatchBtn").classList.remove("hidden");
-  $("changeServerBtn").classList.toggle("hidden",S.matchOver);
+  $("changeServerBtn").classList.toggle("hidden",matchClosed);
 
 const liveEditButtons=[
 
@@ -1334,11 +1381,15 @@ liveEditButtons.forEach(btn=>{
   <div class="kpi"><div class="small">Net Points Won</div><div class="v">${a.net} – ${b.net}</div></div>`;
   $("summary").innerHTML=conclusions().map(x=>"<li>"+x+"</li>").join("");
 
-  $("matchOverCard").classList.toggle("hidden",!S.matchOver);
-  if(S.matchOver){
+  $("matchOverCard").classList.toggle("hidden",!matchClosed);
+  if(S.cancelled){
+    $("matchOverText").textContent="Матч отменён";
+    $("matchOverDetail").textContent="Пользователь начал новый матч. Этот матч не сохранён в истории.";
+  }else if(S.matchOver){
     const w=S.set[0]>S.set[1]?0:1;
     const fs=fullScore();
     $("matchOverText").textContent="🏆 Победитель: "+S.names[w]+" · "+S.set[0]+"–"+S.set[1]+" по сетам"+(fs?" · "+fs:"");
+    $("matchOverDetail").textContent="Матч завершён и сохранён в истории.";
   }
 
   drawChart()
@@ -1720,19 +1771,79 @@ function start(){
   $("serverScreen").classList.remove("hidden")
 }
 function chooseServer(i){S.srv=i;S.started=true;$("serverScreen").classList.add("hidden");$("matchScreen").classList.remove("hidden");save()}
-function newMatch(){
+async function newMatch(){
   if(liveMatchReadOnly)return;
-  if(confirm("Начать новый матч?")){
-    stopLiveMatchRefresh();
-    activeLiveMatchCreatorId=null;
-    liveMatchLastUpdatedAt=null;
-    liveMatchRefreshError="";
-    clearLocal();S=defaultState();
-    $("resumeBox").classList.add("hidden");
-    $("matchScreen").classList.add("hidden");
-    $("serverScreen").classList.add("hidden");
-    $("setupScreen").classList.remove("hidden")
+
+  const hasUnfinishedLiveMatch=S.started&&!S.matchOver;
+
+  const message=hasUnfinishedLiveMatch
+    ? "Начать новый матч? Текущий незавершённый матч будет отменён и больше не восстановится."
+    : "Начать новый матч?";
+
+  if(!confirm(message))return;
+
+  if(hasUnfinishedLiveMatch){
+
+    if(!navigator.onLine){
+
+      alert("Чтобы отменить текущий LIVE-матч, подключитесь к интернету и повторите попытку.");
+
+      return;
+
+    }
+
+    const button=$("newMatchBtn");
+
+    const originalText=button.textContent;
+
+    liveMatchClosing=true;
+
+    button.disabled=true;
+
+    button.textContent="Отмена матча…";
+
+    try{
+
+      await cancelLiveMatch();
+
+    }catch(error){
+
+      console.error("Live Match cancellation error",error);
+
+      alert(
+
+        "Не удалось отменить LIVE-матч: "+
+
+        (error?.message||"неизвестная ошибка")+
+
+        ". Старый матч сохранён — попробуйте ещё раз."
+
+      );
+
+      return;
+
+    }finally{
+
+      liveMatchClosing=false;
+
+      button.disabled=false;
+
+      button.textContent=originalText;
+
+    }
+
   }
+
+  stopLiveMatchRefresh();
+  liveMatchReadOnly=false;
+  activeLiveMatchCreatorId=null;
+  liveMatchLastUpdatedAt=null;
+  liveMatchRefreshError="";
+  clearLocal();S=defaultState();
+  $("resumeBox").classList.add("hidden");
+  $("matchScreen").classList.add("hidden");
+  $("serverScreen").classList.add("hidden");
+  $("setupScreen").classList.remove("hidden")
 }
   let playerStatsMatchesCache=[];
 

@@ -1,4 +1,4 @@
-const CACHE_NAME = "tennis-tracker-v2";
+const CACHE_NAME = "tennis-tracker-v3-player-profiles";
 
 const APP_FILES = [
 

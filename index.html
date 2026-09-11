@@ -29,6 +29,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:7px 5px;b
 canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:block}ul{padding-left:20px}li{margin:7px 0}
 .startTitle{font-size:25px;font-weight:900;text-align:center;margin:8px 0 2px}.startSub{text-align:center;color:#666;font-size:13px;margin-bottom:18px}
 .spacer{height:8px}
+.opponentTools{display:flex;gap:8px;margin-top:8px}.opponentTools button{min-height:42px;font-size:14px;padding:8px 12px}.opponentStatus{min-height:18px;margin-top:7px}.opponentCreate{margin-top:10px;padding:12px;background:#f6f6f8;border-radius:14px}.opponentError{min-height:18px;color:#b42318;margin-top:7px}
 .matchover{font-size:20px;font-weight:900;text-align:center;padding:8px 0}.historyItem{border-bottom:1px solid #eee;padding:10px 0}.historyItem:last-child{border-bottom:0}.historyTop{display:flex;justify-content:space-between;gap:8px;align-items:center}.historyScore{font-weight:850}.danger{background:#f4dddd}.muted{color:#666;font-size:12px}.savebar{display:flex;justify-content:space-between;gap:10px;align-items:center}.saveStatus{font-size:12px;font-weight:750}.resumeBox{margin-top:12px;padding:12px;background:#f6f6f8;border-radius:14px}.resumeTitle{font-weight:850;margin-bottom:4px}
 </style>
 </head>
@@ -59,8 +60,24 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
       <option value="">Загрузка профиля…</option>
     </select>
     <div class="spacer"></div>
-    <div class="label">Игрок 2</div>
-    <input id="setupP2" placeholder="Введите имя соперника">
+    <div class="label">Соперник</div>
+    <select id="setupOpponentProfile" disabled>
+      <option value="">Загрузка соперников…</option>
+    </select>
+    <div id="opponentsStatus" class="small opponentStatus"></div>
+    <div class="opponentTools">
+      <button id="newOpponentToggleBtn" style="flex:1">＋ НОВЫЙ СОПЕРНИК</button>
+      <button id="retryOpponentsBtn" class="hidden">↻ ОБНОВИТЬ</button>
+    </div>
+    <div id="newOpponentPanel" class="opponentCreate hidden">
+      <div class="label">Имя нового соперника</div>
+      <input id="newOpponentName" maxlength="120" autocomplete="off" placeholder="Например: Oleksandr">
+      <div class="grid2" style="margin-top:8px">
+        <button id="createOpponentBtn" class="primary">СОЗДАТЬ</button>
+        <button id="cancelOpponentBtn">ОТМЕНА</button>
+      </div>
+      <div id="newOpponentError" class="small opponentError"></div>
+    </div>
     <div class="spacer"></div>
     <button id="startBtn" class="primary" style="width:100%">НАЧАТЬ МАТЧ</button>
 
@@ -454,11 +471,31 @@ const LIVE_MATCH_API =
 
   "https://mfaptgcrzdqjjttfwuih.supabase.co/functions/v1/live-match";
 
+const OPPONENTS_API =
+
+  "https://mfaptgcrzdqjjttfwuih.supabase.co/functions/v1/opponents";
+
 const PROFILE_SELECTION_KEY="TennisTrackerPlayerProfileId";
+
+const OPPONENT_SELECTION_KEY_PREFIX=
+
+  "TennisTrackerOpponentProfileId:";
+
+const OPPONENTS_CACHE_KEY_PREFIX=
+
+  "TennisTrackerOpponents:";
 
 let authorizedPlayerProfiles=[];
 
 let selectedPlayerProfileId=null;
+
+let opponentProfiles=[];
+
+let opponentsPlayerProfileId=null;
+
+let selectedOpponentProfileId=null;
+
+let opponentsLoadSequence=0;
 
 function normalizePlayerProfiles(profiles){
 
@@ -504,11 +541,709 @@ function selectedPlayerProfile(){
 
 }
 
+function normalizeOpponentProfiles(profiles,playerProfileId){
+
+  if(!Array.isArray(profiles))return [];
+
+  return profiles
+
+    .filter(opponent=>
+
+      opponent &&
+
+      typeof opponent.id==="string" &&
+
+      typeof opponent.player_profile_id==="string" &&
+
+      opponent.player_profile_id===playerProfileId &&
+
+      typeof opponent.display_name==="string" &&
+
+      opponent.display_name.trim() &&
+
+      opponent.status!=="archived"
+
+    )
+
+    .map(opponent=>({
+
+      id:opponent.id,
+
+      player_profile_id:opponent.player_profile_id,
+
+      display_name:opponent.display_name.trim(),
+
+      status:"active",
+
+      aliases:Array.isArray(opponent.aliases)
+
+        ? opponent.aliases
+
+        : []
+
+    }))
+
+    .sort((a,b)=>a.display_name.localeCompare(
+
+      b.display_name,
+
+      "ru",
+
+      {sensitivity:"base"}
+
+    ));
+
+}
+
+function opponentProfileById(opponentId){
+
+  return opponentProfiles.find(
+
+    opponent=>opponent.id===opponentId
+
+  ) || null;
+
+}
+
+function selectedOpponentProfile(){
+
+  const opponent=opponentProfileById(
+
+    selectedOpponentProfileId
+
+  );
+
+  return opponent &&
+
+    opponent.player_profile_id===selectedPlayerProfileId
+
+      ? opponent
+
+      : null;
+
+}
+
+function opponentSelectionKey(playerProfileId){
+
+  return OPPONENT_SELECTION_KEY_PREFIX+playerProfileId;
+
+}
+
+function opponentsCacheKey(playerProfileId){
+
+  return OPPONENTS_CACHE_KEY_PREFIX+playerProfileId;
+
+}
+
+function loadCachedOpponents(playerProfileId){
+
+  try{
+
+    return normalizeOpponentProfiles(
+
+      JSON.parse(
+
+        localStorage.getItem(
+
+          opponentsCacheKey(playerProfileId)
+
+        ) || "[]"
+
+      ),
+
+      playerProfileId
+
+    );
+
+  }catch(error){
+
+    console.warn("Opponent cache was not loaded",error);
+
+    return [];
+
+  }
+
+}
+
+function saveCachedOpponents(playerProfileId,profiles){
+
+  try{
+
+    localStorage.setItem(
+
+      opponentsCacheKey(playerProfileId),
+
+      JSON.stringify(profiles)
+
+    );
+
+  }catch(error){
+
+    console.warn("Opponent cache was not saved",error);
+
+  }
+
+}
+
+function storedOpponentId(playerProfileId){
+
+  try{
+
+    return localStorage.getItem(
+
+      opponentSelectionKey(playerProfileId)
+
+    );
+
+  }catch(error){
+
+    console.warn("Opponent selection was not loaded",error);
+
+    return null;
+
+  }
+
+}
+
+function setOpponentsStatus(message,isError=false){
+
+  const status=document.getElementById("opponentsStatus");
+
+  if(!status)return;
+
+  status.textContent=message || "";
+
+  status.style.color=isError?"#b42318":"#666";
+
+}
+
+function setOpponentFormError(message){
+
+  const errorBox=document.getElementById("newOpponentError");
+
+  if(errorBox)errorBox.textContent=message || "";
+
+}
+
+function updateStartButton(){
+
+  const player=selectedPlayerProfile();
+
+  const opponent=selectedOpponentProfile();
+
+  const startButton=document.getElementById("startBtn");
+
+  const newOpponentButton=document.getElementById(
+
+    "newOpponentToggleBtn"
+
+  );
+
+  if(startButton){
+
+    startButton.disabled=!(player && opponent);
+
+  }
+
+  if(newOpponentButton){
+
+    newOpponentButton.disabled=!player;
+
+  }
+
+}
+
+function chooseOpponentProfile(opponentId){
+
+  const opponent=opponentProfileById(opponentId);
+
+  selectedOpponentProfileId=opponent?.id || null;
+
+  const select=document.getElementById(
+
+    "setupOpponentProfile"
+
+  );
+
+  if(select){
+
+    select.value=selectedOpponentProfileId || "";
+
+  }
+
+  if(opponent && selectedPlayerProfileId){
+
+    try{
+
+      localStorage.setItem(
+
+        opponentSelectionKey(selectedPlayerProfileId),
+
+        opponent.id
+
+      );
+
+    }catch(error){
+
+      console.warn("Opponent selection was not saved",error);
+
+    }
+
+  }
+
+  updateStartButton();
+
+  return opponent || null;
+
+}
+
+function renderOpponentProfiles(
+
+  profiles,
+
+  playerProfileId,
+
+  preferredOpponentId=null
+
+){
+
+  opponentProfiles=normalizeOpponentProfiles(
+
+    profiles,
+
+    playerProfileId
+
+  );
+
+  opponentsPlayerProfileId=playerProfileId;
+
+  const select=document.getElementById(
+
+    "setupOpponentProfile"
+
+  );
+
+  if(!select)return;
+
+  const placeholder=document.createElement("option");
+
+  placeholder.value="";
+
+  placeholder.textContent=opponentProfiles.length
+
+    ? "Выберите соперника"
+
+    : "Соперников пока нет";
+
+  const options=opponentProfiles.map(opponent=>{
+
+    const option=document.createElement("option");
+
+    option.value=opponent.id;
+
+    option.textContent=opponent.display_name;
+
+    return option;
+
+  });
+
+  select.replaceChildren(placeholder,...options);
+
+  select.disabled=!opponentProfiles.length;
+
+  const candidate=
+
+    opponentProfileById(preferredOpponentId) ||
+
+    opponentProfileById(storedOpponentId(playerProfileId)) ||
+
+    null;
+
+  selectedOpponentProfileId=candidate?.id || null;
+
+  select.value=selectedOpponentProfileId || "";
+
+  updateStartButton();
+
+}
+
+function showOpponentCreatePanel(){
+
+  const panel=document.getElementById("newOpponentPanel");
+
+  if(!panel)return;
+
+  panel.classList.remove("hidden");
+
+  setOpponentFormError("");
+
+  document.getElementById("newOpponentName")?.focus();
+
+}
+
+function hideOpponentCreatePanel(){
+
+  document.getElementById("newOpponentPanel")
+
+    ?.classList.add("hidden");
+
+  setOpponentFormError("");
+
+}
+
+async function opponentsRequest(path="",options={}){
+
+  const initData=window.TENNIS_INIT_DATA;
+
+  if(!initData){
+
+    throw new Error("Telegram initData is not available");
+
+  }
+
+  const response=await fetch(
+
+    OPPONENTS_API+path,
+
+    {
+
+      ...options,
+
+      headers:{
+
+        "Content-Type":"application/json",
+
+        "X-Telegram-Init-Data":initData,
+
+        ...(options.headers||{})
+
+      }
+
+    }
+
+  );
+
+  const result=await response.json().catch(()=>({}));
+
+  if(!response.ok){
+
+    throw new Error(
+
+      result?.error?.message ||
+
+      "Opponent request failed"
+
+    );
+
+  }
+
+  return result;
+
+}
+
+async function loadOpponentsForPlayer(playerProfileId){
+
+  if(!playerProfileById(playerProfileId))return;
+
+  const sequence=++opponentsLoadSequence;
+
+  const preferredId=
+
+    opponentsPlayerProfileId===playerProfileId
+
+      ? selectedOpponentProfileId
+
+      : null;
+
+  const cached=loadCachedOpponents(playerProfileId);
+
+  renderOpponentProfiles(
+
+    cached,
+
+    playerProfileId,
+
+    preferredId
+
+  );
+
+  const select=document.getElementById(
+
+    "setupOpponentProfile"
+
+  );
+
+  if(!cached.length && select){
+
+    const loading=document.createElement("option");
+
+    loading.value="";
+
+    loading.textContent="Загрузка соперников…";
+
+    select.replaceChildren(loading);
+
+    select.disabled=true;
+
+  }
+
+  document.getElementById("retryOpponentsBtn")
+
+    ?.classList.add("hidden");
+
+  setOpponentsStatus(
+
+    cached.length
+
+      ? "Обновляем список соперников…"
+
+      : "Загружаем список соперников…"
+
+  );
+
+  try{
+
+    const result=await opponentsRequest(
+
+      "?player_profile_id="+
+
+        encodeURIComponent(playerProfileId),
+
+      {method:"GET"}
+
+    );
+
+    if(
+
+      sequence!==opponentsLoadSequence ||
+
+      selectedPlayerProfileId!==playerProfileId
+
+    )return;
+
+    const fresh=normalizeOpponentProfiles(
+
+      result.opponents,
+
+      playerProfileId
+
+    );
+
+    saveCachedOpponents(playerProfileId,fresh);
+
+    renderOpponentProfiles(
+
+      fresh,
+
+      playerProfileId,
+
+      preferredId
+
+    );
+
+    if(fresh.length){
+
+      setOpponentsStatus("Соперников в списке: "+fresh.length);
+
+    }else{
+
+      setOpponentsStatus(
+
+        "Список пока пуст. Создайте первого соперника."
+
+      );
+
+      showOpponentCreatePanel();
+
+    }
+
+  }catch(error){
+
+    if(
+
+      sequence!==opponentsLoadSequence ||
+
+      selectedPlayerProfileId!==playerProfileId
+
+    )return;
+
+    console.error("Opponent list error",error);
+
+    document.getElementById("retryOpponentsBtn")
+
+      ?.classList.remove("hidden");
+
+    if(cached.length){
+
+      setOpponentsStatus(
+
+        "Не удалось обновить список. Показана сохранённая копия.",
+
+        true
+
+      );
+
+    }else{
+
+      renderOpponentProfiles([],playerProfileId);
+
+      setOpponentsStatus(
+
+        "Не удалось загрузить соперников. Проверьте интернет и нажмите «Обновить».",
+
+        true
+
+      );
+
+    }
+
+  }
+
+}
+
+async function createOpponent(){
+
+  const player=selectedPlayerProfile();
+
+  const nameInput=document.getElementById("newOpponentName");
+
+  const createButton=document.getElementById("createOpponentBtn");
+
+  const cancelButton=document.getElementById("cancelOpponentBtn");
+
+  const displayName=nameInput?.value.trim() || "";
+
+  if(!player){
+
+    setOpponentFormError("Сначала выберите профиль игрока.");
+
+    return;
+
+  }
+
+  if(!displayName){
+
+    setOpponentFormError("Введите имя соперника.");
+
+    nameInput?.focus();
+
+    return;
+
+  }
+
+  setOpponentFormError("");
+
+  if(createButton){
+
+    createButton.disabled=true;
+
+    createButton.textContent="СОЗДАЁМ…";
+
+  }
+
+  if(cancelButton)cancelButton.disabled=true;
+
+  try{
+
+    const result=await opponentsRequest("",{
+
+      method:"POST",
+
+      body:JSON.stringify({
+
+        player_profile_id:player.id,
+
+        display_name:displayName
+
+      })
+
+    });
+
+    if(selectedPlayerProfileId!==player.id)return;
+
+    opponentsLoadSequence++;
+
+    const created=normalizeOpponentProfiles(
+
+      [result.opponent],
+
+      player.id
+
+    )[0];
+
+    if(!created){
+
+      throw new Error("API returned incomplete opponent data");
+
+    }
+
+    const next=[
+
+      ...opponentProfiles.filter(
+
+        opponent=>opponent.id!==created.id
+
+      ),
+
+      created
+
+    ];
+
+    renderOpponentProfiles(next,player.id,created.id);
+
+    saveCachedOpponents(player.id,opponentProfiles);
+
+    chooseOpponentProfile(created.id);
+
+    if(nameInput)nameInput.value="";
+
+    hideOpponentCreatePanel();
+
+    setOpponentsStatus(
+
+      result.created===false
+
+        ? "Этот соперник уже был в списке и теперь выбран."
+
+        : "Новый соперник создан и выбран."
+
+    );
+
+  }catch(error){
+
+    console.error("Opponent create error",error);
+
+    setOpponentFormError(
+
+      "Не удалось создать соперника: "+
+
+      (error?.message || "неизвестная ошибка")
+
+    );
+
+  }finally{
+
+    if(createButton){
+
+      createButton.disabled=false;
+
+      createButton.textContent="СОЗДАТЬ";
+
+    }
+
+    if(cancelButton)cancelButton.disabled=false;
+
+  }
+
+}
+
 function choosePlayerProfile(profileId){
 
   const profile=playerProfileById(profileId);
 
   if(!profile)return null;
+
+  const changed=selectedPlayerProfileId!==profile.id;
 
   selectedPlayerProfileId=profile.id;
 
@@ -529,6 +1264,16 @@ function choosePlayerProfile(profileId){
     if(select)select.value=profile.id;
 
   });
+
+  if(changed || opponentsPlayerProfileId!==profile.id){
+
+    selectedOpponentProfileId=null;
+
+    loadOpponentsForPlayer(profile.id);
+
+  }
+
+  updateStartButton();
 
   return profile;
 
@@ -586,11 +1331,21 @@ function applyAuthorizedPlayerProfiles(profiles){
 
   });
 
-  const startButton=document.getElementById("startBtn");
+  if(initialProfile){
 
-  if(startButton)startButton.disabled=!initialProfile;
+    choosePlayerProfile(initialProfile.id);
 
-  if(initialProfile)choosePlayerProfile(initialProfile.id);
+  }else{
+
+    opponentProfiles=[];
+
+    opponentsPlayerProfileId=null;
+
+    selectedOpponentProfileId=null;
+
+    updateStartButton();
+
+  }
 
 }
 
@@ -900,6 +1655,12 @@ function applyLiveMatchState(match,preserveSelectedSet=false){
 
   }
 
+  if(typeof match.opponent_profile_id==="string"){
+
+    serverState.opponentProfileId=match.opponent_profile_id;
+
+  }
+
   const lastSetIndex=Math.max(
 
     0,
@@ -1078,7 +1839,7 @@ async function loadActiveLiveMatchFromServer(){
   
 const $=id=>document.getElementById(id);
 const emptyStats=()=>({sp:0,fi:0,fw:0,sp2:0,sw:0,a:0,df:0,fhw:0,bhw:0,fhue:0,bhue:0,fe:0,net:0,bpf:0,bps:0,r1p:0,r1w:0,r2p:0,r2w:0,ptsWon:0});
-const defaultState=()=>({names:["Player 1","Player 2"],playerProfileId:null,set:[0,0],game:[0,0],pt:[0,0],srv:0,sn:1,marked:false,tb:false,st:[emptyStats(),emptyStats()],setStats:[[emptyStats(),emptyStats()]],hist:[],log:[],last:-1,curSet:0,selectedSet:0,matchOver:false,cancelled:false,cancelledAt:null,savedMatchId:null,pendingSyncId:null,liveMatchId:null,clientMatchId:null,setScores:[],tbFirstServer:null,tieBreakScores:[],started:false});
+const defaultState=()=>({names:["Player 1","Player 2"],playerProfileId:null,opponentProfileId:null,set:[0,0],game:[0,0],pt:[0,0],srv:0,sn:1,marked:false,tb:false,st:[emptyStats(),emptyStats()],setStats:[[emptyStats(),emptyStats()]],hist:[],log:[],last:-1,curSet:0,selectedSet:0,matchOver:false,cancelled:false,cancelledAt:null,savedMatchId:null,pendingSyncId:null,liveMatchId:null,clientMatchId:null,setScores:[],tbFirstServer:null,tieBreakScores:[],started:false});
 let S=defaultState();
 
 let liveMatchReadOnly=false;
@@ -1100,6 +1861,7 @@ function normalizeState(x){
   const z=Object.assign(d,x);
   z.names=Array.isArray(z.names)&&z.names.length===2?z.names:d.names;
   z.playerProfileId=typeof z.playerProfileId==="string"?z.playerProfileId:null;
+  z.opponentProfileId=typeof z.opponentProfileId==="string"?z.opponentProfileId:null;
   z.set=Array.isArray(z.set)?z.set:[0,0];z.game=Array.isArray(z.game)?z.game:[0,0];z.pt=Array.isArray(z.pt)?z.pt:[0,0];
   z.st=Array.isArray(z.st)&&z.st.length===2?z.st:[emptyStats(),emptyStats()];
   z.setStats=Array.isArray(z.setStats)&&z.setStats.length?z.setStats:[[emptyStats(),emptyStats()]];
@@ -1727,6 +2489,8 @@ const payload = {
 
   tracked_player_id:S.playerProfileId,
 
+  opponent_profile_id:S.opponentProfileId,
+
   winner:winnerName,
 
   score:matchScore,
@@ -1955,8 +2719,13 @@ function exportCSV(){
 }
 function start(){
   const profile=selectedPlayerProfile();
+  const opponent=selectedOpponentProfile();
   if(!profile){
     alert("Профиль игрока не выбран.");
+    return;
+  }
+  if(!opponent){
+    alert("Выберите или создайте соперника.");
     return;
   }
   stopLiveMatchRefresh();
@@ -1966,7 +2735,8 @@ function start(){
   liveMatchRefreshError="";
   clearLocal();S=defaultState();
   S.playerProfileId=profile.id;
-  S.names=[profile.display_name,$("setupP2").value.trim()||"Player 2"];
+  S.opponentProfileId=opponent.id;
+  S.names=[profile.display_name,opponent.display_name];
   $("serveP1Btn").textContent=S.names[0]+" подаёт";
   $("serveP2Btn").textContent=S.names[1]+" подаёт";
   $("setupScreen").classList.add("hidden");
@@ -4815,6 +5585,34 @@ async function savePlayerStatsSelection(){
 
 }
 $("startBtn").onclick=start;
+  $("setupOpponentProfile").onchange=event=>{
+
+    chooseOpponentProfile(event.target.value);
+
+  };
+  $("newOpponentToggleBtn").onclick=showOpponentCreatePanel;
+  $("cancelOpponentBtn").onclick=hideOpponentCreatePanel;
+  $("createOpponentBtn").onclick=createOpponent;
+  $("retryOpponentsBtn").onclick=()=>{
+
+    if(selectedPlayerProfileId){
+
+      loadOpponentsForPlayer(selectedPlayerProfileId);
+
+    }
+
+  };
+  $("newOpponentName").onkeydown=event=>{
+
+    if(event.key==="Enter"){
+
+      event.preventDefault();
+
+      createOpponent();
+
+    }
+
+  };
   $("loadPlayerStatsBtn").onclick=loadPlayerStats;
   $("managePlayerMatchesBtn").onclick=loadPlayerMatchesManager;
 

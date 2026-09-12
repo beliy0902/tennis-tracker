@@ -110,6 +110,14 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
 
     <div class="spacer"></div>
 
+    <div class="label">Соперник</div>
+
+    <select id="statsOpponentProfile" disabled>
+      <option value="">Все соперники</option>
+    </select>
+
+    <div class="spacer"></div>
+
     <button id="loadPlayerStatsBtn" class="primary" style="width:100%">
 
       ПОКАЗАТЬ СТАТИСТИКУ
@@ -495,6 +503,8 @@ let opponentsPlayerProfileId=null;
 
 let selectedOpponentProfileId=null;
 
+let selectedStatsOpponentProfileId=null;
+
 let opponentsLoadSequence=0;
 
 function normalizePlayerProfiles(profiles){
@@ -620,6 +630,68 @@ function selectedOpponentProfile(){
       ? opponent
 
       : null;
+
+}
+
+function selectedStatsOpponentProfile(){
+
+  const opponent=opponentProfileById(
+
+    selectedStatsOpponentProfileId
+
+  );
+
+  return opponent &&
+
+    opponent.player_profile_id===selectedPlayerProfileId
+
+      ? opponent
+
+      : null;
+
+}
+
+function renderStatsOpponentProfiles(){
+
+  const select=document.getElementById(
+
+    "statsOpponentProfile"
+
+  );
+
+  if(!select)return;
+
+  const allOption=document.createElement("option");
+
+  allOption.value="";
+
+  allOption.textContent="Все соперники";
+
+  const options=opponentProfiles.map(opponent=>{
+
+    const option=document.createElement("option");
+
+    option.value=opponent.id;
+
+    option.textContent=opponent.display_name;
+
+    return option;
+
+  });
+
+  const selected=opponentProfileById(
+
+    selectedStatsOpponentProfileId
+
+  );
+
+  selectedStatsOpponentProfileId=selected?.id || null;
+
+  select.replaceChildren(allOption,...options);
+
+  select.value=selectedStatsOpponentProfileId || "";
+
+  select.disabled=!selectedPlayerProfileId;
 
 }
 
@@ -816,6 +888,8 @@ function renderOpponentProfiles(
   );
 
   opponentsPlayerProfileId=playerProfileId;
+
+  renderStatsOpponentProfiles();
 
   const select=document.getElementById(
 
@@ -1268,6 +1342,8 @@ function choosePlayerProfile(profileId){
   if(changed || opponentsPlayerProfileId!==profile.id){
 
     selectedOpponentProfileId=null;
+
+    selectedStatsOpponentProfileId=null;
 
     loadOpponentsForPlayer(profile.id);
 
@@ -2599,6 +2675,9 @@ function matchBelongsToPlayerProfile(match,profile){
   return String(match.player1||"").toLowerCase()===name||
     String(match.player2||"").toLowerCase()===name;
 }
+function matchBelongsToStatsOpponent(match,opponent){
+  return !opponent || match?.opponent_profile_id===opponent.id;
+}
 async function loadHistory(){
   const box=$("historyList");
   if(typeof db==="undefined"){box.textContent="Supabase не подключён.";return}
@@ -2823,6 +2902,8 @@ async function loadPlayerMatchesManager(){
 
   const profile=selectedPlayerProfile();
 
+  const statsOpponent=selectedStatsOpponentProfile();
+
   const name=profile?.display_name || "";
 
   const manager=$("playerMatchesManager");
@@ -2855,7 +2936,7 @@ async function loadPlayerMatchesManager(){
 
       .from("matches")
 
-      .select("id,created_at,player1,player2,tracked_player_id,winner,score,sets,stats,points")
+      .select("id,created_at,player1,player2,tracked_player_id,opponent_profile_id,winner,score,sets,stats,points")
 
       .order("created_at",{ascending:false});
 
@@ -2865,7 +2946,9 @@ async function loadPlayerMatchesManager(){
 
     const matches=(data||[]).filter(match=>
 
-      matchBelongsToPlayerProfile(match,profile)
+      matchBelongsToPlayerProfile(match,profile) &&
+
+      matchBelongsToStatsOpponent(match,statsOpponent)
 
     );
 
@@ -5285,6 +5368,8 @@ async function savePlayerStatsSelection(){
 
   const profile=selectedPlayerProfile();
 
+  const statsOpponent=selectedStatsOpponentProfile();
+
   const name=profile?.display_name || "";
 
   const box=$("playerStatsContent");
@@ -5315,7 +5400,7 @@ async function savePlayerStatsSelection(){
 
       .from("matches")
 
-      .select("created_at,player1,player2,tracked_player_id,winner,score,sets,stats,points")
+      .select("created_at,player1,player2,tracked_player_id,opponent_profile_id,winner,score,sets,stats,points")
 
       .order("created_at",{ascending:false});
 
@@ -5327,15 +5412,23 @@ async function savePlayerStatsSelection(){
 
       matchBelongsToPlayerProfile(m,profile) &&
 
+      matchBelongsToStatsOpponent(m,statsOpponent) &&
+
       m.sets?.include_in_stats!==false
 
     );
 
     if(!matches.length){
 
-      title.textContent="Статистика: "+name;
+      title.textContent="Статистика: "+name+
 
-      box.textContent="Матчи этого игрока не найдены.";
+        (statsOpponent?" против "+statsOpponent.display_name:"");
+
+      box.textContent=statsOpponent
+
+        ? "Завершённые матчи против этого соперника не найдены."
+
+        : "Матчи этого игрока не найдены.";
 
       return;
 
@@ -5435,7 +5528,9 @@ async function savePlayerStatsSelection(){
 
     const ue=total.fhue+total.bhue;
 
-    title.textContent="Статистика: "+name;
+    title.textContent="Статистика: "+name+
+
+      (statsOpponent?" против "+statsOpponent.display_name:"");
 
     box.innerHTML=`
 
@@ -5614,6 +5709,15 @@ $("startBtn").onclick=start;
 
   };
   $("loadPlayerStatsBtn").onclick=loadPlayerStats;
+  $("statsOpponentProfile").onchange=event=>{
+
+    selectedStatsOpponentProfileId=event.target.value || null;
+
+    $("playerMatchesManager").classList.add("hidden");
+
+    $("selectedMatchDetails").classList.add("hidden");
+
+  };
   $("managePlayerMatchesBtn").onclick=loadPlayerMatchesManager;
 
 $("saveStatsSelectionBtn").onclick=savePlayerStatsSelection;

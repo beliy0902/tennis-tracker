@@ -1,4 +1,4 @@
-const CACHE_NAME = "tennis-tracker-v4-opponents";
+const CACHE_NAME = "tennis-tracker-v5-opponent-stats";
 
 const APP_FILES = [
 

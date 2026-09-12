@@ -29,7 +29,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:7px 5px;b
 canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:block}ul{padding-left:20px}li{margin:7px 0}
 .startTitle{font-size:25px;font-weight:900;text-align:center;margin:8px 0 2px}.startSub{text-align:center;color:#666;font-size:13px;margin-bottom:18px}
 .spacer{height:8px}
-.opponentTools{display:flex;gap:8px;margin-top:8px}.opponentTools button{min-height:42px;font-size:14px;padding:8px 12px}.opponentStatus{min-height:18px;margin-top:7px}.opponentCreate{margin-top:10px;padding:12px;background:#f6f6f8;border-radius:14px}.opponentError{min-height:18px;color:#b42318;margin-top:7px}
+.opponentTools{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}.opponentTools button{min-height:42px;font-size:14px;padding:8px 12px}.opponentStatus{min-height:18px;margin-top:7px}.opponentCreate{margin-top:10px;padding:12px;background:#f6f6f8;border-radius:14px}.opponentError{min-height:18px;color:#b42318;margin-top:7px}
 .matchover{font-size:20px;font-weight:900;text-align:center;padding:8px 0}.historyItem{border-bottom:1px solid #eee;padding:10px 0}.historyItem:last-child{border-bottom:0}.historyTop{display:flex;justify-content:space-between;gap:8px;align-items:center}.historyScore{font-weight:850}.danger{background:#f4dddd}.muted{color:#666;font-size:12px}.savebar{display:flex;justify-content:space-between;gap:10px;align-items:center}.saveStatus{font-size:12px;font-weight:750}.resumeBox{margin-top:12px;padding:12px;background:#f6f6f8;border-radius:14px}.resumeTitle{font-weight:850;margin-bottom:4px}
 </style>
 </head>
@@ -67,6 +67,7 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
     <div id="opponentsStatus" class="small opponentStatus"></div>
     <div class="opponentTools">
       <button id="newOpponentToggleBtn" style="flex:1">＋ НОВЫЙ СОПЕРНИК</button>
+      <button id="manageOpponentBtn" style="flex:1">⚙️ УПРАВЛЕНИЕ</button>
       <button id="retryOpponentsBtn" class="hidden">↻ ОБНОВИТЬ</button>
     </div>
     <div id="newOpponentPanel" class="opponentCreate hidden">
@@ -77,6 +78,18 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
         <button id="cancelOpponentBtn">ОТМЕНА</button>
       </div>
       <div id="newOpponentError" class="small opponentError"></div>
+    </div>
+    <div id="opponentManagePanel" class="opponentCreate hidden">
+      <div class="section">Управление соперником</div>
+      <div class="label">Имя соперника</div>
+      <input id="editOpponentName" maxlength="120" autocomplete="off">
+      <div class="grid2" style="margin-top:8px">
+        <button id="renameOpponentBtn" class="primary">СОХРАНИТЬ ИМЯ</button>
+        <button id="archiveOpponentBtn" class="danger">АРХИВИРОВАТЬ</button>
+      </div>
+      <button id="cancelManageOpponentBtn" style="width:100%;margin-top:8px">ОТМЕНА</button>
+      <div id="opponentManageError" class="small opponentError"></div>
+      <div class="small">Архивация скрывает соперника из выбора, но сохраняет всю историю матчей.</div>
     </div>
     <div class="spacer"></div>
     <button id="startBtn" class="primary" style="width:100%">НАЧАТЬ МАТЧ</button>
@@ -811,6 +824,12 @@ function updateStartButton(){
 
   );
 
+  const manageOpponentButton=document.getElementById(
+
+    "manageOpponentBtn"
+
+  );
+
   if(startButton){
 
     startButton.disabled=!(player && opponent);
@@ -820,6 +839,12 @@ function updateStartButton(){
   if(newOpponentButton){
 
     newOpponentButton.disabled=!player;
+
+  }
+
+  if(manageOpponentButton){
+
+    manageOpponentButton.disabled=!(player && opponent);
 
   }
 
@@ -947,6 +972,8 @@ function showOpponentCreatePanel(){
 
   if(!panel)return;
 
+  hideOpponentManagePanel();
+
   panel.classList.remove("hidden");
 
   setOpponentFormError("");
@@ -962,6 +989,52 @@ function hideOpponentCreatePanel(){
     ?.classList.add("hidden");
 
   setOpponentFormError("");
+
+}
+
+function setOpponentManageError(message){
+
+  const errorBox=document.getElementById("opponentManageError");
+
+  if(errorBox)errorBox.textContent=message || "";
+
+}
+
+function showOpponentManagePanel(){
+
+  const opponent=selectedOpponentProfile();
+
+  if(!opponent){
+
+    setOpponentsStatus("Сначала выберите соперника.",true);
+
+    return;
+
+  }
+
+  hideOpponentCreatePanel();
+
+  const panel=document.getElementById("opponentManagePanel");
+
+  const input=document.getElementById("editOpponentName");
+
+  if(input)input.value=opponent.display_name;
+
+  setOpponentManageError("");
+
+  panel?.classList.remove("hidden");
+
+  input?.focus();
+
+}
+
+function hideOpponentManagePanel(){
+
+  document.getElementById("opponentManagePanel")
+
+    ?.classList.add("hidden");
+
+  setOpponentManageError("");
 
 }
 
@@ -1306,6 +1379,254 @@ async function createOpponent(){
     }
 
     if(cancelButton)cancelButton.disabled=false;
+
+  }
+
+}
+
+async function renameSelectedOpponent(){
+
+  const player=selectedPlayerProfile();
+
+  const opponent=selectedOpponentProfile();
+
+  const input=document.getElementById("editOpponentName");
+
+  const button=document.getElementById("renameOpponentBtn");
+
+  const displayName=input?.value.trim() || "";
+
+  if(!player || !opponent){
+
+    setOpponentManageError("Соперник не выбран.");
+
+    return;
+
+  }
+
+  if(!displayName){
+
+    setOpponentManageError("Введите имя соперника.");
+
+    input?.focus();
+
+    return;
+
+  }
+
+  setOpponentManageError("");
+
+  if(button){
+
+    button.disabled=true;
+
+    button.textContent="СОХРАНЯЕМ…";
+
+  }
+
+  try{
+
+    const result=await opponentsRequest(
+
+      "/"+encodeURIComponent(opponent.id),
+
+      {
+
+        method:"PATCH",
+
+        body:JSON.stringify({
+
+          player_profile_id:player.id,
+
+          display_name:displayName
+
+        })
+
+      }
+
+    );
+
+    if(selectedPlayerProfileId!==player.id)return;
+
+    const updated=normalizeOpponentProfiles(
+
+      [result.opponent],
+
+      player.id
+
+    )[0];
+
+    if(!updated){
+
+      throw new Error("API returned incomplete opponent data");
+
+    }
+
+    const next=[
+
+      ...opponentProfiles.filter(item=>item.id!==updated.id),
+
+      updated
+
+    ];
+
+    renderOpponentProfiles(next,player.id,updated.id);
+
+    saveCachedOpponents(player.id,opponentProfiles);
+
+    chooseOpponentProfile(updated.id);
+
+    hideOpponentManagePanel();
+
+    setOpponentsStatus("Имя соперника обновлено.");
+
+  }catch(error){
+
+    console.error("Opponent rename error",error);
+
+    setOpponentManageError(
+
+      "Не удалось переименовать соперника: "+
+
+      (error?.message || "неизвестная ошибка")
+
+    );
+
+  }finally{
+
+    if(button){
+
+      button.disabled=false;
+
+      button.textContent="СОХРАНИТЬ ИМЯ";
+
+    }
+
+  }
+
+}
+
+async function archiveSelectedOpponent(){
+
+  const player=selectedPlayerProfile();
+
+  const opponent=selectedOpponentProfile();
+
+  const button=document.getElementById("archiveOpponentBtn");
+
+  if(!player || !opponent){
+
+    setOpponentManageError("Соперник не выбран.");
+
+    return;
+
+  }
+
+  if(!confirm(
+
+    "Архивировать соперника "+opponent.display_name+"? "+
+
+    "История матчей сохранится."
+
+  ))return;
+
+  setOpponentManageError("");
+
+  if(button){
+
+    button.disabled=true;
+
+    button.textContent="АРХИВИРУЕМ…";
+
+  }
+
+  try{
+
+    await opponentsRequest(
+
+      "/"+encodeURIComponent(opponent.id),
+
+      {
+
+        method:"PATCH",
+
+        body:JSON.stringify({
+
+          player_profile_id:player.id,
+
+          status:"archived"
+
+        })
+
+      }
+
+    );
+
+    if(selectedPlayerProfileId!==player.id)return;
+
+    const remaining=opponentProfiles.filter(
+
+      item=>item.id!==opponent.id
+
+    );
+
+    const nextOpponentId=remaining[0]?.id || null;
+
+    if(!nextOpponentId){
+
+      try{
+
+        localStorage.removeItem(opponentSelectionKey(player.id));
+
+      }catch(error){
+
+        console.warn("Opponent selection was not removed",error);
+
+      }
+
+    }
+
+    renderOpponentProfiles(
+
+      remaining,
+
+      player.id,
+
+      nextOpponentId
+
+    );
+
+    saveCachedOpponents(player.id,opponentProfiles);
+
+    if(nextOpponentId)chooseOpponentProfile(nextOpponentId);
+
+    hideOpponentManagePanel();
+
+    setOpponentsStatus("Соперник перемещён в архив. История сохранена.");
+
+    if(!remaining.length)showOpponentCreatePanel();
+
+  }catch(error){
+
+    console.error("Opponent archive error",error);
+
+    setOpponentManageError(
+
+      "Не удалось архивировать соперника: "+
+
+      (error?.message || "неизвестная ошибка")
+
+    );
+
+  }finally{
+
+    if(button){
+
+      button.disabled=false;
+
+      button.textContent="АРХИВИРОВАТЬ";
+
+    }
 
   }
 
@@ -5684,10 +6005,16 @@ $("startBtn").onclick=start;
 
     chooseOpponentProfile(event.target.value);
 
+    hideOpponentManagePanel();
+
   };
   $("newOpponentToggleBtn").onclick=showOpponentCreatePanel;
+  $("manageOpponentBtn").onclick=showOpponentManagePanel;
   $("cancelOpponentBtn").onclick=hideOpponentCreatePanel;
+  $("cancelManageOpponentBtn").onclick=hideOpponentManagePanel;
   $("createOpponentBtn").onclick=createOpponent;
+  $("renameOpponentBtn").onclick=renameSelectedOpponent;
+  $("archiveOpponentBtn").onclick=archiveSelectedOpponent;
   $("retryOpponentsBtn").onclick=()=>{
 
     if(selectedPlayerProfileId){
@@ -5704,6 +6031,17 @@ $("startBtn").onclick=start;
       event.preventDefault();
 
       createOpponent();
+
+    }
+
+  };
+  $("editOpponentName").onkeydown=event=>{
+
+    if(event.key==="Enter"){
+
+      event.preventDefault();
+
+      renameSelectedOpponent();
 
     }
 

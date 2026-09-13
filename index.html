@@ -81,15 +81,43 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
     </div>
     <div id="opponentManagePanel" class="opponentCreate hidden">
       <div class="section">Управление соперником</div>
-      <div class="label">Имя соперника</div>
-      <input id="editOpponentName" maxlength="120" autocomplete="off">
-      <div class="grid2" style="margin-top:8px">
-        <button id="renameOpponentBtn" class="primary">СОХРАНИТЬ ИМЯ</button>
-        <button id="archiveOpponentBtn" class="danger">АРХИВИРОВАТЬ</button>
+      <div id="manageOpponentHint" class="small hidden">Для изменения имени или объединения сначала выберите активного соперника. Архив доступен ниже.</div>
+      <div id="activeOpponentActions">
+        <div class="label">Имя соперника</div>
+        <input id="editOpponentName" maxlength="120" autocomplete="off">
+        <div class="grid2" style="margin-top:8px">
+          <button id="renameOpponentBtn" class="primary">СОХРАНИТЬ ИМЯ</button>
+          <button id="archiveOpponentBtn" class="danger">АРХИВИРОВАТЬ</button>
+        </div>
+        <button id="mergeOpponentToggleBtn" style="width:100%;margin-top:8px">ОБЪЕДИНИТЬ С ДРУГОЙ ЗАПИСЬЮ</button>
+        <div id="mergeOpponentPanel" class="hidden" style="margin-top:10px">
+          <div class="label">Основной соперник: <span id="mergeTargetName"></span></div>
+          <div class="label">Какую вторую запись объединить с ним?</div>
+          <select id="mergeSourceOpponent">
+            <option value="">Выберите соперника</option>
+          </select>
+          <button id="confirmMergeOpponentBtn" class="danger" style="width:100%;margin-top:8px" disabled>ОБЪЕДИНИТЬ ПРОФИЛИ</button>
+          <div id="mergeOpponentError" class="small opponentError"></div>
+          <div class="small">Матчи будут учитываться вместе; старое имя останется в истории. Объединение нельзя отменить в приложении.</div>
+        </div>
       </div>
+      <button id="archiveOpponentToggleBtn" style="width:100%;margin-top:8px">📦 АРХИВ / ВОССТАНОВИТЬ</button>
       <button id="cancelManageOpponentBtn" style="width:100%;margin-top:8px">ОТМЕНА</button>
       <div id="opponentManageError" class="small opponentError"></div>
       <div class="small">Архивация скрывает соперника из выбора, но сохраняет всю историю матчей.</div>
+    </div>
+    <div id="opponentArchivePanel" class="opponentCreate hidden">
+      <div class="section">Архив соперников</div>
+      <div class="label">Выберите соперника для восстановления</div>
+      <select id="archivedOpponentSelect" disabled>
+        <option value="">Загрузка архива…</option>
+      </select>
+      <div class="grid2" style="margin-top:8px">
+        <button id="restoreOpponentBtn" class="primary" disabled>ВОССТАНОВИТЬ</button>
+        <button id="cancelArchiveOpponentBtn">ОТМЕНА</button>
+      </div>
+      <div id="opponentArchiveError" class="small opponentError"></div>
+      <div class="small">Для просмотра старых матчей выберите соперника в статистике (пометка «архив»).</div>
     </div>
     <div class="spacer"></div>
     <button id="startBtn" class="primary" style="width:100%">НАЧАТЬ МАТЧ</button>
@@ -512,6 +540,10 @@ let selectedPlayerProfileId=null;
 
 let opponentProfiles=[];
 
+let archivedOpponentProfiles=[];
+
+let archivedOpponentsLoaded=false;
+
 let opponentsPlayerProfileId=null;
 
 let selectedOpponentProfileId=null;
@@ -564,7 +596,7 @@ function selectedPlayerProfile(){
 
 }
 
-function normalizeOpponentProfiles(profiles,playerProfileId){
+function normalizeOpponentProfiles(profiles,playerProfileId,includeArchived=false){
 
   if(!Array.isArray(profiles))return [];
 
@@ -584,7 +616,8 @@ function normalizeOpponentProfiles(profiles,playerProfileId){
 
       opponent.display_name.trim() &&
 
-      opponent.status!=="archived"
+      (opponent.status==="active" ||
+        (includeArchived && opponent.status==="archived"))
 
     )
 
@@ -596,7 +629,7 @@ function normalizeOpponentProfiles(profiles,playerProfileId){
 
       display_name:opponent.display_name.trim(),
 
-      status:"active",
+      status:opponent.status,
 
       aliases:Array.isArray(opponent.aliases)
 
@@ -628,6 +661,15 @@ function opponentProfileById(opponentId){
 
 }
 
+function statsOpponentProfileById(opponentId){
+
+  return opponentProfileById(opponentId) ||
+    archivedOpponentProfiles.find(
+      opponent=>opponent.id===opponentId
+    ) || null;
+
+}
+
 function selectedOpponentProfile(){
 
   const opponent=opponentProfileById(
@@ -648,7 +690,7 @@ function selectedOpponentProfile(){
 
 function selectedStatsOpponentProfile(){
 
-  const opponent=opponentProfileById(
+  const opponent=statsOpponentProfileById(
 
     selectedStatsOpponentProfileId
 
@@ -680,19 +722,24 @@ function renderStatsOpponentProfiles(){
 
   allOption.textContent="Все соперники";
 
-  const options=opponentProfiles.map(opponent=>{
+  const options=[...opponentProfiles,...archivedOpponentProfiles]
+    .sort((a,b)=>a.display_name.localeCompare(
+      b.display_name,"ru",{sensitivity:"base"}
+    ))
+    .map(opponent=>{
 
     const option=document.createElement("option");
 
     option.value=opponent.id;
 
-    option.textContent=opponent.display_name;
+    option.textContent=opponent.display_name+
+      (opponent.status==="archived" ? " (архив)" : "");
 
     return option;
 
   });
 
-  const selected=opponentProfileById(
+  const selected=statsOpponentProfileById(
 
     selectedStatsOpponentProfileId
 
@@ -830,6 +877,10 @@ function updateStartButton(){
 
   );
 
+  const archiveOpponentButton=document.getElementById(
+    "archiveOpponentToggleBtn"
+  );
+
   if(startButton){
 
     startButton.disabled=!(player && opponent);
@@ -844,8 +895,12 @@ function updateStartButton(){
 
   if(manageOpponentButton){
 
-    manageOpponentButton.disabled=!(player && opponent);
+    manageOpponentButton.disabled=!player;
 
+  }
+
+  if(archiveOpponentButton){
+    archiveOpponentButton.disabled=!player;
   }
 
 }
@@ -962,7 +1017,128 @@ function renderOpponentProfiles(
 
   select.value=selectedOpponentProfileId || "";
 
+  renderArchivedOpponents();
+
+  renderMergeSourceOptions();
+
   updateStartButton();
+
+}
+
+function renderArchivedOpponents(){
+
+  const select=document.getElementById("archivedOpponentSelect");
+  const restoreButton=document.getElementById("restoreOpponentBtn");
+  if(!select)return;
+
+  const previous=select.value;
+  const placeholder=document.createElement("option");
+  placeholder.value="";
+  placeholder.textContent=archivedOpponentProfiles.length
+    ? "Выберите соперника"
+    : archivedOpponentsLoaded
+      ? "В архиве пока пусто"
+      : "Архив пока не загружен";
+
+  const options=archivedOpponentProfiles.map(opponent=>{
+    const option=document.createElement("option");
+    option.value=opponent.id;
+    option.textContent=opponent.display_name;
+    return option;
+  });
+
+  select.replaceChildren(placeholder,...options);
+  select.disabled=!archivedOpponentProfiles.length;
+  select.value=archivedOpponentProfiles.some(
+    opponent=>opponent.id===previous
+  ) ? previous : "";
+  if(restoreButton)restoreButton.disabled=!select.value;
+
+}
+
+function renderMergeSourceOptions(){
+
+  const select=document.getElementById("mergeSourceOpponent");
+  const target=selectedOpponentProfile();
+  const toggle=document.getElementById("mergeOpponentToggleBtn");
+  const button=document.getElementById("confirmMergeOpponentBtn");
+  const targetName=document.getElementById("mergeTargetName");
+  if(!select)return;
+
+  const previous=select.value;
+  const placeholder=document.createElement("option");
+  placeholder.value="";
+  placeholder.textContent="Выберите вторую запись";
+
+  const sources=target
+    ? [...opponentProfiles,...archivedOpponentProfiles]
+      .filter(opponent=>opponent.id!==target.id)
+      .sort((a,b)=>a.display_name.localeCompare(
+        b.display_name,"ru",{sensitivity:"base"}
+      ))
+    : [];
+  select.replaceChildren(placeholder,...sources.map(opponent=>{
+    const option=document.createElement("option");
+    option.value=opponent.id;
+    option.textContent=opponent.display_name+
+      (opponent.status==="archived" ? " (архив)" : "");
+    return option;
+  }));
+  select.value=sources.some(item=>item.id===previous) ? previous : "";
+  select.disabled=!sources.length;
+  if(toggle)toggle.disabled=!sources.length;
+  if(button)button.disabled=!select.value;
+  if(targetName)targetName.textContent=target?.display_name || "";
+
+}
+
+function setMergeOpponentError(message){
+
+  const box=document.getElementById("mergeOpponentError");
+  if(box)box.textContent=message || "";
+
+}
+
+function toggleMergeOpponentPanel(){
+
+  const panel=document.getElementById("mergeOpponentPanel");
+  if(!selectedOpponentProfile() || !panel)return;
+  if(panel.classList.contains("hidden")){
+    renderMergeSourceOptions();
+    setMergeOpponentError("");
+    panel.classList.remove("hidden");
+  }else{
+    panel.classList.add("hidden");
+  }
+
+}
+
+function setOpponentArchiveError(message){
+
+  const box=document.getElementById("opponentArchiveError");
+  if(box)box.textContent=message || "";
+
+}
+
+function showOpponentArchivePanel(){
+
+  if(!selectedPlayerProfile())return;
+  hideOpponentCreatePanel();
+  hideOpponentManagePanel();
+  renderArchivedOpponents();
+  setOpponentArchiveError(archivedOpponentsLoaded
+    ? ""
+    : "Подождите загрузки. При ошибке нажмите «Обновить» выше.");
+  document.getElementById("opponentArchivePanel")
+    ?.classList.remove("hidden");
+
+}
+
+function hideOpponentArchivePanel(){
+
+  document.getElementById("opponentArchivePanel")
+    ?.classList.add("hidden");
+  setOpponentArchiveError("");
 
 }
 
@@ -973,6 +1149,8 @@ function showOpponentCreatePanel(){
   if(!panel)return;
 
   hideOpponentManagePanel();
+
+  hideOpponentArchivePanel();
 
   panel.classList.remove("hidden");
 
@@ -1004,27 +1182,36 @@ function showOpponentManagePanel(){
 
   const opponent=selectedOpponentProfile();
 
-  if(!opponent){
-
-    setOpponentsStatus("Сначала выберите соперника.",true);
-
-    return;
-
-  }
+  if(!selectedPlayerProfile())return;
 
   hideOpponentCreatePanel();
+
+  hideOpponentArchivePanel();
 
   const panel=document.getElementById("opponentManagePanel");
 
   const input=document.getElementById("editOpponentName");
 
-  if(input)input.value=opponent.display_name;
+  if(input)input.value=opponent?.display_name || "";
+
+  const activeActions=document.getElementById("activeOpponentActions");
+  const hint=document.getElementById("manageOpponentHint");
+  if(opponent){
+    activeActions?.classList.remove("hidden");
+    hint?.classList.add("hidden");
+  }else{
+    activeActions?.classList.add("hidden");
+    hint?.classList.remove("hidden");
+  }
+  document.getElementById("mergeOpponentPanel")
+    ?.classList.add("hidden");
+  renderMergeSourceOptions();
 
   setOpponentManageError("");
 
   panel?.classList.remove("hidden");
 
-  input?.focus();
+  if(opponent)input?.focus();
 
 }
 
@@ -1035,6 +1222,84 @@ function hideOpponentManagePanel(){
     ?.classList.add("hidden");
 
   setOpponentManageError("");
+
+}
+
+async function mergeSelectedOpponents(){
+
+  const player=selectedPlayerProfile();
+  const target=selectedOpponentProfile();
+  const select=document.getElementById("mergeSourceOpponent");
+  const button=document.getElementById("confirmMergeOpponentBtn");
+  const source=[...opponentProfiles,...archivedOpponentProfiles].find(
+    opponent=>opponent.id===select?.value
+  );
+
+  if(!player || !target || !source || source.id===target.id){
+    setMergeOpponentError("Выберите две разные записи одного соперника.");
+    return;
+  }
+
+  if(!confirm(
+    "Объединить «"+source.display_name+"» с «"+
+    target.display_name+"»? Завершённые матчи будут учитываться "+
+    "за основным соперником. Старое имя останется в истории. "+
+    "Отменить объединение в приложении нельзя."
+  ))return;
+
+  setMergeOpponentError("");
+  if(button){
+    button.disabled=true;
+    button.textContent="ОБЪЕДИНЯЕМ…";
+  }
+
+  try{
+    const result=await opponentsRequest(
+      "/"+encodeURIComponent(target.id)+"/merge",{
+        method:"POST",
+        body:JSON.stringify({
+          player_profile_id:player.id,
+          source_opponent_id:source.id
+        })
+      }
+    );
+    if(selectedPlayerProfileId!==player.id)return;
+    if(result?.merge?.source_id!==source.id ||
+        result?.merge?.target_id!==target.id){
+      throw new Error("API returned incomplete merge data");
+    }
+
+    opponentsLoadSequence++;
+    archivedOpponentProfiles=archivedOpponentProfiles.filter(
+      opponent=>opponent.id!==source.id
+    );
+    if(selectedStatsOpponentProfileId===source.id){
+      selectedStatsOpponentProfileId=target.id;
+    }
+    renderOpponentProfiles(
+      opponentProfiles.filter(opponent=>opponent.id!==source.id),
+      player.id,target.id
+    );
+    saveCachedOpponents(player.id,opponentProfiles);
+    chooseOpponentProfile(target.id);
+    hideOpponentManagePanel();
+    const count=Number(result.merge.moved_matches);
+    setOpponentsStatus(
+      "Соперники объединены. Перенесено завершённых матчей: "+
+      (Number.isSafeInteger(count) && count>=0 ? count : "—")+"."
+    );
+  }catch(error){
+    console.error("Opponent merge error",error);
+    setMergeOpponentError(
+      "Не удалось объединить соперников: "+
+      (error?.message || "неизвестная ошибка")
+    );
+  }finally{
+    if(button){
+      button.textContent="ОБЪЕДИНИТЬ ПРОФИЛИ";
+      button.disabled=!select?.value;
+    }
+  }
 
 }
 
@@ -1102,6 +1367,15 @@ async function loadOpponentsForPlayer(playerProfileId){
 
       : null;
 
+  const previousStatsOpponentId=
+    opponentsPlayerProfileId===playerProfileId
+      ? selectedStatsOpponentProfileId
+      : null;
+
+  archivedOpponentProfiles=[];
+  archivedOpponentsLoaded=false;
+  hideOpponentArchivePanel();
+
   const cached=loadCachedOpponents(playerProfileId);
 
   renderOpponentProfiles(
@@ -1154,7 +1428,8 @@ async function loadOpponentsForPlayer(playerProfileId){
 
       "?player_profile_id="+
 
-        encodeURIComponent(playerProfileId),
+        encodeURIComponent(playerProfileId)+
+        "&include_archived=1",
 
       {method:"GET"}
 
@@ -1168,13 +1443,22 @@ async function loadOpponentsForPlayer(playerProfileId){
 
     )return;
 
-    const fresh=normalizeOpponentProfiles(
+    const all=normalizeOpponentProfiles(
 
       result.opponents,
 
-      playerProfileId
+      playerProfileId,
+
+      true
 
     );
+
+    const fresh=all.filter(opponent=>opponent.status==="active");
+    archivedOpponentProfiles=all.filter(
+      opponent=>opponent.status==="archived"
+    );
+    archivedOpponentsLoaded=true;
+    selectedStatsOpponentProfileId=previousStatsOpponentId;
 
     saveCachedOpponents(playerProfileId,fresh);
 
@@ -1188,6 +1472,8 @@ async function loadOpponentsForPlayer(playerProfileId){
 
     );
 
+    setOpponentArchiveError("");
+
     if(fresh.length){
 
       setOpponentsStatus("Соперников в списке: "+fresh.length);
@@ -1196,11 +1482,11 @@ async function loadOpponentsForPlayer(playerProfileId){
 
       setOpponentsStatus(
 
-        "Список пока пуст. Создайте первого соперника."
+        "Активных соперников нет. Можно создать нового или открыть архив."
 
       );
 
-      showOpponentCreatePanel();
+      if(!archivedOpponentProfiles.length)showOpponentCreatePanel();
 
     }
 
@@ -1243,6 +1529,8 @@ async function loadOpponentsForPlayer(playerProfileId){
       );
 
     }
+
+    renderArchivedOpponents();
 
   }
 
@@ -1462,6 +1750,8 @@ async function renameSelectedOpponent(){
 
     }
 
+    opponentsLoadSequence++;
+
     const next=[
 
       ...opponentProfiles.filter(item=>item.id!==updated.id),
@@ -1542,7 +1832,7 @@ async function archiveSelectedOpponent(){
 
   try{
 
-    await opponentsRequest(
+    const result=await opponentsRequest(
 
       "/"+encodeURIComponent(opponent.id),
 
@@ -1563,6 +1853,22 @@ async function archiveSelectedOpponent(){
     );
 
     if(selectedPlayerProfileId!==player.id)return;
+
+    const archived=normalizeOpponentProfiles(
+      [result.opponent],player.id,true
+    )[0];
+    if(!archived || archived.status!=="archived"){
+      throw new Error("API returned incomplete archived opponent data");
+    }
+
+    opponentsLoadSequence++;
+
+    archivedOpponentProfiles=[
+      ...archivedOpponentProfiles.filter(item=>item.id!==archived.id),
+      archived
+    ].sort((a,b)=>a.display_name.localeCompare(
+      b.display_name,"ru",{sensitivity:"base"}
+    ));
 
     const remaining=opponentProfiles.filter(
 
@@ -1628,6 +1934,73 @@ async function archiveSelectedOpponent(){
 
     }
 
+  }
+
+}
+
+async function restoreSelectedOpponent(){
+
+  const player=selectedPlayerProfile();
+  const select=document.getElementById("archivedOpponentSelect");
+  const button=document.getElementById("restoreOpponentBtn");
+  const opponent=archivedOpponentProfiles.find(
+    item=>item.id===select?.value
+  );
+  if(!player || !opponent){
+    setOpponentArchiveError("Выберите соперника из архива.");
+    return;
+  }
+
+  setOpponentArchiveError("");
+  if(button){
+    button.disabled=true;
+    button.textContent="ВОССТАНАВЛИВАЕМ…";
+  }
+
+  try{
+    const result=await opponentsRequest(
+      "/"+encodeURIComponent(opponent.id),{
+        method:"PATCH",
+        body:JSON.stringify({
+          player_profile_id:player.id,
+          status:"active"
+        })
+      }
+    );
+    if(selectedPlayerProfileId!==player.id)return;
+
+    const restored=normalizeOpponentProfiles(
+      [result.opponent],player.id
+    )[0];
+    if(!restored || restored.id!==opponent.id){
+      throw new Error("API returned incomplete restored opponent data");
+    }
+
+    opponentsLoadSequence++;
+    archivedOpponentProfiles=archivedOpponentProfiles.filter(
+      item=>item.id!==restored.id
+    );
+    renderOpponentProfiles(
+      [...opponentProfiles.filter(item=>item.id!==restored.id),restored],
+      player.id,
+      restored.id
+    );
+    saveCachedOpponents(player.id,opponentProfiles);
+    chooseOpponentProfile(restored.id);
+    hideOpponentArchivePanel();
+    setOpponentsStatus("Соперник восстановлен и выбран. История сохранена.");
+
+  }catch(error){
+    console.error("Opponent restore error",error);
+    setOpponentArchiveError(
+      "Не удалось восстановить соперника: "+
+      (error?.message || "неизвестная ошибка")
+    );
+  }finally{
+    if(button){
+      button.textContent="ВОССТАНОВИТЬ";
+      button.disabled=!select?.value;
+    }
   }
 
 }
@@ -1735,6 +2108,10 @@ function applyAuthorizedPlayerProfiles(profiles){
   }else{
 
     opponentProfiles=[];
+
+    archivedOpponentProfiles=[];
+
+    archivedOpponentsLoaded=false;
 
     opponentsPlayerProfileId=null;
 
@@ -3034,7 +3411,7 @@ async function loadHistory(){
 
       .from("matches")
 
-      .select("id,player1,player2,sets")
+      .select("id,player1,player2,sets,opponent_profile_id")
 
       .eq("id",id)
 
@@ -3063,6 +3440,8 @@ if(!editSnapshot){
     if(deleteError)throw deleteError;
 
     S=normalizeState(editSnapshot);
+
+S.opponentProfileId=data.opponent_profile_id || S.opponentProfileId;
 
 S.playerProfileId=S.playerProfileId||selectedPlayerProfileId;
 
@@ -6010,11 +6389,27 @@ $("startBtn").onclick=start;
   };
   $("newOpponentToggleBtn").onclick=showOpponentCreatePanel;
   $("manageOpponentBtn").onclick=showOpponentManagePanel;
+  $("archiveOpponentToggleBtn").onclick=showOpponentArchivePanel;
+  $("mergeOpponentToggleBtn").onclick=toggleMergeOpponentPanel;
+  $("mergeSourceOpponent").onchange=event=>{
+    $("confirmMergeOpponentBtn").disabled=!event.target.value;
+    setMergeOpponentError("");
+  };
+  $("confirmMergeOpponentBtn").onclick=mergeSelectedOpponents;
   $("cancelOpponentBtn").onclick=hideOpponentCreatePanel;
   $("cancelManageOpponentBtn").onclick=hideOpponentManagePanel;
+  $("cancelArchiveOpponentBtn").onclick=()=>{
+    hideOpponentArchivePanel();
+    showOpponentManagePanel();
+  };
   $("createOpponentBtn").onclick=createOpponent;
   $("renameOpponentBtn").onclick=renameSelectedOpponent;
   $("archiveOpponentBtn").onclick=archiveSelectedOpponent;
+  $("restoreOpponentBtn").onclick=restoreSelectedOpponent;
+  $("archivedOpponentSelect").onchange=event=>{
+    $("restoreOpponentBtn").disabled=!event.target.value;
+    setOpponentArchiveError("");
+  };
   $("retryOpponentsBtn").onclick=()=>{
 
     if(selectedPlayerProfileId){

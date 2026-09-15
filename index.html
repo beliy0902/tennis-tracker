@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- UPDATED: secure match history + RU/UA/EN interface -->
+<!-- UPDATED: secure match history + RU/UA/EN + Live Quick Analysis -->
 <html lang="ru">
 <head>
 <meta charset="utf-8">
@@ -32,6 +32,7 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
 .opponentTools{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}.opponentTools button{min-height:42px;font-size:14px;padding:8px 12px}.opponentStatus{min-height:18px;margin-top:7px}.opponentCreate{margin-top:10px;padding:12px;background:#f6f6f8;border-radius:14px}.opponentError{min-height:18px;color:#b42318;margin-top:7px}
 .matchover{font-size:20px;font-weight:900;text-align:center;padding:8px 0}.historyItem{border-bottom:1px solid #eee;padding:10px 0}.historyItem:last-child{border-bottom:0}.historyTop{display:flex;justify-content:space-between;gap:8px;align-items:center}.historyScore{font-weight:850}.danger{background:#f4dddd}.muted{color:#666;font-size:12px}.savebar{display:flex;justify-content:space-between;gap:10px;align-items:center}.saveStatus{font-size:12px;font-weight:750}.resumeBox{margin-top:12px;padding:12px;background:#f6f6f8;border-radius:14px}.resumeTitle{font-weight:850;margin-bottom:4px}
 .languageRow{display:flex;align-items:center;justify-content:flex-end;gap:8px;margin:-8px 0 14px}.languageRow .label{margin:0}.languageRow select{width:auto;min-width:132px;padding:8px 32px 8px 10px;font-size:14px}
+.quickAnalysisTips{margin:10px 0 0;padding-left:20px}.quickAnalysisTips li{margin:8px 0;line-height:1.3}
 </style>
 </head>
 <body>
@@ -326,6 +327,16 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
     </div>
   </div>
 
+  <div class="card" id="quickAnalysisCard">
+    <button id="quickAnalysisToggleBtn" style="width:100%;min-height:48px">📈 ПОКАЗАТЬ БЫСТРЫЙ АНАЛИЗ</button>
+    <div id="quickAnalysisBody" class="hidden" style="margin-top:12px">
+      <div class="section">📈 Быстрый анализ матча</div>
+      <div class="small">Обновляется по записанным действиям и не изменяет матч.</div>
+      <div id="quickAnalysisMetrics" class="kpis" style="margin-top:10px"></div>
+      <ul id="quickAnalysisTips" class="quickAnalysisTips"></ul>
+    </div>
+  </div>
+
   <div class="card grid2" id="matchActionsCard">
     <button id="undoBtn">↶ UNDO</button>
     <button id="changeServerBtn">⇄ Подающий</button>
@@ -427,6 +438,20 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
       "Сохранение…":"Збереження…",
       "Матч сохраняется на этом устройстве после каждого действия.":"Матч зберігається на цьому пристрої після кожної дії.",
       "Быстрая запись очка":"Швидкий запис очка",
+      "📈 ПОКАЗАТЬ БЫСТРЫЙ АНАЛИЗ":"📈 ПОКАЗАТИ ШВИДКИЙ АНАЛІЗ",
+      "📈 СКРЫТЬ БЫСТРЫЙ АНАЛИЗ":"📈 СХОВАТИ ШВИДКИЙ АНАЛІЗ",
+      "📈 Быстрый анализ матча":"📈 Швидкий аналіз матчу",
+      "Обновляется по записанным действиям и не изменяет матч.":"Оновлюється за записаними діями та не змінює матч.",
+      "Данных пока мало. Продолжайте записывать розыгрыши.":"Даних поки замало. Продовжуйте записувати розіграші.",
+      "Стабилизировать 1st Serve — повысить процент попадания.":"Стабілізувати 1st Serve — підвищити відсоток влучання.",
+      "Повысить эффективность 1st Serve после попадания.":"Підвищити ефективність 1st Serve після влучання.",
+      "Защитить 2nd Serve и снизить давление соперника.":"Захистити 2nd Serve та зменшити тиск суперника.",
+      "Снизить количество Double Faults.":"Зменшити кількість Double Faults.",
+      "Сократить Unforced Errors, особенно с FH.":"Скоротити Unforced Errors, особливо з FH.",
+      "Сократить Unforced Errors, особенно с BH.":"Скоротити Unforced Errors, особливо з BH.",
+      "Активнее атаковать 2nd Serve соперника.":"Активніше атакувати 2nd Serve суперника.",
+      "Сохранять текущую надёжность 1st Serve.":"Зберігати поточну надійність 1st Serve.",
+      "Баланс матча ровный — сохраняйте выбранный план.":"Баланс матчу рівний — дотримуйтеся обраного плану.",
       "Длина последнего розыгрыша":"Довжина останнього розіграшу",
       "⇄ Подающий":"⇄ Подає",
       "Новый матч":"Новий матч",
@@ -615,6 +640,20 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
       "Сохранение…":"Saving…",
       "Матч сохраняется на этом устройстве после каждого действия.":"The match is saved on this device after every action.",
       "Быстрая запись очка":"Quick point entry",
+      "📈 ПОКАЗАТЬ БЫСТРЫЙ АНАЛИЗ":"📈 SHOW QUICK ANALYSIS",
+      "📈 СКРЫТЬ БЫСТРЫЙ АНАЛИЗ":"📈 HIDE QUICK ANALYSIS",
+      "📈 Быстрый анализ матча":"📈 Live Quick Analysis",
+      "Обновляется по записанным действиям и не изменяет матч.":"Updates from recorded actions and does not change the match.",
+      "Данных пока мало. Продолжайте записывать розыгрыши.":"There is not enough data yet. Keep recording points.",
+      "Стабилизировать 1st Serve — повысить процент попадания.":"Stabilize the 1st Serve and improve the percentage in.",
+      "Повысить эффективность 1st Serve после попадания.":"Improve 1st Serve effectiveness after it lands in.",
+      "Защитить 2nd Serve и снизить давление соперника.":"Protect the 2nd Serve and reduce the opponent’s pressure.",
+      "Снизить количество Double Faults.":"Reduce Double Faults.",
+      "Сократить Unforced Errors, особенно с FH.":"Reduce Unforced Errors, especially on the FH.",
+      "Сократить Unforced Errors, особенно с BH.":"Reduce Unforced Errors, especially on the BH.",
+      "Активнее атаковать 2nd Serve соперника.":"Attack the opponent’s 2nd Serve more actively.",
+      "Сохранять текущую надёжность 1st Serve.":"Maintain the current 1st Serve reliability.",
+      "Баланс матча ровный — сохраняйте выбранный план.":"The match is balanced — stay with the current plan.",
       "Длина последнего розыгрыша":"Last rally length",
       "⇄ Подающий":"⇄ Server",
       "Новый матч":"New match",
@@ -3285,7 +3324,7 @@ async function loadActiveLiveMatchFromServer(){
   
 const $=id=>document.getElementById(id);
 const emptyStats=()=>({sp:0,fi:0,fw:0,sp2:0,sw:0,a:0,df:0,fhw:0,bhw:0,fhue:0,bhue:0,fe:0,net:0,bpf:0,bps:0,r1p:0,r1w:0,r2p:0,r2w:0,ptsWon:0});
-const defaultState=()=>({names:["Player 1","Player 2"],playerProfileId:null,opponentProfileId:null,set:[0,0],game:[0,0],pt:[0,0],srv:0,sn:1,marked:false,tb:false,st:[emptyStats(),emptyStats()],setStats:[[emptyStats(),emptyStats()]],hist:[],log:[],last:-1,curSet:0,selectedSet:0,matchOver:false,cancelled:false,cancelledAt:null,savedMatchId:null,pendingSyncId:null,liveMatchId:null,clientMatchId:null,setScores:[],tbFirstServer:null,tieBreakScores:[],started:false});
+const defaultState=()=>({names:["Player 1","Player 2"],playerProfileId:null,opponentProfileId:null,set:[0,0],game:[0,0],pt:[0,0],srv:0,sn:1,marked:false,tb:false,st:[emptyStats(),emptyStats()],setStats:[[emptyStats(),emptyStats()]],hist:[],log:[],last:-1,curSet:0,selectedSet:0,matchOver:false,cancelled:false,cancelledAt:null,savedMatchId:null,pendingSyncId:null,liveMatchId:null,clientMatchId:null,setScores:[],tbFirstServer:null,tieBreakScores:[],started:false,quickAnalysisOpen:false});
 let S=defaultState();
 
 let liveMatchReadOnly=false;
@@ -3532,7 +3571,11 @@ function finish(type){
   S.log.push({set:S.curSet+1,time:new Date().toLocaleTimeString(
     window.TennisI18n?.localeTag() || "ru-RU"
   ),server:S.names[sv],serve:S.sn,result:type,winner:S.names[w],rally:""});
-  S.last=S.log.length-1;addPoint(w);S.sn=1;S.marked=false;save()
+  S.last=S.log.length-1;
+  const gamesBefore=S.game[0]+S.game[1];
+  addPoint(w);
+  if(S.game[0]+S.game[1]!==gamesBefore||S.matchOver)S.quickAnalysisOpen=true;
+  S.sn=1;S.marked=false;save()
 }
 function addPoint(w){
   let l=1-w;
@@ -3673,6 +3716,46 @@ function conclusions(){
   if(!o.length)o.push("Пока данных мало для выраженных выводов.");
   return o
 }
+function quickAnalysisTips(){
+  const a=S.st[0];
+  const tips=[];
+  if((a.ptsWon||0)+(S.st[1].ptsWon||0)<4){
+    return ["Данных пока мало. Продолжайте записывать розыгрыши."];
+  }
+  const firstServe=a.sp?a.fi/a.sp:null;
+  const firstWon=a.fi?a.fw/a.fi:null;
+  const secondWon=a.sp2?a.sw/a.sp2:null;
+  const returnSecond=a.r2p?a.r2w/a.r2p:null;
+  if(a.df>=2)tips.push("Снизить количество Double Faults.");
+  if(a.fhue>=3&&a.fhue>=a.bhue+1)tips.push("Сократить Unforced Errors, особенно с FH.");
+  else if(a.bhue>=3)tips.push("Сократить Unforced Errors, особенно с BH.");
+  if(firstServe!==null&&a.sp>=4&&firstServe<.55)tips.push("Стабилизировать 1st Serve — повысить процент попадания.");
+  if(firstWon!==null&&a.fi>=3&&firstWon<.55)tips.push("Повысить эффективность 1st Serve после попадания.");
+  if(secondWon!==null&&a.sp2>=3&&secondWon<.45)tips.push("Защитить 2nd Serve и снизить давление соперника.");
+  if(returnSecond!==null&&a.r2p>=3&&returnSecond<.45)tips.push("Активнее атаковать 2nd Serve соперника.");
+  if(!tips.length&&firstServe!==null&&a.sp>=4&&firstServe>=.65)tips.push("Сохранять текущую надёжность 1st Serve.");
+  if(!tips.length)tips.push("Баланс матча ровный — сохраняйте выбранный план.");
+  return tips.slice(0,3);
+}
+function renderQuickAnalysis(){
+  const body=$("quickAnalysisBody");
+  if(!body)return;
+  body.classList.toggle("hidden",!S.quickAnalysisOpen);
+  $("quickAnalysisToggleBtn").textContent=S.quickAnalysisOpen
+    ?"📈 СКРЫТЬ БЫСТРЫЙ АНАЛИЗ"
+    :"📈 ПОКАЗАТЬ БЫСТРЫЙ АНАЛИЗ";
+  const a=S.st[0];
+  $("quickAnalysisMetrics").innerHTML=`
+    <div class="kpi"><div class="small">1st Serve %</div><div class="v">${pct(a.fi,a.sp)}</div></div>
+    <div class="kpi"><div class="small">2nd Serve Won</div><div class="v">${pct(a.sw,a.sp2)}</div></div>
+    <div class="kpi"><div class="small">Winners / UE</div><div class="v">${a.fhw+a.bhw}/${a.fhue+a.bhue}</div></div>
+    <div class="kpi"><div class="small">Double Faults</div><div class="v">${a.df}</div></div>`;
+  $("quickAnalysisTips").innerHTML=quickAnalysisTips().map(t=>`<li>${t}</li>`).join("");
+}
+function toggleQuickAnalysis(){
+  S.quickAnalysisOpen=!S.quickAnalysisOpen;
+  render();
+}
 function render(){
   const matchClosed=S.matchOver||S.cancelled;
 
@@ -3769,6 +3852,7 @@ liveEditButtons.forEach(btn=>{
   <div class="kpi"><div class="small">Forced Errors Won</div><div class="v">${a.fe} – ${b.fe}</div></div>
   <div class="kpi"><div class="small">Net Points Won</div><div class="v">${a.net} – ${b.net}</div></div>`;
   $("summary").innerHTML=conclusions().map(x=>"<li>"+x+"</li>").join("");
+  renderQuickAnalysis();
 
   $("matchOverCard").classList.toggle("hidden",!matchClosed);
   if(S.cancelled){
@@ -7104,6 +7188,7 @@ $("aceBtn").onclick=()=>finish("ace");
 $("dfBtn").onclick=()=>finish("df");
 $("quickP1").onclick=()=>finish("p1_won");
 $("quickP2").onclick=()=>finish("p2_won");
+$("quickAnalysisToggleBtn").onclick=toggleQuickAnalysis;
 $("undoBtn").onclick=undo;
 $("changeServerBtn").onclick=changeServer;
 $("exportBtn").onclick=exportCSV;

@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- UPDATED: secure match history + RU/UA/EN + Live Quick Analysis -->
+<!-- UPDATED: secure match history + RU/UA/EN + Live Quick Analysis V12 -->
 <html lang="ru">
 <head>
 <meta charset="utf-8">
@@ -452,6 +452,14 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
       "Активнее атаковать 2nd Serve соперника.":"Активніше атакувати 2nd Serve суперника.",
       "Сохранять текущую надёжность 1st Serve.":"Зберігати поточну надійність 1st Serve.",
       "Баланс матча ровный — сохраняйте выбранный план.":"Баланс матчу рівний — дотримуйтеся обраного плану.",
+      "Повысить надёжность на Break Points.":"Підвищити надійність на Break Points.",
+      "Хорошая устойчивость на Break Points — сохраняйте подход.":"Хороша стійкість на Break Points — зберігайте підхід.",
+      "В длинных Rally снизить риск и терпеливее строить розыгрыш.":"У довгих Rally знизити ризик і терплячіше будувати розіграш.",
+      "Длинные Rally приносят очки — продолжайте терпеливо строить розыгрыш.":"Довгі Rally приносять очки — продовжуйте терпляче будувати розіграш.",
+      "Положительный баланс Winners / UE — сохраняйте инициативу.":"Позитивний баланс Winners / UE — зберігайте ініціативу.",
+      "Сохраняйте дисциплину розыгрыша и избегайте лишнего риска.":"Зберігайте дисципліну розіграшу та уникайте зайвого ризику.",
+      "По выигранным очкам есть преимущество — сохраняйте план.":"За виграними очками є перевага — зберігайте план.",
+      "По выигранным очкам есть отставание — нужен более надёжный выбор удара.":"За виграними очками є відставання — потрібен надійніший вибір удару.",
       "Длина последнего розыгрыша":"Довжина останнього розіграшу",
       "⇄ Подающий":"⇄ Подає",
       "Новый матч":"Новий матч",
@@ -654,6 +662,14 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
       "Активнее атаковать 2nd Serve соперника.":"Attack the opponent’s 2nd Serve more actively.",
       "Сохранять текущую надёжность 1st Serve.":"Maintain the current 1st Serve reliability.",
       "Баланс матча ровный — сохраняйте выбранный план.":"The match is balanced — stay with the current plan.",
+      "Повысить надёжность на Break Points.":"Improve reliability on Break Points.",
+      "Хорошая устойчивость на Break Points — сохраняйте подход.":"Good resilience on Break Points — keep the same approach.",
+      "В длинных Rally снизить риск и терпеливее строить розыгрыш.":"Reduce risk in long rallies and build the point more patiently.",
+      "Длинные Rally приносят очки — продолжайте терпеливо строить розыгрыш.":"Long rallies are producing points — keep building them patiently.",
+      "Положительный баланс Winners / UE — сохраняйте инициативу.":"The Winners / UE balance is positive — maintain the initiative.",
+      "Сохраняйте дисциплину розыгрыша и избегайте лишнего риска.":"Stay disciplined in rallies and avoid unnecessary risk.",
+      "По выигранным очкам есть преимущество — сохраняйте план.":"There is an edge in points won — stay with the plan.",
+      "По выигранным очкам есть отставание — нужен более надёжный выбор удара.":"There is a deficit in points won — choose shots more reliably.",
       "Длина последнего розыгрыша":"Last rally length",
       "⇄ Подающий":"⇄ Server",
       "Новый матч":"New match",
@@ -3300,6 +3316,8 @@ async function loadActiveLiveMatchFromServer(){
 
   applyLiveMatchState(match);
 
+  $("resumeBox").classList.add("hidden");
+
   $("setupScreen").classList.add("hidden");
 
   $("serverScreen").classList.add("hidden");
@@ -3718,24 +3736,60 @@ function conclusions(){
 }
 function quickAnalysisTips(){
   const a=S.st[0];
+  const b=S.st[1];
   const tips=[];
-  if((a.ptsWon||0)+(S.st[1].ptsWon||0)<4){
+  const addTip=text=>{if(!tips.includes(text))tips.push(text)};
+  if((a.ptsWon||0)+(b.ptsWon||0)<4){
     return ["Данных пока мало. Продолжайте записывать розыгрыши."];
   }
   const firstServe=a.sp?a.fi/a.sp:null;
   const firstWon=a.fi?a.fw/a.fi:null;
   const secondWon=a.sp2?a.sw/a.sp2:null;
   const returnSecond=a.r2p?a.r2w/a.r2p:null;
-  if(a.df>=2)tips.push("Снизить количество Double Faults.");
-  if(a.fhue>=3&&a.fhue>=a.bhue+1)tips.push("Сократить Unforced Errors, особенно с FH.");
-  else if(a.bhue>=3)tips.push("Сократить Unforced Errors, особенно с BH.");
-  if(firstServe!==null&&a.sp>=4&&firstServe<.55)tips.push("Стабилизировать 1st Serve — повысить процент попадания.");
-  if(firstWon!==null&&a.fi>=3&&firstWon<.55)tips.push("Повысить эффективность 1st Serve после попадания.");
-  if(secondWon!==null&&a.sp2>=3&&secondWon<.45)tips.push("Защитить 2nd Serve и снизить давление соперника.");
-  if(returnSecond!==null&&a.r2p>=3&&returnSecond<.45)tips.push("Активнее атаковать 2nd Serve соперника.");
-  if(!tips.length&&firstServe!==null&&a.sp>=4&&firstServe>=.65)tips.push("Сохранять текущую надёжность 1st Serve.");
-  if(!tips.length)tips.push("Баланс матча ровный — сохраняйте выбранный план.");
+  const rallies=quickRallyStats();
+  if(a.df>=2)addTip("Снизить количество Double Faults.");
+  if(a.fhue>=3&&a.fhue>=a.bhue+1)addTip("Сократить Unforced Errors, особенно с FH.");
+  else if(a.bhue>=3)addTip("Сократить Unforced Errors, особенно с BH.");
+  if(a.bpf>=2){
+    const breakPointSaveRate=a.bps/a.bpf;
+    if(breakPointSaveRate<.5)addTip("Повысить надёжность на Break Points.");
+    else if(breakPointSaveRate>=.67)addTip("Хорошая устойчивость на Break Points — сохраняйте подход.");
+  }
+  if(rallies.long>=3){
+    const longRallyWinRate=rallies.longWon/rallies.long;
+    if(longRallyWinRate<.45)addTip("В длинных Rally снизить риск и терпеливее строить розыгрыш.");
+    else if(longRallyWinRate>=.6)addTip("Длинные Rally приносят очки — продолжайте терпеливо строить розыгрыш.");
+  }
+  if(firstServe!==null&&a.sp>=4&&firstServe<.55)addTip("Стабилизировать 1st Serve — повысить процент попадания.");
+  if(firstWon!==null&&a.fi>=3&&firstWon<.55)addTip("Повысить эффективность 1st Serve после попадания.");
+  if(secondWon!==null&&a.sp2>=3&&secondWon<.45)addTip("Защитить 2nd Serve и снизить давление соперника.");
+  if(returnSecond!==null&&a.r2p>=3&&returnSecond<.45)addTip("Активнее атаковать 2nd Serve соперника.");
+  if(tips.length<2&&firstServe!==null&&a.sp>=4&&firstServe>=.65)addTip("Сохранять текущую надёжность 1st Serve.");
+  if(tips.length<2){
+    const winners=a.fhw+a.bhw;
+    const unforcedErrors=a.fhue+a.bhue;
+    addTip(winners>unforcedErrors
+      ?"Положительный баланс Winners / UE — сохраняйте инициативу."
+      :"Сохраняйте дисциплину розыгрыша и избегайте лишнего риска.");
+  }
+  if(tips.length<2){
+    if(a.ptsWon>b.ptsWon)addTip("По выигранным очкам есть преимущество — сохраняйте план.");
+    else if(a.ptsWon<b.ptsWon)addTip("По выигранным очкам есть отставание — нужен более надёжный выбор удара.");
+    else addTip("Баланс матча ровный — сохраняйте выбранный план.");
+  }
   return tips.slice(0,3);
+}
+function quickRallyStats(){
+  const valid=new Set(["0-4","5-8","9+"]);
+  const marked=(S.log||[]).filter(item=>valid.has(item.rally));
+  const long=marked.filter(item=>item.rally==="9+");
+  return {
+    total:marked.length,
+    short:marked.filter(item=>item.rally==="0-4").length,
+    medium:marked.filter(item=>item.rally==="5-8").length,
+    long:long.length,
+    longWon:long.filter(item=>item.winner===S.names[0]).length
+  };
 }
 function renderQuickAnalysis(){
   const body=$("quickAnalysisBody");
@@ -3745,11 +3799,14 @@ function renderQuickAnalysis(){
     ?"📈 СКРЫТЬ БЫСТРЫЙ АНАЛИЗ"
     :"📈 ПОКАЗАТЬ БЫСТРЫЙ АНАЛИЗ";
   const a=S.st[0];
+  const rallies=quickRallyStats();
   $("quickAnalysisMetrics").innerHTML=`
     <div class="kpi"><div class="small">1st Serve %</div><div class="v">${pct(a.fi,a.sp)}</div></div>
     <div class="kpi"><div class="small">2nd Serve Won</div><div class="v">${pct(a.sw,a.sp2)}</div></div>
     <div class="kpi"><div class="small">Winners / UE</div><div class="v">${a.fhw+a.bhw}/${a.fhue+a.bhue}</div></div>
-    <div class="kpi"><div class="small">Double Faults</div><div class="v">${a.df}</div></div>`;
+    <div class="kpi"><div class="small">Double Faults</div><div class="v">${a.df}</div></div>
+    <div class="kpi"><div class="small">Break Points Saved</div><div class="v">${a.bps}/${a.bpf}</div></div>
+    <div class="kpi"><div class="small">Rally 9+ Won</div><div class="v">${rallies.long?rallies.longWon+"/"+rallies.long:"—"}</div></div>`;
   $("quickAnalysisTips").innerHTML=quickAnalysisTips().map(t=>`<li>${t}</li>`).join("");
 }
 function toggleQuickAnalysis(){
@@ -7239,6 +7296,8 @@ window.addEventListener("tennis-auth-ready",event=>{
 
   loadHistory();
 
+  runLiveMatchStartup();
+
 });
 
 if(Array.isArray(window.TENNIS_PLAYER_PROFILES)){
@@ -7251,19 +7310,33 @@ if(Array.isArray(window.TENNIS_PLAYER_PROFILES)){
 
 }
 
-showResumeOffer();
-
+let liveMatchStartupStarted=false;
 let liveMatchStartupAttempts=0;
+let liveMatchStartupTimer=null;
 
-const liveMatchStartupTimer=setInterval(async()=>{
+async function runLiveMatchStartup(){
+
+  if(liveMatchStartupStarted)return true;
+
+  if(!window.TENNIS_INIT_DATA)return false;
+
+  liveMatchStartupStarted=true;
+
+  if(liveMatchStartupTimer)clearInterval(liveMatchStartupTimer);
+
+  const loaded=await loadActiveLiveMatchFromServer();
+
+  if(!loaded)showResumeOffer();
+
+  return true;
+
+}
+
+liveMatchStartupTimer=setInterval(async()=>{
 
   liveMatchStartupAttempts++;
 
-  if(window.TENNIS_INIT_DATA){
-
-    clearInterval(liveMatchStartupTimer);
-
-    await loadActiveLiveMatchFromServer();
+  if(await runLiveMatchStartup()){
 
     return;
 
@@ -7273,9 +7346,13 @@ const liveMatchStartupTimer=setInterval(async()=>{
 
     clearInterval(liveMatchStartupTimer);
 
+    showResumeOffer();
+
   }
 
 },500);
+
+runLiveMatchStartup();
   
 window.loadTennisHistory=loadHistory;
 window.syncPendingMatches=syncPendingMatches;

@@ -1,4 +1,4 @@
-const CACHE_NAME = "tennis-tracker-v8-opponent-merge-management";
+const CACHE_NAME = "tennis-tracker-v9-secure-match-history";
 
 const APP_FILES = [
 

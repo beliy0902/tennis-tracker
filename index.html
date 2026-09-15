@@ -524,6 +524,10 @@ const OPPONENTS_API =
 
   "https://mfaptgcrzdqjjttfwuih.supabase.co/functions/v1/opponents";
 
+const MATCH_HISTORY_API =
+
+  "https://mfaptgcrzdqjjttfwuih.supabase.co/functions/v1/match-history";
+
 const PROFILE_SELECTION_KEY="TennisTrackerPlayerProfileId";
 
 const OPPONENT_SELECTION_KEY_PREFIX=
@@ -2173,6 +2177,38 @@ async function liveMatchRequest(path="",options={}){
 
 }
 
+async function matchHistoryRequest(path="",options={}){
+  const initData=window.TENNIS_INIT_DATA;
+  if(!initData)throw new Error("Откройте приложение заново через Telegram.");
+  const response=await fetch(MATCH_HISTORY_API+path,{
+    ...options,
+    headers:{
+      "Content-Type":"application/json",
+      "X-Telegram-Init-Data":initData,
+      ...(options.headers||{})
+    }
+  });
+  const result=await response.json().catch(()=>({}));
+  if(!response.ok)throw new Error(
+    result?.error?.message||"Не удалось обратиться к истории матчей"
+  );
+  return result;
+}
+
+async function listPlayerMatches(profileId,limit=500){
+  const matches=[];
+  for(let offset=0;;offset+=limit){
+    const query=new URLSearchParams({
+      player_profile_id:profileId,limit:String(limit),offset:String(offset)
+    });
+    const result=await matchHistoryRequest("?"+query);
+    const page=Array.isArray(result.matches)?result.matches:[];
+    matches.push(...page);
+    if(page.length<limit)break;
+  }
+  return matches;
+}
+
 async function ensureLiveMatch(){
 
   if(S.liveMatchId) return S.liveMatchId;
@@ -2910,19 +2946,19 @@ async function undo(){
 
   const newHist=S.hist.slice(0,-1);
 
-  if(savedId && typeof db!=="undefined"){
+  if(savedId){
 
     try{
 
-      const {error}=await db
-
-        .from("matches")
-
-        .delete()
-
-        .contains("sets",{sync_id:savedId});
-
-      if(error)throw error;
+      const query=new URLSearchParams({
+        player_profile_id:S.playerProfileId,sync_id:savedId
+      });
+      const found=await matchHistoryRequest("?"+query);
+      for(const match of found.matches||[]){
+        await matchHistoryRequest("/"+encodeURIComponent(match.id),{
+          method:"DELETE"
+        });
+      }
 
     }catch(e){
 
@@ -3165,7 +3201,7 @@ function addPendingMatch(payload){
 
 async function syncPendingMatches(){
 
-  if(typeof db === "undefined" || !navigator.onLine) return;
+  if(!window.TENNIS_INIT_DATA || !navigator.onLine) return;
 
   const items = getPendingMatches();
 
@@ -3181,37 +3217,9 @@ async function syncPendingMatches(){
 
       // Проверяем, не был ли этот матч уже записан раньше.
 
-      let alreadySaved = false;
-
-      if(syncId){
-
-        const {data:existing,error:checkError} = await db
-
-          .from("matches")
-
-          .select("id")
-
-          .contains("sets",{sync_id:syncId})
-
-          .limit(1);
-
-        if(checkError) throw checkError;
-
-        alreadySaved = Array.isArray(existing) && existing.length > 0;
-
-      }
-
-      if(!alreadySaved){
-
-        const {error} = await db
-
-          .from("matches")
-
-          .insert(payload);
-
-        if(error) throw error;
-
-      }
+      await matchHistoryRequest("",{
+        method:"POST",body:JSON.stringify(payload)
+      });
 
 if(syncId && S.pendingSyncId === syncId){
 
@@ -3313,7 +3321,7 @@ S.pendingSyncId = syncId;
 
   updateSaveStatus();
 
-  if(typeof db === "undefined" || !navigator.onLine){
+  if(!window.TENNIS_INIT_DATA || !navigator.onLine){
 
     alert(
 
@@ -3345,6 +3353,11 @@ S.pendingSyncId = syncId;
 
       loadHistory();
 
+    }else{
+      alert(
+        "Матч сохранён на устройстве, но пока не передан в Supabase. "+
+        "Не удаляйте данные приложения; откройте его заново через Telegram и повторите синхронизацию."
+      );
     }
 
   }catch(e){
@@ -3378,14 +3391,16 @@ function matchBelongsToStatsOpponent(match,opponent){
 }
 async function loadHistory(){
   const box=$("historyList");
-  if(typeof db==="undefined"){box.textContent="Supabase не подключён.";return}
+  if(!window.TENNIS_INIT_DATA){box.textContent="Откройте приложение через Telegram.";return}
   const profile=selectedPlayerProfile();
   if(!profile){box.textContent="Профиль игрока не выбран.";return}
   box.textContent="Загрузка…";
   try{
-    const {data,error}=await db.from("matches").select("id,created_at,player1,player2,tracked_player_id,sets").order("created_at",{ascending:false}).limit(50);
-    if(error)throw error;
-    const matches=(data||[]).filter(match=>
+    const query=new URLSearchParams({
+      player_profile_id:profile.id,limit:"50"
+    });
+    const result=await matchHistoryRequest("?"+query);
+    const matches=(result.matches||[]).filter(match=>
       matchBelongsToPlayerProfile(match,profile)
     );
     if(!matches.length){box.textContent="Сохранённых матчей пока нет.";return}
@@ -3407,17 +3422,7 @@ async function loadHistory(){
 
   try{
 
-    const {data,error}=await db
-
-      .from("matches")
-
-      .select("id,player1,player2,sets,opponent_profile_id")
-
-      .eq("id",id)
-
-      .single();
-
-    if(error)throw error;
+    const {match:data}=await matchHistoryRequest("/"+encodeURIComponent(id));
 
     const editSnapshot=data.sets?.edit_snapshot;
 
@@ -3429,15 +3434,9 @@ if(!editSnapshot){
 
 }
 
-    const {error:deleteError}=await db
-
-      .from("matches")
-
-      .delete()
-
-      .eq("id",id);
-
-    if(deleteError)throw deleteError;
+    await matchHistoryRequest("/"+encodeURIComponent(id),{
+      method:"DELETE"
+    });
 
     S=normalizeState(editSnapshot);
 
@@ -3483,8 +3482,9 @@ saveLocalOnly();
 async function deleteHistoryMatch(id){
   if(!confirm("Удалить этот матч из истории полностью? Это действие нельзя отменить."))return;
   try{
-    const {error}=await db.from("matches").delete().eq("id",id);
-    if(error)throw error;
+    await matchHistoryRequest("/"+encodeURIComponent(id),{
+      method:"DELETE"
+    });
     if(String(S.savedMatchId)===String(id))S.savedMatchId=null;
     loadHistory();
   }catch(e){alert("Не удалось удалить матч: "+e.message)}
@@ -3618,7 +3618,7 @@ async function loadPlayerMatchesManager(){
 
   }
 
-  if(typeof db==="undefined"){
+  if(!window.TENNIS_INIT_DATA){
 
     box.textContent="Supabase не подключён.";
 
@@ -3632,15 +3632,7 @@ async function loadPlayerMatchesManager(){
 
   try{
 
-    const {data,error}=await db
-
-      .from("matches")
-
-      .select("id,created_at,player1,player2,tracked_player_id,opponent_profile_id,winner,score,sets,stats,points")
-
-      .order("created_at",{ascending:false});
-
-    if(error)throw error;
+    const data=await listPlayerMatches(profile.id);
 
     const n=name.toLowerCase();
 
@@ -6025,29 +6017,16 @@ async function savePlayerStatsSelection(){
 
       if(!match)continue;
 
-      const newSets={
+      if((match.sets?.include_in_stats!==false)===checkbox.checked)continue;
 
-        ...(match.sets||{}),
+      const {match:updated}=await matchHistoryRequest(
+        "/"+encodeURIComponent(id),{
+          method:"PATCH",
+          body:JSON.stringify({include_in_stats:checkbox.checked})
+        }
+      );
 
-        include_in_stats:checkbox.checked
-
-      };
-
-      const {error}=await db
-
-        .from("matches")
-
-        .update({
-
-          sets:newSets
-
-        })
-
-        .eq("id",id);
-
-      if(error)throw error;
-
-      match.sets=newSets;
+      match.sets=updated.sets;
 
     }
 
@@ -6084,7 +6063,7 @@ async function savePlayerStatsSelection(){
 
   }
 
-  if(typeof db==="undefined"){
+  if(!window.TENNIS_INIT_DATA){
 
     box.textContent="Supabase не подключён.";
 
@@ -6096,15 +6075,7 @@ async function savePlayerStatsSelection(){
 
   try{
 
-    const {data,error}=await db
-
-      .from("matches")
-
-      .select("created_at,player1,player2,tracked_player_id,opponent_profile_id,winner,score,sets,stats,points")
-
-      .order("created_at",{ascending:false});
-
-    if(error)throw error;
+    const data=await listPlayerMatches(profile.id);
 
     const playerName=name.toLowerCase();
 
@@ -6529,6 +6500,10 @@ window.addEventListener("tennis-auth-ready",event=>{
 
   );
 
+  syncPendingMatches();
+
+  loadHistory();
+
 });
 
 if(Array.isArray(window.TENNIS_PLAYER_PROFILES)){
@@ -6571,12 +6546,7 @@ window.loadTennisHistory=loadHistory;
 window.syncPendingMatches=syncPendingMatches;
 })();
 </script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
 <script>
-const SUPABASE_URL = 'https://mfaptgcrzdqjjttfwuih.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_XmRbELPcRrzbAchxQ2MaXA_s6j4U_jh';
-const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 if('serviceWorker' in navigator){navigator.serviceWorker.register('./sw.js').catch(e=>console.warn('Service worker registration failed',e));}
 setTimeout(()=>{
 

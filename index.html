@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- UPDATED: secure match history + RU/UA/EN + Live Quick Analysis + AI Coach V13 -->
+<!-- UPDATED: secure match history + RU/UA/EN + Live Quick Analysis + AI Coach + free ChatGPT share V14 -->
 <html lang="ru">
 <head>
 <meta charset="utf-8">
@@ -40,6 +40,11 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
 .aiCoachTip{margin-top:10px;padding:12px;border-left:5px solid #8e8e93;border-radius:10px;background:#f6f6f8;line-height:1.4}
 .aiCoachTip.high{border-left-color:#d92d20}.aiCoachTip.medium{border-left-color:#f79009}.aiCoachTip.positive{border-left-color:#12b76a}
 .aiCoachTipTitle{font-weight:850;margin-bottom:5px}.aiCoachEvidence{font-size:12px;color:#666;margin-top:6px}
+.chatGptShareActions{display:grid;grid-template-columns:1.4fr 1fr;gap:10px;margin-top:12px}
+.chatGptShareActions button{min-height:50px;font-size:14px}
+.chatGptShareStatus{min-height:18px;margin-top:9px;font-size:13px;line-height:1.4}
+.chatGptShareStatus.error{color:#b42318}.chatGptShareStatus.success{color:#157347}
+@media(max-width:420px){.chatGptShareActions{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -342,6 +347,17 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
       <div id="quickAnalysisMetrics" class="kpis" style="margin-top:10px"></div>
       <ul id="quickAnalysisTips" class="quickAnalysisTips"></ul>
     </div>
+  </div>
+
+  <div class="card" id="chatGptShareCard" data-i18n-ignore>
+    <div class="section" id="chatGptShareTitle"></div>
+    <div class="small" id="chatGptShareDescription"></div>
+    <div class="chatGptShareActions">
+      <button id="chatGptCopyBtn" class="primary"></button>
+      <button id="chatGptShareBtn"></button>
+    </div>
+    <div id="chatGptShareNote" class="small" style="margin-top:9px"></div>
+    <div id="chatGptShareStatus" class="chatGptShareStatus" aria-live="polite"></div>
   </div>
 
   <div class="card" id="aiCoachCard" data-i18n-ignore>
@@ -3832,6 +3848,287 @@ function quickRallyStats(){
   };
 }
 
+const CHATGPT_SHARE_TEXT={
+  ru:{
+    title:"💬 Анализ в ChatGPT",
+    description:"Подготовить статистику матча для ChatGPT без платного API-запроса из приложения.",
+    copyButton:"📋 СКОПИРОВАТЬ ДЛЯ CHATGPT",
+    shareButton:"↗ ПОДЕЛИТЬСЯ",
+    note:"Ничего не отправляется автоматически. Работает офлайн и в режиме «только просмотр».",
+    copied:"Статистика скопирована. Откройте ChatGPT, вставьте текст и отправьте.",
+    shared:"Открыто системное меню «Поделиться».",
+    fallbackCopied:"Функция «Поделиться» недоступна — текст скопирован в буфер обмена.",
+    changed:"Статистика изменилась после копирования. Скопируйте обновлённый текст ещё раз.",
+    copyError:"Не удалось скопировать автоматически. Попробуйте кнопку «Поделиться».",
+    shareError:"Не удалось поделиться или скопировать текст.",
+    shareTitle:"Статистика теннисного матча",
+    live:"идёт",
+    finished:"завершён",
+    cancelled:"отменён",
+    noSets:"нет завершённых сетов",
+    noRallies:"не отмечены",
+    noRecent:"нет данных",
+    promptIntro:"Ниже — статистика текущего теннисного матча. Проанализируй её как теннисный тренер. Используй только указанные данные и учитывай размер выборки.",
+    promptTask:"ЗАДАЧА:\n1. Кратко оцени, что происходит в матче.\n2. Дай 3 конкретные тактические установки на продолжение матча в порядке приоритета.\n3. Отдельно укажи план на своей подаче, на приёме и в Rally.\n4. Для каждого совета назови точную статистику, на которой он основан.\n5. Если данных недостаточно или выборка мала, скажи об этом прямо.\nНе придумывай отсутствующие данные. Ответь по-русски. Tennis terms и сокращения (1st Serve, 2nd Serve, FH, BH, UE, DF, Rally, Winner, Break Point) оставляй на английском."
+  },
+  uk:{
+    title:"💬 Аналіз у ChatGPT",
+    description:"Підготувати статистику матчу для ChatGPT без платного API-запиту із застосунку.",
+    copyButton:"📋 СКОПІЮВАТИ ДЛЯ CHATGPT",
+    shareButton:"↗ ПОДІЛИТИСЯ",
+    note:"Нічого не надсилається автоматично. Працює офлайн і в режимі «лише перегляд».",
+    copied:"Статистику скопійовано. Відкрийте ChatGPT, вставте текст і надішліть.",
+    shared:"Відкрито системне меню «Поділитися».",
+    fallbackCopied:"Функція «Поділитися» недоступна — текст скопійовано в буфер обміну.",
+    changed:"Статистика змінилася після копіювання. Скопіюйте оновлений текст ще раз.",
+    copyError:"Не вдалося скопіювати автоматично. Спробуйте кнопку «Поділитися».",
+    shareError:"Не вдалося поділитися або скопіювати текст.",
+    shareTitle:"Статистика тенісного матчу",
+    live:"триває",
+    finished:"завершено",
+    cancelled:"скасовано",
+    noSets:"немає завершених сетів",
+    noRallies:"не позначені",
+    noRecent:"немає даних",
+    promptIntro:"Нижче — статистика поточного тенісного матчу. Проаналізуй її як тенісний тренер. Використовуй лише наведені дані та враховуй розмір вибірки.",
+    promptTask:"ЗАВДАННЯ:\n1. Коротко оціни, що відбувається в матчі.\n2. Дай 3 конкретні тактичні настанови на продовження матчу за пріоритетом.\n3. Окремо вкажи план на своїй подачі, на прийомі та в Rally.\n4. Для кожної поради назви точну статистику, на якій вона базується.\n5. Якщо даних недостатньо або вибірка мала, скажи про це прямо.\nНе вигадуй відсутні дані. Відповідай українською. Tennis terms і скорочення (1st Serve, 2nd Serve, FH, BH, UE, DF, Rally, Winner, Break Point) залишай англійською."
+  },
+  en:{
+    title:"💬 Analyze in ChatGPT",
+    description:"Prepare the match statistics for ChatGPT without a paid API request from the app.",
+    copyButton:"📋 COPY FOR CHATGPT",
+    shareButton:"↗ SHARE",
+    note:"Nothing is sent automatically. Works offline and in read-only mode.",
+    copied:"Statistics copied. Open ChatGPT, paste the text, and send it.",
+    shared:"The system Share menu was opened.",
+    fallbackCopied:"Share is unavailable, so the text was copied to the clipboard.",
+    changed:"Statistics changed after copying. Copy the updated text again.",
+    copyError:"Automatic copying failed. Try the Share button.",
+    shareError:"The text could not be shared or copied.",
+    shareTitle:"Tennis match statistics",
+    live:"in progress",
+    finished:"finished",
+    cancelled:"cancelled",
+    noSets:"no completed sets",
+    noRallies:"not recorded",
+    noRecent:"no data",
+    promptIntro:"Below are the statistics for the current tennis match. Analyze them as a tennis coach. Use only the supplied data and account for the sample size.",
+    promptTask:"TASK:\n1. Briefly assess what is happening in the match.\n2. Give 3 specific, prioritized tactical instructions for the rest of the match.\n3. Give separate plans for serving, returning, and Rally situations.\n4. Cite the exact statistic supporting each recommendation.\n5. State clearly when the data or sample is insufficient.\nDo not invent missing data. Reply in English and keep standard tennis terms and abbreviations."
+  }
+};
+
+let chatGptShareStatusKey="";
+let chatGptShareStatusFingerprint="";
+
+function chatGptShareText(key){
+  const language=window.TennisI18n?.getLanguage?.() || "ru";
+  return CHATGPT_SHARE_TEXT[language]?.[key] || CHATGPT_SHARE_TEXT.ru[key] || key;
+}
+
+function chatGptCleanName(value,fallback){
+  const cleaned=String(value || "").replace(/[\r\n\t]+/g," ").replace(/\s+/g," ").trim();
+  return (cleaned || fallback).slice(0,80);
+}
+
+function chatGptCount(value){
+  const number=Number(value);
+  return Number.isFinite(number) && number>=0 ? Math.floor(number) : 0;
+}
+
+function chatGptRate(won,total){
+  const safeWon=chatGptCount(won);
+  const safeTotal=chatGptCount(total);
+  return safeWon+"/"+safeTotal+" ("+pct(safeWon,safeTotal)+")";
+}
+
+function chatGptPlayerStats(name,stats){
+  const s=stats || emptyStats();
+  return [
+    name+":",
+    "- Points won: "+chatGptCount(s.ptsWon),
+    "- 1st Serve In: "+chatGptRate(s.fi,s.sp),
+    "- 1st Serve Won: "+chatGptRate(s.fw,s.fi),
+    "- 2nd Serve Won: "+chatGptRate(s.sw,s.sp2),
+    "- ACE / DF: "+chatGptCount(s.a)+" / "+chatGptCount(s.df),
+    "- Winners FH/BH: "+chatGptCount(s.fhw)+"/"+chatGptCount(s.bhw),
+    "- UE FH/BH: "+chatGptCount(s.fhue)+"/"+chatGptCount(s.bhue),
+    "- Forced Errors Won: "+chatGptCount(s.fe),
+    "- Net Points Won: "+chatGptCount(s.net),
+    "- Break Points Saved: "+chatGptCount(s.bps)+"/"+chatGptCount(s.bpf),
+    "- Return vs 1st Serve Won: "+chatGptRate(s.r1w,s.r1p),
+    "- Return vs 2nd Serve Won: "+chatGptRate(s.r2w,s.r2p)
+  ].join("\n");
+}
+
+function chatGptRallySummary(playerName,opponentName){
+  const buckets=["0-4","5-8","9+"];
+  const marked=(S.log||[]).filter(item=>buckets.includes(item.rally));
+  if(!marked.length)return chatGptShareText("noRallies");
+  return buckets.map(bucket=>{
+    const points=marked.filter(item=>item.rally===bucket);
+    const playerWins=points.filter(item=>item.winner===S.names[0]).length;
+    const opponentWins=points.filter(item=>item.winner===S.names[1]).length;
+    return "- "+bucket+": "+points.length+" total; "+playerName+" "+playerWins+", "+opponentName+" "+opponentWins;
+  }).join("\n");
+}
+
+function chatGptSetSummary(playerName,opponentName){
+  const sets=(S.setStats||[]).map((pair,index)=>{
+    const player=pair?.[0] || emptyStats();
+    const opponent=pair?.[1] || emptyStats();
+    const score=formatSetScore(index);
+    const isCurrent=index===S.curSet && !S.matchOver && !S.cancelled;
+    if(!score && !isCurrent && !player.ptsWon && !opponent.ptsWon)return "";
+    return "- Set "+(index+1)+(score?" ("+score+")":" (current)")+": Points "+
+      playerName+" "+chatGptCount(player.ptsWon)+"–"+chatGptCount(opponent.ptsWon)+" "+opponentName+
+      "; 1st Serve "+pct(player.fi,player.sp)+"–"+pct(opponent.fi,opponent.sp)+
+      "; Winners/UE "+(chatGptCount(player.fhw)+chatGptCount(player.bhw))+"/"+(chatGptCount(player.fhue)+chatGptCount(player.bhue))+
+      "–"+(chatGptCount(opponent.fhw)+chatGptCount(opponent.bhw))+"/"+(chatGptCount(opponent.fhue)+chatGptCount(opponent.bhue));
+  }).filter(Boolean);
+  return sets.length ? sets.join("\n") : "- "+chatGptShareText("noSets");
+}
+
+function chatGptRecentSummary(playerName,opponentName){
+  const recent=(S.log||[]).slice(-10);
+  if(!recent.length)return chatGptShareText("noRecent");
+  const playerWins=recent.filter(item=>item.winner===S.names[0]).length;
+  const opponentWins=recent.filter(item=>item.winner===S.names[1]).length;
+  return recent.length+" points: "+playerName+" "+playerWins+"–"+opponentWins+" "+opponentName;
+}
+
+function chatGptShareFingerprint(){
+  return JSON.stringify({
+    names:S.names,set:S.set,game:S.game,pt:S.pt,srv:S.srv,sn:S.sn,tb:S.tb,
+    matchOver:S.matchOver,cancelled:S.cancelled,st:S.st,setStats:S.setStats,
+    setScores:S.setScores,tieBreakScores:S.tieBreakScores,log:S.log
+  });
+}
+
+function buildChatGptMatchPrompt(){
+  const language=window.TennisI18n?.getLanguage?.() || "ru";
+  const playerName=chatGptCleanName(S.names?.[0],language==="en"?"Player":"Игрок");
+  const opponentName=chatGptCleanName(S.names?.[1],language==="en"?"Opponent":"Соперник");
+  const recordedPoints=Math.max(
+    Array.isArray(S.log)?S.log.length:0,
+    chatGptCount(S.st?.[0]?.ptsWon)+chatGptCount(S.st?.[1]?.ptsWon)
+  );
+  const matchState=S.cancelled
+    ? chatGptShareText("cancelled")
+    : S.matchOver ? chatGptShareText("finished") : chatGptShareText("live");
+  const currentPoints=S.matchOver||S.cancelled
+    ? "—"
+    : pointText(0)+"–"+pointText(1)+(S.tb?" (Tie-break)":"");
+  const server=S.matchOver||S.cancelled
+    ? "—"
+    : chatGptCleanName(S.names?.[S.srv],"—")+" ("+(S.sn===2?"2nd Serve":"1st Serve")+")";
+  const completedScore=fullScore() || chatGptShareText("noSets");
+
+  return [
+    chatGptShareText("promptIntro"),
+    "",
+    "MATCH",
+    "- Players: "+playerName+" vs "+opponentName,
+    "- Status: "+matchState,
+    "- Sets: "+chatGptCount(S.set?.[0])+"–"+chatGptCount(S.set?.[1]),
+    "- Completed set scores: "+completedScore,
+    "- Current games: "+chatGptCount(S.game?.[0])+"–"+chatGptCount(S.game?.[1]),
+    "- Current points: "+currentPoints,
+    "- Server: "+server,
+    "- Recorded points: "+recordedPoints,
+    "",
+    "MATCH TOTAL",
+    chatGptPlayerStats(playerName,S.st?.[0]),
+    "",
+    chatGptPlayerStats(opponentName,S.st?.[1]),
+    "",
+    "BY SET",
+    chatGptSetSummary(playerName,opponentName),
+    "",
+    "RALLY LENGTH (winner count)",
+    chatGptRallySummary(playerName,opponentName),
+    "",
+    "LAST 10",
+    chatGptRecentSummary(playerName,opponentName),
+    "",
+    chatGptShareText("promptTask")
+  ].join("\n");
+}
+
+async function copyChatGptText(text){
+  try{
+    if(navigator.clipboard?.writeText){
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  }catch(error){
+    console.warn("Clipboard API failed; trying fallback",error);
+  }
+  const area=document.createElement("textarea");
+  area.value=text;
+  area.setAttribute("readonly","");
+  area.style.position="fixed";
+  area.style.opacity="0";
+  area.style.top="0";
+  area.style.left="0";
+  document.body.appendChild(area);
+  area.focus();
+  if(typeof area.select==="function")area.select();
+  if(typeof area.setSelectionRange==="function")area.setSelectionRange(0,text.length);
+  let copied=false;
+  try{copied=!!document.execCommand?.("copy")}catch(error){
+    console.warn("Clipboard fallback failed",error);
+  }
+  area.remove();
+  return copied;
+}
+
+function setChatGptShareStatus(key){
+  chatGptShareStatusKey=key;
+  chatGptShareStatusFingerprint=chatGptShareFingerprint();
+  renderChatGptShare();
+}
+
+function renderChatGptShare(){
+  const copyButton=$("chatGptCopyBtn");
+  if(!copyButton)return;
+  $("chatGptShareTitle").textContent=chatGptShareText("title");
+  $("chatGptShareDescription").textContent=chatGptShareText("description");
+  copyButton.textContent=chatGptShareText("copyButton");
+  $("chatGptShareBtn").textContent=chatGptShareText("shareButton");
+  $("chatGptShareNote").textContent=chatGptShareText("note");
+  const status=$("chatGptShareStatus");
+  let key=chatGptShareStatusKey;
+  if(
+    ["copied","shared","fallbackCopied"].includes(key) &&
+    chatGptShareStatusFingerprint && chatGptShareStatusFingerprint!==chatGptShareFingerprint()
+  )key="changed";
+  status.textContent=key ? chatGptShareText(key) : "";
+  status.className="chatGptShareStatus";
+  if(["copyError","shareError"].includes(key))status.classList.add("error");
+  if(["copied","shared","fallbackCopied"].includes(key))status.classList.add("success");
+}
+
+async function copyMatchForChatGpt(){
+  const copied=await copyChatGptText(buildChatGptMatchPrompt());
+  setChatGptShareStatus(copied?"copied":"copyError");
+}
+
+async function shareMatchForChatGpt(){
+  const text=buildChatGptMatchPrompt();
+  if(typeof navigator.share==="function"){
+    try{
+      await navigator.share({title:chatGptShareText("shareTitle"),text});
+      setChatGptShareStatus("shared");
+      return;
+    }catch(error){
+      if(error?.name==="AbortError")return;
+      console.warn("Web Share failed; trying clipboard",error);
+    }
+  }
+  const copied=await copyChatGptText(text);
+  setChatGptShareStatus(copied?"fallbackCopied":"shareError");
+}
+
 const AI_COACH_TEXT={
   ru:{
     title:"🤖 AI Coach",
@@ -4306,6 +4603,7 @@ liveEditButtons.forEach(btn=>{
   <div class="kpi"><div class="small">Net Points Won</div><div class="v">${a.net} – ${b.net}</div></div>`;
   $("summary").innerHTML=conclusions().map(x=>"<li>"+x+"</li>").join("");
   renderQuickAnalysis();
+  renderChatGptShare();
   renderAiCoach();
 
   $("matchOverCard").classList.toggle("hidden",!matchClosed);
@@ -7645,6 +7943,8 @@ $("dfBtn").onclick=()=>finish("df");
 $("quickP1").onclick=()=>finish("p1_won");
 $("quickP2").onclick=()=>finish("p2_won");
 $("quickAnalysisToggleBtn").onclick=toggleQuickAnalysis;
+$("chatGptCopyBtn").onclick=copyMatchForChatGpt;
+$("chatGptShareBtn").onclick=shareMatchForChatGpt;
 $("aiCoachRequestBtn").onclick=requestAiCoach;
 $("undoBtn").onclick=undo;
 $("changeServerBtn").onclick=changeServer;
@@ -7681,6 +7981,7 @@ window.addEventListener("offline",()=>{
 
 window.addEventListener("tennis-language-change",()=>{
   resetAiCoachState();
+  renderChatGptShare();
   renderAiCoach();
 });
 

@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- UPDATED: secure match history + RU/UA/EN + Live Quick Analysis V12 -->
+<!-- UPDATED: secure match history + RU/UA/EN + Live Quick Analysis + AI Coach V13 -->
 <html lang="ru">
 <head>
 <meta charset="utf-8">
@@ -33,6 +33,13 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
 .matchover{font-size:20px;font-weight:900;text-align:center;padding:8px 0}.historyItem{border-bottom:1px solid #eee;padding:10px 0}.historyItem:last-child{border-bottom:0}.historyTop{display:flex;justify-content:space-between;gap:8px;align-items:center}.historyScore{font-weight:850}.danger{background:#f4dddd}.muted{color:#666;font-size:12px}.savebar{display:flex;justify-content:space-between;gap:10px;align-items:center}.saveStatus{font-size:12px;font-weight:750}.resumeBox{margin-top:12px;padding:12px;background:#f6f6f8;border-radius:14px}.resumeTitle{font-weight:850;margin-bottom:4px}
 .languageRow{display:flex;align-items:center;justify-content:flex-end;gap:8px;margin:-8px 0 14px}.languageRow .label{margin:0}.languageRow select{width:auto;min-width:132px;padding:8px 32px 8px 10px;font-size:14px}
 .quickAnalysisTips{margin:10px 0 0;padding-left:20px}.quickAnalysisTips li{margin:8px 0;line-height:1.3}
+.aiCoachNotice{border-radius:12px;padding:10px;margin:10px 0;font-size:13px;line-height:1.4;background:#f6f6f8}
+.aiCoachNotice.good{background:#e7f4e7}.aiCoachNotice.warn{background:#fff4d6}.aiCoachNotice.bad{background:#fbe8e8}
+.aiCoachStatus{min-height:18px;margin-top:9px;font-size:13px;line-height:1.4}.aiCoachStatus.error{color:#b42318}
+.aiCoachResult{margin-top:12px}.aiCoachSummary{font-weight:800;line-height:1.45;padding:12px;background:#f6f6f8;border-radius:12px}
+.aiCoachTip{margin-top:10px;padding:12px;border-left:5px solid #8e8e93;border-radius:10px;background:#f6f6f8;line-height:1.4}
+.aiCoachTip.high{border-left-color:#d92d20}.aiCoachTip.medium{border-left-color:#f79009}.aiCoachTip.positive{border-left-color:#12b76a}
+.aiCoachTipTitle{font-weight:850;margin-bottom:5px}.aiCoachEvidence{font-size:12px;color:#666;margin-top:6px}
 </style>
 </head>
 <body>
@@ -334,6 +341,20 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
       <div class="small">Обновляется по записанным действиям и не изменяет матч.</div>
       <div id="quickAnalysisMetrics" class="kpis" style="margin-top:10px"></div>
       <ul id="quickAnalysisTips" class="quickAnalysisTips"></ul>
+    </div>
+  </div>
+
+  <div class="card" id="aiCoachCard" data-i18n-ignore>
+    <div class="section" id="aiCoachTitle"></div>
+    <div class="small" id="aiCoachDescription"></div>
+    <div id="aiCoachDataQuality" class="aiCoachNotice"></div>
+    <button id="aiCoachRequestBtn" class="primary" style="width:100%;min-height:50px"></button>
+    <div class="small" id="aiCoachCostNote" style="margin-top:8px"></div>
+    <div id="aiCoachStatus" class="aiCoachStatus"></div>
+    <div id="aiCoachResult" class="aiCoachResult hidden">
+      <div id="aiCoachSummary" class="aiCoachSummary"></div>
+      <div id="aiCoachTips"></div>
+      <div id="aiCoachMeta" class="small" style="margin-top:10px"></div>
     </div>
   </div>
 
@@ -1218,6 +1239,10 @@ const OPPONENTS_API =
 const MATCH_HISTORY_API =
 
   "https://mfaptgcrzdqjjttfwuih.supabase.co/functions/v1/match-history";
+
+const AI_COACH_API =
+
+  "https://mfaptgcrzdqjjttfwuih.supabase.co/functions/v1/ai-coach";
 
 const PROFILE_SELECTION_KEY="TennisTrackerPlayerProfileId";
 
@@ -3316,6 +3341,8 @@ async function loadActiveLiveMatchFromServer(){
 
   applyLiveMatchState(match);
 
+  resetAiCoachState();
+
   $("resumeBox").classList.add("hidden");
 
   $("setupScreen").classList.add("hidden");
@@ -3353,6 +3380,18 @@ let liveMatchLastUpdatedAt=null;
 let liveMatchRefreshError="";
 let liveMatchClosing=false;
 const LIVE_MATCH_REFRESH_MS=2000;
+
+const AI_COACH_MIN_POINTS=4;
+const AI_COACH_USAGE_KEY="TennisTrackerAICoachUsageV13";
+const AI_COACH_STAT_KEYS=[
+  "sp","fi","fw","sp2","sw","a","df","fhw","bhw","fhue",
+  "bhue","fe","net","bpf","bps","r1p","r1w","r2p","r2w","ptsWon"
+];
+let aiCoachAdvice=null;
+let aiCoachLoading=false;
+let aiCoachError="";
+let aiCoachRequestFingerprint="";
+let aiCoachRequestSequence=0;
   
 const pct=(a,b)=>b?Math.round(a/b*100)+"%":"—";
 function ensureSet(){if(!S.setStats[S.curSet])S.setStats[S.curSet]=[emptyStats(),emptyStats()]}
@@ -3557,9 +3596,10 @@ function showResumeOffer(){
 }
 function resumeSavedMatch(){
   if(S.playerProfileId)choosePlayerProfile(S.playerProfileId);
+  resetAiCoachState();
   $("setupScreen").classList.add("hidden");$("serverScreen").classList.add("hidden");$("matchScreen").classList.remove("hidden");render();updateSaveStatus();loadHistory();
 }
-function discardSavedMatch(){if(!confirm("Удалить локально сохранённый незавершённый матч?"))return;clearLocal();S=defaultState();$("resumeBox").classList.add("hidden")}
+function discardSavedMatch(){if(!confirm("Удалить локально сохранённый незавершённый матч?"))return;clearLocal();S=defaultState();resetAiCoachState();$("resumeBox").classList.add("hidden")}
 function isBP(server){if(S.tb)return false;let r=1-server,rp=S.pt[r],sp=S.pt[server];if(rp<3)return false;if(rp===3&&sp<=2)return true;return rp>=3&&sp>=3&&rp===sp+1}
 function inc(o,k){o[k]=(o[k]||0)+1}
 function firstIn(){if(liveMatchReadOnly||S.matchOver||S.marked)return;snapshot();S.marked=true;S.sn=1;save()}
@@ -3791,6 +3831,362 @@ function quickRallyStats(){
     longWon:long.filter(item=>item.winner===S.names[0]).length
   };
 }
+
+const AI_COACH_TEXT={
+  ru:{
+    title:"🤖 AI Coach",
+    liveDescription:"1–3 персональных совета по статистике текущего матча и истории игрока.",
+    postDescription:"Короткий послематчевый AI-анализ по статистике матча и истории игрока.",
+    requestLive:"🤖 ПОЛУЧИТЬ СОВЕТ AI COACH",
+    requestPost:"🤖 ПОЛУЧИТЬ ПОСЛЕМАТЧЕВЫЙ AI-АНАЛИЗ",
+    loading:"AI Coach анализирует данные…",
+    cost:"Платный API-запрос. Только вручную; автоматические запросы отключены. Ответ не сохраняется.",
+    usage:"Запросов с этого устройства в этом матче: {count}.",
+    qualityInsufficient:"Качество данных: недостаточно. Записано очков: {points}. Минимум для AI Coach: 4.",
+    qualityBasic:"Качество данных: базовое. Записано очков: {points}; выводы могут измениться.",
+    qualitySufficient:"Качество данных: достаточное. Записано очков: {points}.",
+    qualityGood:"Качество данных: хорошее. Записано очков: {points}.",
+    readOnly:"AI Coach отключён в режиме «только просмотр», чтобы не создавать платные запросы.",
+    offline:"Нет подключения к интернету. AI Coach доступен только онлайн.",
+    profiles:"Профиль игрока или соперника не выбран.",
+    auth:"Откройте приложение заново через Telegram.",
+    lowData:"Сначала запишите минимум 4 очка матча.",
+    stale:"Статистика изменилась после последнего AI-совета. Для обновления нужен новый платный запрос.",
+    confirm:"AI Coach использует один платный запрос OpenAI API. Продолжить?",
+    errorGeneric:"Не удалось получить рекомендации AI Coach.",
+    errorConfig:"AI Coach пока не настроен на сервере.",
+    errorRate:"Достигнут временный лимит AI Coach. Попробуйте позже.",
+    errorAuth:"Telegram-авторизация истекла. Закройте приложение и снова откройте его через бот.",
+    errorAccess:"Нет доступа к выбранному профилю игрока или соперника.",
+    evidence:"Основание",
+    priorityHigh:"Высокий приоритет",
+    priorityMedium:"Средний приоритет",
+    priorityPositive:"Сильная сторона",
+    generated:"Получено: {time}."
+  },
+  uk:{
+    title:"🤖 AI Coach",
+    liveDescription:"1–3 персональні поради за статистикою поточного матчу та історією гравця.",
+    postDescription:"Короткий післяматчевий AI-аналіз за статистикою матчу та історією гравця.",
+    requestLive:"🤖 ОТРИМАТИ ПОРАДУ AI COACH",
+    requestPost:"🤖 ОТРИМАТИ ПІСЛЯМАТЧЕВИЙ AI-АНАЛІЗ",
+    loading:"AI Coach аналізує дані…",
+    cost:"Платний API-запит. Лише вручну; автоматичні запити вимкнено. Відповідь не зберігається.",
+    usage:"Запитів із цього пристрою в цьому матчі: {count}.",
+    qualityInsufficient:"Якість даних: недостатня. Записано очок: {points}. Мінімум для AI Coach: 4.",
+    qualityBasic:"Якість даних: базова. Записано очок: {points}; висновки можуть змінитися.",
+    qualitySufficient:"Якість даних: достатня. Записано очок: {points}.",
+    qualityGood:"Якість даних: хороша. Записано очок: {points}.",
+    readOnly:"AI Coach вимкнено в режимі «лише перегляд», щоб не створювати платні запити.",
+    offline:"Немає підключення до інтернету. AI Coach доступний лише онлайн.",
+    profiles:"Профіль гравця або суперника не вибрано.",
+    auth:"Відкрийте застосунок знову через Telegram.",
+    lowData:"Спочатку запишіть щонайменше 4 очки матчу.",
+    stale:"Статистика змінилася після останньої AI-поради. Для оновлення потрібен новий платний запит.",
+    confirm:"AI Coach використовує один платний запит OpenAI API. Продовжити?",
+    errorGeneric:"Не вдалося отримати рекомендації AI Coach.",
+    errorConfig:"AI Coach ще не налаштовано на сервері.",
+    errorRate:"Досягнуто тимчасового ліміту AI Coach. Спробуйте пізніше.",
+    errorAuth:"Telegram-авторизація закінчилася. Закрийте застосунок і відкрийте його знову через бот.",
+    errorAccess:"Немає доступу до вибраного профілю гравця або суперника.",
+    evidence:"Підстава",
+    priorityHigh:"Високий пріоритет",
+    priorityMedium:"Середній пріоритет",
+    priorityPositive:"Сильна сторона",
+    generated:"Отримано: {time}."
+  },
+  en:{
+    title:"🤖 AI Coach",
+    liveDescription:"1–3 personalized tips based on the current match statistics and player history.",
+    postDescription:"A short post-match AI analysis based on match statistics and player history.",
+    requestLive:"🤖 GET AI COACH ADVICE",
+    requestPost:"🤖 GET POST-MATCH AI ANALYSIS",
+    loading:"AI Coach is analyzing the data…",
+    cost:"Paid API request. Manual only; automatic requests are disabled. The response is not saved.",
+    usage:"Requests from this device in this match: {count}.",
+    qualityInsufficient:"Data quality: insufficient. Recorded points: {points}. AI Coach requires at least 4.",
+    qualityBasic:"Data quality: basic. Recorded points: {points}; conclusions may change.",
+    qualitySufficient:"Data quality: sufficient. Recorded points: {points}.",
+    qualityGood:"Data quality: good. Recorded points: {points}.",
+    readOnly:"AI Coach is disabled in read-only mode to prevent paid requests.",
+    offline:"No internet connection. AI Coach is available online only.",
+    profiles:"The player or opponent profile is not selected.",
+    auth:"Reopen the app through Telegram.",
+    lowData:"Record at least 4 match points first.",
+    stale:"Statistics changed after the last AI advice. Refreshing requires another paid request.",
+    confirm:"AI Coach will use one paid OpenAI API request. Continue?",
+    errorGeneric:"Could not get AI Coach recommendations.",
+    errorConfig:"AI Coach is not configured on the server yet.",
+    errorRate:"The temporary AI Coach limit has been reached. Try again later.",
+    errorAuth:"Telegram authorization expired. Close the app and reopen it through the bot.",
+    errorAccess:"You do not have access to the selected player or opponent profile.",
+    evidence:"Evidence",
+    priorityHigh:"High priority",
+    priorityMedium:"Medium priority",
+    priorityPositive:"Strength",
+    generated:"Received: {time}."
+  }
+};
+
+function aiCoachText(key,values={}){
+  const language=window.TennisI18n?.getLanguage?.() || "ru";
+  const template=AI_COACH_TEXT[language]?.[key] || AI_COACH_TEXT.ru[key] || key;
+  return template.replace(/\{(\w+)\}/g,(_,name)=>String(values[name] ?? ""));
+}
+
+function aiCoachSafeCount(value,max=100000){
+  const number=Number(value);
+  if(!Number.isSafeInteger(number) || number<0)return 0;
+  return Math.min(number,max);
+}
+
+function aiCoachStats(stats){
+  const result={};
+  for(const key of AI_COACH_STAT_KEYS){
+    result[key]=aiCoachSafeCount(stats?.[key]);
+  }
+  return result;
+}
+
+function aiCoachDataQuality(){
+  const recorded=Math.max(
+    Array.isArray(S.log) ? S.log.length : 0,
+    aiCoachSafeCount(S.st?.[0]?.ptsWon)+aiCoachSafeCount(S.st?.[1]?.ptsWon)
+  );
+  if(recorded<AI_COACH_MIN_POINTS){
+    return {points:recorded,ready:false,tone:"bad",text:aiCoachText("qualityInsufficient",{points:recorded})};
+  }
+  if(recorded<12){
+    return {points:recorded,ready:true,tone:"warn",text:aiCoachText("qualityBasic",{points:recorded})};
+  }
+  if(recorded<30){
+    return {points:recorded,ready:true,tone:"good",text:aiCoachText("qualitySufficient",{points:recorded})};
+  }
+  return {points:recorded,ready:true,tone:"good",text:aiCoachText("qualityGood",{points:recorded})};
+}
+
+function aiCoachMatchKey(){
+  return String(
+    S.clientMatchId || S.liveMatchId ||
+    [S.playerProfileId||"player",S.opponentProfileId||"opponent",new Date().toISOString().slice(0,10)].join(":")
+  );
+}
+
+function aiCoachUsageState(){
+  const today=new Date().toISOString().slice(0,10);
+  try{
+    const value=JSON.parse(localStorage.getItem(AI_COACH_USAGE_KEY) || "null");
+    if(value?.date===today && value.matches && typeof value.matches==="object")return value;
+  }catch(error){
+    console.warn("AI Coach usage counter read failed",error);
+  }
+  return {date:today,matches:{}};
+}
+
+function aiCoachUsageCount(){
+  const state=aiCoachUsageState();
+  return aiCoachSafeCount(state.matches[aiCoachMatchKey()] || 0,1000);
+}
+
+function incrementAiCoachUsage(){
+  const state=aiCoachUsageState();
+  const key=aiCoachMatchKey();
+  state.matches[key]=aiCoachSafeCount(state.matches[key] || 0,999)+1;
+  try{localStorage.setItem(AI_COACH_USAGE_KEY,JSON.stringify(state))}catch(error){
+    console.warn("AI Coach usage counter save failed",error);
+  }
+}
+
+function aiCoachFingerprint(){
+  return JSON.stringify({
+    set:S.set,game:S.game,pt:S.pt,srv:S.srv,sn:S.sn,tb:S.tb,
+    matchOver:S.matchOver,st:S.st,logLength:Array.isArray(S.log)?S.log.length:0
+  });
+}
+
+function aiCoachPayload(){
+  const rallies=quickRallyStats();
+  return {
+    player_profile_id:S.playerProfileId,
+    opponent_profile_id:S.opponentProfileId,
+    language:window.TennisI18n?.getLanguage?.() || "ru",
+    current_match:{
+      sets:[aiCoachSafeCount(S.set?.[0],5),aiCoachSafeCount(S.set?.[1],5)],
+      games:[aiCoachSafeCount(S.game?.[0],50),aiCoachSafeCount(S.game?.[1],50)],
+      points:[aiCoachSafeCount(S.pt?.[0],1000),aiCoachSafeCount(S.pt?.[1],1000)],
+      server_index:S.srv===1?1:0,
+      serve_number:S.sn===2?2:1,
+      tie_break:!!S.tb,
+      match_over:!!S.matchOver,
+      player:aiCoachStats(S.st?.[0]),
+      opponent:aiCoachStats(S.st?.[1]),
+      rallies:{
+        short:rallies.short,
+        medium:rallies.medium,
+        long:rallies.long,
+        long_won:rallies.longWon
+      }
+    }
+  };
+}
+
+function resetAiCoachState(){
+  aiCoachRequestSequence++;
+  aiCoachAdvice=null;
+  aiCoachLoading=false;
+  aiCoachError="";
+  aiCoachRequestFingerprint="";
+}
+
+function aiCoachErrorText(code){
+  if(code==="ai_not_configured")return aiCoachText("errorConfig");
+  if(code==="rate_limited")return aiCoachText("errorRate");
+  if(code==="telegram_auth_expired" || code==="telegram_auth_invalid" || code==="telegram_auth_missing")return aiCoachText("errorAuth");
+  if(code==="access_denied" || code==="profile_access_denied" || code==="opponent_access_denied")return aiCoachText("errorAccess");
+  return aiCoachText("errorGeneric");
+}
+
+function renderAiCoach(){
+  const button=$("aiCoachRequestBtn");
+  if(!button)return;
+  const quality=aiCoachDataQuality();
+  $("aiCoachTitle").textContent=aiCoachText("title");
+  $("aiCoachDescription").textContent=aiCoachText(S.matchOver?"postDescription":"liveDescription");
+  const qualityBox=$("aiCoachDataQuality");
+  qualityBox.className="aiCoachNotice "+quality.tone;
+  qualityBox.textContent=quality.text;
+  button.textContent=aiCoachLoading
+    ? aiCoachText("loading")
+    : aiCoachText(S.matchOver?"requestPost":"requestLive");
+  button.disabled=!!(
+    aiCoachLoading || liveMatchReadOnly || !navigator.onLine ||
+    !window.TENNIS_INIT_DATA || !S.playerProfileId || !S.opponentProfileId || !quality.ready
+  );
+  $("aiCoachCostNote").textContent=
+    aiCoachText("cost")+" "+aiCoachText("usage",{count:aiCoachUsageCount()});
+
+  const status=$("aiCoachStatus");
+  status.className="aiCoachStatus";
+  if(aiCoachLoading){
+    status.textContent=aiCoachText("loading");
+  }else if(aiCoachError){
+    status.textContent=aiCoachError;
+    status.classList.add("error");
+  }else if(liveMatchReadOnly){
+    status.textContent=aiCoachText("readOnly");
+  }else if(!navigator.onLine){
+    status.textContent=aiCoachText("offline");
+  }else if(!window.TENNIS_INIT_DATA){
+    status.textContent=aiCoachText("auth");
+  }else if(!S.playerProfileId || !S.opponentProfileId){
+    status.textContent=aiCoachText("profiles");
+  }else if(!quality.ready){
+    status.textContent=aiCoachText("lowData");
+  }else if(aiCoachAdvice && aiCoachRequestFingerprint!==aiCoachFingerprint()){
+    status.textContent=aiCoachText("stale");
+  }else{
+    status.textContent="";
+  }
+
+  const result=$("aiCoachResult");
+  result.classList.toggle("hidden",!aiCoachAdvice);
+  if(!aiCoachAdvice)return;
+  $("aiCoachSummary").textContent=aiCoachAdvice.summary;
+  const tips=$("aiCoachTips");
+  tips.replaceChildren(...aiCoachAdvice.tips.map(tip=>{
+    const item=document.createElement("div");
+    item.className="aiCoachTip "+tip.priority;
+    const title=document.createElement("div");
+    title.className="aiCoachTipTitle";
+    const priorityKey=tip.priority==="high"
+      ? "priorityHigh"
+      : tip.priority==="positive" ? "priorityPositive" : "priorityMedium";
+    title.textContent=aiCoachText(priorityKey)+" · "+tip.title;
+    const advice=document.createElement("div");
+    advice.textContent=tip.advice;
+    const evidence=document.createElement("div");
+    evidence.className="aiCoachEvidence";
+    evidence.textContent=aiCoachText("evidence")+": "+tip.evidence;
+    item.append(title,advice,evidence);
+    return item;
+  }));
+  const generated=new Date(aiCoachAdvice.generatedAt);
+  $("aiCoachMeta").textContent=Number.isNaN(generated.getTime())
+    ? ""
+    : aiCoachText("generated",{time:generated.toLocaleTimeString(
+      window.TennisI18n?.localeTag?.() || "ru-RU",{hour:"2-digit",minute:"2-digit"}
+    )});
+}
+
+async function requestAiCoach(){
+  if(aiCoachLoading)return;
+  const quality=aiCoachDataQuality();
+  if(liveMatchReadOnly){alert(aiCoachText("readOnly"));return}
+  if(!navigator.onLine){alert(aiCoachText("offline"));return}
+  if(!window.TENNIS_INIT_DATA){alert(aiCoachText("auth"));return}
+  if(!S.playerProfileId || !S.opponentProfileId){alert(aiCoachText("profiles"));return}
+  if(!quality.ready){alert(aiCoachText("lowData"));return}
+  if(!confirm(aiCoachText("confirm")))return;
+
+  const requestId=++aiCoachRequestSequence;
+  const fingerprint=aiCoachFingerprint();
+  aiCoachLoading=true;
+  aiCoachError="";
+  renderAiCoach();
+  try{
+    const response=await fetch(AI_COACH_API,{
+      method:"POST",
+      headers:{
+        "Content-Type":"application/json",
+        "X-Telegram-Init-Data":window.TENNIS_INIT_DATA
+      },
+      body:JSON.stringify(aiCoachPayload())
+    });
+    const result=await response.json().catch(()=>({}));
+    if(!response.ok){
+      const error=new Error(result?.error?.message || "AI Coach request failed");
+      error.code=result?.error?.code || "ai_request_failed";
+      throw error;
+    }
+    if(
+      typeof result.summary!=="string" || !result.summary.trim() ||
+      !Array.isArray(result.tips) || result.tips.length<1 || result.tips.length>3
+    ){
+      const error=new Error("Invalid AI Coach response");
+      error.code="ai_invalid_response";
+      throw error;
+    }
+    const tips=result.tips.map(tip=>({
+      priority:["high","medium","positive"].includes(tip?.priority) ? tip.priority : "medium",
+      title:String(tip?.title || "").trim(),
+      advice:String(tip?.advice || "").trim(),
+      evidence:String(tip?.evidence || "").trim()
+    }));
+    if(tips.some(tip=>!tip.title || !tip.advice || !tip.evidence)){
+      const error=new Error("Invalid AI Coach response");
+      error.code="ai_invalid_response";
+      throw error;
+    }
+    if(requestId!==aiCoachRequestSequence)return;
+    aiCoachAdvice={
+      summary:result.summary.trim(),
+      tips,
+      generatedAt:result.generated_at || new Date().toISOString()
+    };
+    aiCoachRequestFingerprint=fingerprint;
+    incrementAiCoachUsage();
+  }catch(error){
+    if(requestId!==aiCoachRequestSequence)return;
+    console.error("AI Coach request error",error);
+    aiCoachError=aiCoachErrorText(error?.code);
+  }finally{
+    if(requestId===aiCoachRequestSequence){
+      aiCoachLoading=false;
+      renderAiCoach();
+    }
+  }
+}
+
 function renderQuickAnalysis(){
   const body=$("quickAnalysisBody");
   if(!body)return;
@@ -3910,6 +4306,7 @@ liveEditButtons.forEach(btn=>{
   <div class="kpi"><div class="small">Net Points Won</div><div class="v">${a.net} – ${b.net}</div></div>`;
   $("summary").innerHTML=conclusions().map(x=>"<li>"+x+"</li>").join("");
   renderQuickAnalysis();
+  renderAiCoach();
 
   $("matchOverCard").classList.toggle("hidden",!matchClosed);
   if(S.cancelled){
@@ -4222,6 +4619,8 @@ if(!editSnapshot){
 
     S=normalizeState(editSnapshot);
 
+resetAiCoachState();
+
 S.opponentProfileId=data.opponent_profile_id || S.opponentProfileId;
 
 S.playerProfileId=S.playerProfileId||selectedPlayerProfileId;
@@ -4294,7 +4693,7 @@ function start(){
   activeLiveMatchCreatorId=null;
   liveMatchLastUpdatedAt=null;
   liveMatchRefreshError="";
-  clearLocal();S=defaultState();
+  clearLocal();S=defaultState();resetAiCoachState();
   S.playerProfileId=profile.id;
   S.opponentProfileId=opponent.id;
   S.names=[profile.display_name,opponent.display_name];
@@ -4372,7 +4771,7 @@ async function newMatch(){
   activeLiveMatchCreatorId=null;
   liveMatchLastUpdatedAt=null;
   liveMatchRefreshError="";
-  clearLocal();S=defaultState();
+  clearLocal();S=defaultState();resetAiCoachState();
   $("resumeBox").classList.add("hidden");
   $("matchScreen").classList.add("hidden");
   $("serverScreen").classList.add("hidden");
@@ -7246,6 +7645,7 @@ $("dfBtn").onclick=()=>finish("df");
 $("quickP1").onclick=()=>finish("p1_won");
 $("quickP2").onclick=()=>finish("p2_won");
 $("quickAnalysisToggleBtn").onclick=toggleQuickAnalysis;
+$("aiCoachRequestBtn").onclick=requestAiCoach;
 $("undoBtn").onclick=undo;
 $("changeServerBtn").onclick=changeServer;
 $("exportBtn").onclick=exportCSV;
@@ -7258,6 +7658,8 @@ document.querySelectorAll("[data-rally]").forEach(b=>b.onclick=()=>markRally(b.d
 window.addEventListener("online",()=>{
 
   updateSaveStatus();
+
+  renderAiCoach();
 
   if(liveMatchReadOnly){
 
@@ -7272,7 +7674,15 @@ window.addEventListener("online",()=>{
   loadHistory();
 
 });
-window.addEventListener("offline",updateSaveStatus);
+window.addEventListener("offline",()=>{
+  updateSaveStatus();
+  renderAiCoach();
+});
+
+window.addEventListener("tennis-language-change",()=>{
+  resetAiCoachState();
+  renderAiCoach();
+});
 
 document.addEventListener("visibilitychange",()=>{
 

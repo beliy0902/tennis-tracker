@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- UPDATED: secure match history + RU/UA/EN + Live Quick Analysis + AI Coach + free ChatGPT share V14 -->
+<!-- UPDATED: secure match history + RU/UA/EN + Live Quick Analysis + AI Coach + free ChatGPT H2H share V15 -->
 <html lang="ru">
 <head>
 <meta charset="utf-8">
@@ -44,6 +44,11 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
 .chatGptShareActions button{min-height:50px;font-size:14px}
 .chatGptShareStatus{min-height:18px;margin-top:9px;font-size:13px;line-height:1.4}
 .chatGptShareStatus.error{color:#b42318}.chatGptShareStatus.success{color:#157347}
+.h2hContext{margin-top:9px;padding:9px 10px;border-radius:10px;background:#f6f6f8;color:#555;font-size:12px;line-height:1.4}
+.h2hCompare{overflow-x:auto}.h2hCompare th:first-child,.h2hCompare td:first-child{text-align:left;white-space:nowrap}
+.h2hCompare th:not(:first-child),.h2hCompare td:not(:first-child){min-width:86px;text-align:right}
+.h2hRecent{margin-top:12px}.h2hRecentItem{padding:9px 0;border-bottom:1px solid #eee;display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.h2hRecentItem:last-child{border-bottom:0}.h2hResult{font-weight:850}.h2hResult.win{color:#157347}.h2hResult.loss{color:#b42318}
 @media(max-width:420px){.chatGptShareActions{grid-template-columns:1fr}}
 </style>
 </head>
@@ -199,6 +204,16 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
 
     </div>
 
+  </div>
+  <div class="card hidden" id="h2hStatsShareCard" data-i18n-ignore>
+    <div class="section" id="h2hStatsShareTitle"></div>
+    <div class="small" id="h2hStatsShareDescription"></div>
+    <div class="chatGptShareActions">
+      <button id="h2hStatsCopyBtn" class="primary"></button>
+      <button id="h2hStatsShareBtn"></button>
+    </div>
+    <div id="h2hStatsShareNote" class="small" style="margin-top:9px"></div>
+    <div id="h2hStatsShareStatus" class="chatGptShareStatus" aria-live="polite"></div>
   </div>
 <div class="card">
 
@@ -356,6 +371,7 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
       <button id="chatGptCopyBtn" class="primary"></button>
       <button id="chatGptShareBtn"></button>
     </div>
+    <div id="chatGptH2HStatus" class="h2hContext"></div>
     <div id="chatGptShareNote" class="small" style="margin-top:9px"></div>
     <div id="chatGptShareStatus" class="chatGptShareStatus" aria-live="polite"></div>
   </div>
@@ -1270,6 +1286,12 @@ const OPPONENTS_CACHE_KEY_PREFIX=
 
   "TennisTrackerOpponents:";
 
+const H2H_CACHE_KEY_PREFIX=
+
+  "TennisTrackerH2H:v1:";
+
+const H2H_CACHE_VERSION=1;
+
 let authorizedPlayerProfiles=[];
 
 let selectedPlayerProfileId=null;
@@ -1287,6 +1309,20 @@ let selectedOpponentProfileId=null;
 let selectedStatsOpponentProfileId=null;
 
 let opponentsLoadSequence=0;
+
+let currentH2HSummary=null;
+
+let currentH2HLoading=false;
+
+let currentH2HError="";
+
+let currentStatsH2HSummary=null;
+
+let h2hLoadSequence=0;
+
+let h2hStatsShareStatusKey="";
+
+let h2hStatsShareStatusFingerprint="";
 
 function normalizePlayerProfiles(profiles){
 
@@ -2775,6 +2811,12 @@ function choosePlayerProfile(profileId){
 
     selectedStatsOpponentProfileId=null;
 
+    currentStatsH2HSummary=null;
+
+    h2hStatsShareStatusKey="";
+
+    renderH2HStatsShare();
+
     loadOpponentsForPlayer(profile.id);
 
   }
@@ -2939,6 +2981,314 @@ async function listPlayerMatches(profileId,limit=500){
     if(page.length<limit)break;
   }
   return matches;
+}
+
+const H2H_STAT_KEYS=[
+  "sp","fi","fw","sp2","sw","a","df","fhw","bhw","fhue","bhue",
+  "fe","net","bpf","bps","r1p","r1w","r2p","r2w","ptsWon"
+];
+
+function h2hCount(value){
+  const number=Number(value);
+  return Number.isFinite(number)&&number>=0?Math.floor(number):0;
+}
+
+function h2hBlankStats(){
+  return H2H_STAT_KEYS.reduce((stats,key)=>{
+    stats[key]=0;
+    return stats;
+  },{});
+}
+
+function h2hNormalizeStats(value){
+  const stats=h2hBlankStats();
+  H2H_STAT_KEYS.forEach(key=>{stats[key]=h2hCount(value?.[key])});
+  return stats;
+}
+
+function h2hAddStats(target,value){
+  const stats=h2hNormalizeStats(value);
+  H2H_STAT_KEYS.forEach(key=>{target[key]+=stats[key]});
+}
+
+function h2hCacheKey(playerProfileId,opponentProfileId){
+  return H2H_CACHE_KEY_PREFIX+playerProfileId+":"+opponentProfileId;
+}
+
+function h2hCleanValue(value,maxLength=120){
+  return String(value||"")
+    .replace(/[\r\n\t]+/g," ")
+    .replace(/\s+/g," ")
+    .trim()
+    .slice(0,maxLength);
+}
+
+function normalizeH2HSummary(value,playerProfileId,opponentProfileId){
+  if(
+    !value ||
+    value.version!==H2H_CACHE_VERSION ||
+    value.player_profile_id!==playerProfileId ||
+    value.opponent_profile_id!==opponentProfileId
+  )return null;
+  const rally={};
+  ["0-4","5-8","9+"].forEach(bucket=>{
+    rally[bucket]={
+      total:h2hCount(value.rally?.[bucket]?.total),
+      player:h2hCount(value.rally?.[bucket]?.player),
+      opponent:h2hCount(value.rally?.[bucket]?.opponent)
+    };
+  });
+  const recent=Array.isArray(value.recent)?value.recent.slice(0,5).map(match=>({
+    created_at:typeof match?.created_at==="string"?match.created_at:"",
+    score:h2hCleanValue(match?.score||"—"),
+    result:["W","L","—"].includes(match?.result)?match.result:"—"
+  })):[];
+  return {
+    version:H2H_CACHE_VERSION,
+    player_profile_id:playerProfileId,
+    opponent_profile_id:opponentProfileId,
+    player_name:h2hCleanValue(value.player_name||"Player",80),
+    opponent_name:h2hCleanValue(value.opponent_name||"Opponent",80),
+    updated_at:typeof value.updated_at==="string"?value.updated_at:"",
+    match_count:h2hCount(value.match_count),
+    wins:h2hCount(value.wins),
+    losses:h2hCount(value.losses),
+    sets_won:h2hCount(value.sets_won),
+    sets_lost:h2hCount(value.sets_lost),
+    matches_with_stats:h2hCount(value.matches_with_stats),
+    legacy_without_opponent_id:h2hCount(value.legacy_without_opponent_id),
+    excluded_from_stats:h2hCount(value.excluded_from_stats),
+    player_stats:h2hNormalizeStats(value.player_stats),
+    opponent_stats:h2hNormalizeStats(value.opponent_stats),
+    rally,
+    recent
+  };
+}
+
+function loadCachedH2H(playerProfileId,opponentProfileId){
+  if(!playerProfileId||!opponentProfileId)return null;
+  try{
+    return normalizeH2HSummary(
+      JSON.parse(localStorage.getItem(h2hCacheKey(playerProfileId,opponentProfileId))||"null"),
+      playerProfileId,
+      opponentProfileId
+    );
+  }catch(error){
+    console.warn("H2H cache was not loaded",error);
+    return null;
+  }
+}
+
+function saveCachedH2H(summary){
+  const normalized=normalizeH2HSummary(
+    summary,
+    summary?.player_profile_id,
+    summary?.opponent_profile_id
+  );
+  if(!normalized)return;
+  try{
+    localStorage.setItem(
+      h2hCacheKey(normalized.player_profile_id,normalized.opponent_profile_id),
+      JSON.stringify(normalized)
+    );
+  }catch(error){
+    console.warn("H2H cache was not saved",error);
+  }
+}
+
+function h2hPlayerIndex(match,profile){
+  if(!match||!profile)return null;
+  const profileName=String(profile.display_name||"").trim().toLowerCase();
+  const player1=String(match.player1||"").trim().toLowerCase();
+  const player2=String(match.player2||"").trim().toLowerCase();
+  if(profileName&&player1===profileName)return 0;
+  if(profileName&&player2===profileName)return 1;
+  if(match.tracked_player_id===profile.id)return 0;
+  return null;
+}
+
+function h2hStatsAt(match,index){
+  if(index!==0&&index!==1)return null;
+  const direct=index===0?match?.stats?.player1:match?.stats?.player2;
+  if(direct&&typeof direct==="object")return direct;
+  const total=match?.sets?.total_stats;
+  return Array.isArray(total)&&total[index]&&typeof total[index]==="object"
+    ? total[index]
+    : null;
+}
+
+function h2hWinnerIndex(match){
+  const winner=String(match?.winner||"").trim().toLowerCase();
+  if(winner&&winner===String(match?.player1||"").trim().toLowerCase())return 0;
+  if(winner&&winner===String(match?.player2||"").trim().toLowerCase())return 1;
+  const score=Array.isArray(match?.sets?.score)?match.sets.score:null;
+  if(score&&Number(score[0])>Number(score[1]))return 0;
+  if(score&&Number(score[1])>Number(score[0]))return 1;
+  return null;
+}
+
+function h2hScoreForPlayer(match,playerIndex){
+  const setScores=Array.isArray(match?.sets?.set_scores)?match.sets.set_scores:[];
+  if(setScores.length){
+    return setScores.map(score=>{
+      if(!Array.isArray(score))return "";
+      const mine=h2hCount(score[playerIndex]);
+      const theirs=h2hCount(score[1-playerIndex]);
+      return mine+"–"+theirs;
+    }).filter(Boolean).join(", ")||"—";
+  }
+  return h2hCleanValue(match?.score||"—");
+}
+
+function h2hPointWinnerIndex(point,match){
+  const winner=String(point?.winner||"").trim().toLowerCase();
+  if(!winner)return null;
+  if(winner===String(match?.player1||"").trim().toLowerCase())return 0;
+  if(winner===String(match?.player2||"").trim().toLowerCase())return 1;
+  return null;
+}
+
+function buildH2HSummary(allMatches,profile,opponent){
+  const playerMatches=(Array.isArray(allMatches)?allMatches:[])
+    .filter(match=>matchBelongsToPlayerProfile(match,profile));
+  const linked=playerMatches.filter(match=>match?.opponent_profile_id===opponent.id);
+  const included=linked
+    .filter(match=>match?.sets?.include_in_stats!==false)
+    .sort((a,b)=>(Date.parse(b?.created_at||"")||0)-(Date.parse(a?.created_at||"")||0));
+  const summary={
+    version:H2H_CACHE_VERSION,
+    player_profile_id:profile.id,
+    opponent_profile_id:opponent.id,
+    player_name:profile.display_name,
+    opponent_name:opponent.display_name,
+    updated_at:new Date().toISOString(),
+    match_count:included.length,
+    wins:0,
+    losses:0,
+    sets_won:0,
+    sets_lost:0,
+    matches_with_stats:0,
+    legacy_without_opponent_id:playerMatches.filter(match=>!match?.opponent_profile_id).length,
+    excluded_from_stats:linked.filter(match=>match?.sets?.include_in_stats===false).length,
+    player_stats:h2hBlankStats(),
+    opponent_stats:h2hBlankStats(),
+    rally:{
+      "0-4":{total:0,player:0,opponent:0},
+      "5-8":{total:0,player:0,opponent:0},
+      "9+":{total:0,player:0,opponent:0}
+    },
+    recent:[]
+  };
+
+  included.forEach(match=>{
+    const playerIndex=h2hPlayerIndex(match,profile);
+    if(playerIndex===null)return;
+    const opponentIndex=1-playerIndex;
+    const winnerIndex=h2hWinnerIndex(match);
+    if(winnerIndex===playerIndex)summary.wins++;
+    else if(winnerIndex===opponentIndex)summary.losses++;
+
+    const setScore=Array.isArray(match?.sets?.score)?match.sets.score:null;
+    if(setScore){
+      summary.sets_won+=h2hCount(setScore[playerIndex]);
+      summary.sets_lost+=h2hCount(setScore[opponentIndex]);
+    }
+
+    const playerStats=h2hStatsAt(match,playerIndex);
+    const opponentStats=h2hStatsAt(match,opponentIndex);
+    if(playerStats||opponentStats)summary.matches_with_stats++;
+    if(playerStats)h2hAddStats(summary.player_stats,playerStats);
+    if(opponentStats)h2hAddStats(summary.opponent_stats,opponentStats);
+
+    const points=Array.isArray(match?.points)
+      ? match.points
+      : Array.isArray(match?.sets?.log)?match.sets.log:[];
+    points.forEach(point=>{
+      const bucket=["0-4","5-8","9+"].includes(point?.rally)?point.rally:null;
+      if(!bucket)return;
+      const pointWinnerIndex=h2hPointWinnerIndex(point,match);
+      if(pointWinnerIndex===null)return;
+      summary.rally[bucket].total++;
+      if(pointWinnerIndex===playerIndex)summary.rally[bucket].player++;
+      else if(pointWinnerIndex===opponentIndex)summary.rally[bucket].opponent++;
+    });
+  });
+
+  summary.recent=included.slice(0,5).map(match=>{
+    const playerIndex=h2hPlayerIndex(match,profile);
+    const winnerIndex=h2hWinnerIndex(match);
+    return {
+      created_at:typeof match?.created_at==="string"?match.created_at:"",
+      score:h2hScoreForPlayer(match,playerIndex===null?0:playerIndex),
+      result:winnerIndex===null||playerIndex===null?"—":winnerIndex===playerIndex?"W":"L"
+    };
+  });
+
+  return normalizeH2HSummary(summary,profile.id,opponent.id);
+}
+
+function h2hMatchesCurrentState(playerProfileId,opponentProfileId){
+  return S?.playerProfileId===playerProfileId&&S?.opponentProfileId===opponentProfileId;
+}
+
+function currentMatchH2HSummary(){
+  if(
+    currentH2HSummary&&
+    h2hMatchesCurrentState(
+      currentH2HSummary.player_profile_id,
+      currentH2HSummary.opponent_profile_id
+    )
+  )return currentH2HSummary;
+  return loadCachedH2H(S?.playerProfileId,S?.opponentProfileId);
+}
+
+async function preloadH2HForOpponent(playerProfileId,opponentProfileId){
+  if(!playerProfileId||!opponentProfileId)return null;
+  const requestId=++h2hLoadSequence;
+  const cached=loadCachedH2H(playerProfileId,opponentProfileId);
+  if(h2hMatchesCurrentState(playerProfileId,opponentProfileId)){
+    currentH2HSummary=cached;
+    currentH2HLoading=!!(window.TENNIS_INIT_DATA&&navigator.onLine);
+    currentH2HError="";
+    renderChatGptShare();
+  }
+  if(!window.TENNIS_INIT_DATA||!navigator.onLine){
+    if(h2hMatchesCurrentState(playerProfileId,opponentProfileId)){
+      currentH2HLoading=false;
+      renderChatGptShare();
+    }
+    return cached;
+  }
+  try{
+    const profile=playerProfileById(playerProfileId)||{
+      id:playerProfileId,
+      display_name:S?.names?.[0]||"Player"
+    };
+    const opponent=statsOpponentProfileById(opponentProfileId)||{
+      id:opponentProfileId,
+      player_profile_id:playerProfileId,
+      display_name:S?.names?.[1]||"Opponent"
+    };
+    const matches=await listPlayerMatches(playerProfileId);
+    const summary=buildH2HSummary(matches,profile,opponent);
+    saveCachedH2H(summary);
+    if(requestId===h2hLoadSequence&&h2hMatchesCurrentState(playerProfileId,opponentProfileId)){
+      currentH2HSummary=summary;
+      currentH2HError="";
+    }
+    return summary;
+  }catch(error){
+    console.error("H2H preload error",error);
+    if(requestId===h2hLoadSequence&&h2hMatchesCurrentState(playerProfileId,opponentProfileId)){
+      currentH2HError=String(error?.message||"H2H unavailable");
+    }
+    return cached;
+  }finally{
+    if(requestId===h2hLoadSequence&&h2hMatchesCurrentState(playerProfileId,opponentProfileId)){
+      currentH2HLoading=false;
+      renderChatGptShare();
+    }
+  }
 }
 
 async function ensureLiveMatch(){
@@ -3357,6 +3707,8 @@ async function loadActiveLiveMatchFromServer(){
 
   applyLiveMatchState(match);
 
+  preloadH2HForOpponent(S.playerProfileId,S.opponentProfileId);
+
   resetAiCoachState();
 
   $("resumeBox").classList.add("hidden");
@@ -3612,6 +3964,7 @@ function showResumeOffer(){
 }
 function resumeSavedMatch(){
   if(S.playerProfileId)choosePlayerProfile(S.playerProfileId);
+  preloadH2HForOpponent(S.playerProfileId,S.opponentProfileId);
   resetAiCoachState();
   $("setupScreen").classList.add("hidden");$("serverScreen").classList.add("hidden");$("matchScreen").classList.remove("hidden");render();updateSaveStatus();loadHistory();
 }
@@ -3851,7 +4204,7 @@ function quickRallyStats(){
 const CHATGPT_SHARE_TEXT={
   ru:{
     title:"💬 Анализ в ChatGPT",
-    description:"Подготовить статистику матча для ChatGPT без платного API-запроса из приложения.",
+    description:"Подготовить текущий матч и сохранённую H2H-историю для ChatGPT без платного API-запроса из приложения.",
     copyButton:"📋 СКОПИРОВАТЬ ДЛЯ CHATGPT",
     shareButton:"↗ ПОДЕЛИТЬСЯ",
     note:"Ничего не отправляется автоматически. Работает офлайн и в режиме «только просмотр».",
@@ -3868,12 +4221,22 @@ const CHATGPT_SHARE_TEXT={
     noSets:"нет завершённых сетов",
     noRallies:"не отмечены",
     noRecent:"нет данных",
-    promptIntro:"Ниже — статистика текущего теннисного матча. Проанализируй её как теннисный тренер. Используй только указанные данные и учитывай размер выборки.",
-    promptTask:"ЗАДАЧА:\n1. Кратко оцени, что происходит в матче.\n2. Дай 3 конкретные тактические установки на продолжение матча в порядке приоритета.\n3. Отдельно укажи план на своей подаче, на приёме и в Rally.\n4. Для каждого совета назови точную статистику, на которой он основан.\n5. Если данных недостаточно или выборка мала, скажи об этом прямо.\nНе придумывай отсутствующие данные. Ответь по-русски. Tennis terms и сокращения (1st Serve, 2nd Serve, FH, BH, UE, DF, Rally, Winner, Break Point) оставляй на английском."
+    h2hLoading:"H2H: история против {opponent} обновляется; копирование уже доступно.",
+    h2hReady:"H2H: {matches} сохранённых матчей против {opponent}; данные добавятся в текст.",
+    h2hEmpty:"H2H: завершённых матчей против {opponent} пока нет.",
+    h2hCurrentOnly:"H2H: кэш истории недоступен; в текст войдёт только текущий матч.",
+    h2hError:"H2H: не удалось обновить историю; используется сохранённый кэш, если он есть.",
+    h2hStatsTitle:"💬 H2H-анализ в ChatGPT",
+    h2hStatsDescription:"Скопировать агрегированную статистику и последние очные матчи для бесплатного анализа в ChatGPT.",
+    h2hStatsNote:"Ничего не отправляется автоматически. В текст не включаются внутренние ID и данные Telegram.",
+    h2hPromptIntro:"Ниже — сохранённая статистика очных теннисных матчей игрока против выбранного соперника. Проанализируй её как теннисный тренер. Используй только указанные данные и учитывай размер выборки.",
+    h2hPromptTask:"ЗАДАЧА:\n1. Кратко опиши устойчивые тенденции этого H2H.\n2. Дай 3 конкретные установки на следующий матч против этого соперника в порядке приоритета.\n3. Отдельно укажи план на своей подаче, на приёме и в Rally.\n4. Для каждого совета назови точную статистику, на которой он основан.\n5. Отделяй устойчивые выводы от слабых сигналов небольшой выборки.\nНе придумывай отсутствующие данные. Ответь по-русски. Tennis terms и сокращения (1st Serve, 2nd Serve, FH, BH, UE, DF, Rally, Winner, Break Point) оставляй на английском.",
+    promptIntro:"Ниже — статистика текущего теннисного матча и, если доступна, сохранённая H2H-история против этого соперника. Проанализируй её как теннисный тренер. Используй только указанные данные и учитывай размер каждой выборки.",
+    promptTask:"ЗАДАЧА:\n1. Кратко оцени, что происходит в текущем матче.\n2. Дай 3 конкретные тактические установки на продолжение матча в порядке приоритета.\n3. Отдельно укажи план на своей подаче, на приёме и в Rally.\n4. Для каждого совета назови точную статистику, на которой он основан.\n5. Используй H2H только как отдельный исторический контекст и не смешивай его числа с текущим матчем.\n6. Если данных недостаточно или выборка мала, скажи об этом прямо.\nНе придумывай отсутствующие данные. Ответь по-русски. Tennis terms и сокращения (1st Serve, 2nd Serve, FH, BH, UE, DF, Rally, Winner, Break Point) оставляй на английском."
   },
   uk:{
     title:"💬 Аналіз у ChatGPT",
-    description:"Підготувати статистику матчу для ChatGPT без платного API-запиту із застосунку.",
+    description:"Підготувати поточний матч і збережену H2H-історію для ChatGPT без платного API-запиту із застосунку.",
     copyButton:"📋 СКОПІЮВАТИ ДЛЯ CHATGPT",
     shareButton:"↗ ПОДІЛИТИСЯ",
     note:"Нічого не надсилається автоматично. Працює офлайн і в режимі «лише перегляд».",
@@ -3890,12 +4253,22 @@ const CHATGPT_SHARE_TEXT={
     noSets:"немає завершених сетів",
     noRallies:"не позначені",
     noRecent:"немає даних",
-    promptIntro:"Нижче — статистика поточного тенісного матчу. Проаналізуй її як тенісний тренер. Використовуй лише наведені дані та враховуй розмір вибірки.",
-    promptTask:"ЗАВДАННЯ:\n1. Коротко оціни, що відбувається в матчі.\n2. Дай 3 конкретні тактичні настанови на продовження матчу за пріоритетом.\n3. Окремо вкажи план на своїй подачі, на прийомі та в Rally.\n4. Для кожної поради назви точну статистику, на якій вона базується.\n5. Якщо даних недостатньо або вибірка мала, скажи про це прямо.\nНе вигадуй відсутні дані. Відповідай українською. Tennis terms і скорочення (1st Serve, 2nd Serve, FH, BH, UE, DF, Rally, Winner, Break Point) залишай англійською."
+    h2hLoading:"H2H: історія проти {opponent} оновлюється; копіювання вже доступне.",
+    h2hReady:"H2H: {matches} збережених матчів проти {opponent}; дані буде додано до тексту.",
+    h2hEmpty:"H2H: завершених матчів проти {opponent} ще немає.",
+    h2hCurrentOnly:"H2H: кеш історії недоступний; у текст увійде лише поточний матч.",
+    h2hError:"H2H: не вдалося оновити історію; використовується збережений кеш, якщо він є.",
+    h2hStatsTitle:"💬 H2H-аналіз у ChatGPT",
+    h2hStatsDescription:"Скопіювати агреговану статистику та останні очні матчі для безплатного аналізу в ChatGPT.",
+    h2hStatsNote:"Нічого не надсилається автоматично. У текст не входять внутрішні ID і дані Telegram.",
+    h2hPromptIntro:"Нижче — збережена статистика очних тенісних матчів гравця проти вибраного суперника. Проаналізуй її як тенісний тренер. Використовуй лише наведені дані та враховуй розмір вибірки.",
+    h2hPromptTask:"ЗАВДАННЯ:\n1. Коротко опиши стійкі тенденції цього H2H.\n2. Дай 3 конкретні настанови на наступний матч проти цього суперника за пріоритетом.\n3. Окремо вкажи план на своїй подачі, на прийомі та в Rally.\n4. Для кожної поради назви точну статистику, на якій вона базується.\n5. Відокремлюй стійкі висновки від слабких сигналів малої вибірки.\nНе вигадуй відсутні дані. Відповідай українською. Tennis terms і скорочення (1st Serve, 2nd Serve, FH, BH, UE, DF, Rally, Winner, Break Point) залишай англійською.",
+    promptIntro:"Нижче — статистика поточного тенісного матчу і, якщо доступна, збережена H2H-історія проти цього суперника. Проаналізуй її як тенісний тренер. Використовуй лише наведені дані та враховуй розмір кожної вибірки.",
+    promptTask:"ЗАВДАННЯ:\n1. Коротко оціни, що відбувається в поточному матчі.\n2. Дай 3 конкретні тактичні настанови на продовження матчу за пріоритетом.\n3. Окремо вкажи план на своїй подачі, на прийомі та в Rally.\n4. Для кожної поради назви точну статистику, на якій вона базується.\n5. Використовуй H2H лише як окремий історичний контекст і не змішуй його числа з поточним матчем.\n6. Якщо даних недостатньо або вибірка мала, скажи про це прямо.\nНе вигадуй відсутні дані. Відповідай українською. Tennis terms і скорочення (1st Serve, 2nd Serve, FH, BH, UE, DF, Rally, Winner, Break Point) залишай англійською."
   },
   en:{
     title:"💬 Analyze in ChatGPT",
-    description:"Prepare the match statistics for ChatGPT without a paid API request from the app.",
+    description:"Prepare the current match and saved H2H history for ChatGPT without a paid API request from the app.",
     copyButton:"📋 COPY FOR CHATGPT",
     shareButton:"↗ SHARE",
     note:"Nothing is sent automatically. Works offline and in read-only mode.",
@@ -3912,17 +4285,30 @@ const CHATGPT_SHARE_TEXT={
     noSets:"no completed sets",
     noRallies:"not recorded",
     noRecent:"no data",
-    promptIntro:"Below are the statistics for the current tennis match. Analyze them as a tennis coach. Use only the supplied data and account for the sample size.",
-    promptTask:"TASK:\n1. Briefly assess what is happening in the match.\n2. Give 3 specific, prioritized tactical instructions for the rest of the match.\n3. Give separate plans for serving, returning, and Rally situations.\n4. Cite the exact statistic supporting each recommendation.\n5. State clearly when the data or sample is insufficient.\nDo not invent missing data. Reply in English and keep standard tennis terms and abbreviations."
+    h2hLoading:"H2H: history against {opponent} is updating; copying is already available.",
+    h2hReady:"H2H: {matches} saved matches against {opponent}; the data will be added to the text.",
+    h2hEmpty:"H2H: no completed matches against {opponent} yet.",
+    h2hCurrentOnly:"H2H: no cached history is available; only the current match will be included.",
+    h2hError:"H2H: history could not be refreshed; saved cache is used when available.",
+    h2hStatsTitle:"💬 H2H analysis in ChatGPT",
+    h2hStatsDescription:"Copy aggregate statistics and recent head-to-head matches for analysis in ChatGPT without an API charge from the app.",
+    h2hStatsNote:"Nothing is sent automatically. Internal IDs and Telegram data are not included.",
+    h2hPromptIntro:"Below are saved head-to-head tennis statistics for a player against the selected opponent. Analyze them as a tennis coach. Use only the supplied data and account for the sample size.",
+    h2hPromptTask:"TASK:\n1. Briefly describe the durable trends in this H2H.\n2. Give 3 specific, prioritized instructions for the next match against this opponent.\n3. Give separate plans for serving, returning, and Rally situations.\n4. Cite the exact statistic supporting each recommendation.\n5. Separate durable findings from weak signals in small samples.\nDo not invent missing data. Reply in English and keep standard tennis terms and abbreviations.",
+    promptIntro:"Below are the statistics for the current tennis match and, when available, saved H2H history against this opponent. Analyze them as a tennis coach. Use only the supplied data and account for each sample size.",
+    promptTask:"TASK:\n1. Briefly assess what is happening in the current match.\n2. Give 3 specific, prioritized tactical instructions for the rest of the match.\n3. Give separate plans for serving, returning, and Rally situations.\n4. Cite the exact statistic supporting each recommendation.\n5. Use H2H only as separate historical context and do not combine its counts with the current match.\n6. State clearly when the data or sample is insufficient.\nDo not invent missing data. Reply in English and keep standard tennis terms and abbreviations."
   }
 };
 
 let chatGptShareStatusKey="";
 let chatGptShareStatusFingerprint="";
 
-function chatGptShareText(key){
+function chatGptShareText(key,values={}){
   const language=window.TennisI18n?.getLanguage?.() || "ru";
-  return CHATGPT_SHARE_TEXT[language]?.[key] || CHATGPT_SHARE_TEXT.ru[key] || key;
+  const template=CHATGPT_SHARE_TEXT[language]?.[key] || CHATGPT_SHARE_TEXT.ru[key] || key;
+  return String(template).replace(/\{(\w+)\}/g,(_,name)=>
+    Object.prototype.hasOwnProperty.call(values,name)?String(values[name]):""
+  );
 }
 
 function chatGptCleanName(value,fallback){
@@ -3996,11 +4382,118 @@ function chatGptRecentSummary(playerName,opponentName){
   return recent.length+" points: "+playerName+" "+playerWins+"–"+opponentWins+" "+opponentName;
 }
 
+function chatGptH2HRallySummary(summary,playerName,opponentName){
+  const rows=["0-4","5-8","9+"].map(bucket=>{
+    const item=summary?.rally?.[bucket]||{};
+    return "- "+bucket+": "+chatGptCount(item.total)+" total; "+
+      playerName+" "+chatGptCount(item.player)+", "+
+      opponentName+" "+chatGptCount(item.opponent);
+  });
+  const total=["0-4","5-8","9+"].reduce(
+    (sum,bucket)=>sum+chatGptCount(summary?.rally?.[bucket]?.total),0
+  );
+  return total?rows.join("\n"):chatGptShareText("noRallies");
+}
+
+function chatGptH2HRecentSummary(summary){
+  const recent=Array.isArray(summary?.recent)?summary.recent:[];
+  if(!recent.length)return "- "+chatGptShareText("noRecent");
+  return recent.map(match=>{
+    const date=/^\d{4}-\d{2}-\d{2}/.test(match.created_at||"")
+      ? match.created_at.slice(0,10)
+      : "—";
+    return "- "+date+": "+match.result+"; score "+(match.score||"—");
+  }).join("\n");
+}
+
+function chatGptH2HDataBlock(summary,playerName,opponentName){
+  const language=window.TennisI18n?.getLanguage?.()||"ru";
+  if(!summary){
+    const unavailable=language==="en"
+      ? "H2H history is unavailable or not cached; analyze the current match only."
+      : language==="uk"
+        ? "H2H-історія недоступна або не кешована; аналізуй лише поточний матч."
+        : "H2H-история недоступна или не сохранена в кэше; анализируй только текущий матч.";
+    return ["H2H HISTORY", "- "+unavailable].join("\n");
+  }
+  if(!summary.match_count){
+    const empty=language==="en"
+      ? "No completed linked matches against this opponent are included in statistics."
+      : language==="uk"
+        ? "Завершених прив’язаних матчів проти цього суперника у статистиці немає."
+        : "Завершённых привязанных матчей против этого соперника в статистике нет.";
+    return [
+      "H2H HISTORY",
+      "- "+empty,
+      "- Legacy matches without opponent_profile_id excluded: "+chatGptCount(summary.legacy_without_opponent_id)
+    ].join("\n");
+  }
+  return [
+    "H2H HISTORY (SAVED COMPLETED MATCHES)",
+    "- Players: "+playerName+" vs "+opponentName,
+    "- Matches included: "+chatGptCount(summary.match_count),
+    "- Match record for "+playerName+": "+chatGptCount(summary.wins)+" W / "+chatGptCount(summary.losses)+" L",
+    "- Set record for "+playerName+": "+chatGptCount(summary.sets_won)+"–"+chatGptCount(summary.sets_lost),
+    "- Matches with detailed point stats: "+chatGptCount(summary.matches_with_stats),
+    "- Matches manually excluded from this opponent's statistics: "+chatGptCount(summary.excluded_from_stats),
+    "- Legacy matches without opponent_profile_id excluded: "+chatGptCount(summary.legacy_without_opponent_id),
+    "",
+    "H2H AGGREGATE",
+    chatGptPlayerStats(playerName,summary.player_stats),
+    "",
+    chatGptPlayerStats(opponentName,summary.opponent_stats),
+    "",
+    "H2H RALLY LENGTH (winner count)",
+    chatGptH2HRallySummary(summary,playerName,opponentName),
+    "",
+    "RECENT H2H (up to 5, newest first)",
+    chatGptH2HRecentSummary(summary)
+  ].join("\n");
+}
+
+function buildH2HChatGptPrompt(summary){
+  const language=window.TennisI18n?.getLanguage?.()||"ru";
+  const playerName=chatGptCleanName(
+    summary?.player_name,
+    language==="en"?"Player":"Игрок"
+  );
+  const opponentName=chatGptCleanName(
+    summary?.opponent_name,
+    language==="en"?"Opponent":"Соперник"
+  );
+  return [
+    chatGptShareText("h2hPromptIntro"),
+    "",
+    chatGptH2HDataBlock(summary,playerName,opponentName),
+    "",
+    chatGptShareText("h2hPromptTask")
+  ].join("\n");
+}
+
+function h2hSummaryFingerprint(summary){
+  if(!summary)return "";
+  return JSON.stringify({
+    player_profile_id:summary.player_profile_id,
+    opponent_profile_id:summary.opponent_profile_id,
+    updated_at:summary.updated_at,
+    match_count:summary.match_count,
+    wins:summary.wins,
+    losses:summary.losses,
+    sets_won:summary.sets_won,
+    sets_lost:summary.sets_lost,
+    player_stats:summary.player_stats,
+    opponent_stats:summary.opponent_stats,
+    rally:summary.rally,
+    recent:summary.recent
+  });
+}
+
 function chatGptShareFingerprint(){
   return JSON.stringify({
     names:S.names,set:S.set,game:S.game,pt:S.pt,srv:S.srv,sn:S.sn,tb:S.tb,
     matchOver:S.matchOver,cancelled:S.cancelled,st:S.st,setStats:S.setStats,
-    setScores:S.setScores,tieBreakScores:S.tieBreakScores,log:S.log
+    setScores:S.setScores,tieBreakScores:S.tieBreakScores,log:S.log,
+    h2h:h2hSummaryFingerprint(currentMatchH2HSummary())
   });
 }
 
@@ -4050,6 +4543,8 @@ function buildChatGptMatchPrompt(){
     "LAST 10",
     chatGptRecentSummary(playerName,opponentName),
     "",
+    chatGptH2HDataBlock(currentMatchH2HSummary(),playerName,opponentName),
+    "",
     chatGptShareText("promptTask")
   ].join("\n");
 }
@@ -4095,6 +4590,23 @@ function renderChatGptShare(){
   $("chatGptShareDescription").textContent=chatGptShareText("description");
   copyButton.textContent=chatGptShareText("copyButton");
   $("chatGptShareBtn").textContent=chatGptShareText("shareButton");
+  const h2hStatus=$("chatGptH2HStatus");
+  if(h2hStatus){
+    const summary=currentMatchH2HSummary();
+    const opponent=chatGptCleanName(
+      summary?.opponent_name||S.names?.[1],
+      (window.TennisI18n?.getLanguage?.()||"ru")==="en"?"Opponent":"Соперник"
+    );
+    let h2hKey="h2hCurrentOnly";
+    if(currentH2HLoading)h2hKey="h2hLoading";
+    else if(currentH2HError)h2hKey="h2hError";
+    else if(summary?.match_count)h2hKey="h2hReady";
+    else if(summary)h2hKey="h2hEmpty";
+    h2hStatus.textContent=chatGptShareText(h2hKey,{
+      opponent,
+      matches:chatGptCount(summary?.match_count)
+    });
+  }
   $("chatGptShareNote").textContent=chatGptShareText("note");
   const status=$("chatGptShareStatus");
   let key=chatGptShareStatusKey;
@@ -4127,6 +4639,59 @@ async function shareMatchForChatGpt(){
   }
   const copied=await copyChatGptText(text);
   setChatGptShareStatus(copied?"fallbackCopied":"shareError");
+}
+
+function setH2HStatsShareStatus(key){
+  h2hStatsShareStatusKey=key;
+  h2hStatsShareStatusFingerprint=h2hSummaryFingerprint(currentStatsH2HSummary);
+  renderH2HStatsShare();
+}
+
+function renderH2HStatsShare(){
+  const card=$("h2hStatsShareCard");
+  if(!card)return;
+  const available=!!(currentStatsH2HSummary?.match_count);
+  card.classList.toggle("hidden",!available);
+  if(!available)return;
+  $("h2hStatsShareTitle").textContent=chatGptShareText("h2hStatsTitle");
+  $("h2hStatsShareDescription").textContent=chatGptShareText("h2hStatsDescription");
+  $("h2hStatsCopyBtn").textContent=chatGptShareText("copyButton");
+  $("h2hStatsShareBtn").textContent=chatGptShareText("shareButton");
+  $("h2hStatsShareNote").textContent=chatGptShareText("h2hStatsNote");
+  let key=h2hStatsShareStatusKey;
+  if(
+    ["copied","shared","fallbackCopied"].includes(key)&&
+    h2hStatsShareStatusFingerprint&&
+    h2hStatsShareStatusFingerprint!==h2hSummaryFingerprint(currentStatsH2HSummary)
+  )key="changed";
+  const status=$("h2hStatsShareStatus");
+  status.textContent=key?chatGptShareText(key):"";
+  status.className="chatGptShareStatus";
+  if(["copyError","shareError"].includes(key))status.classList.add("error");
+  if(["copied","shared","fallbackCopied"].includes(key))status.classList.add("success");
+}
+
+async function copyH2HStatsForChatGpt(){
+  if(!currentStatsH2HSummary?.match_count)return;
+  const copied=await copyChatGptText(buildH2HChatGptPrompt(currentStatsH2HSummary));
+  setH2HStatsShareStatus(copied?"copied":"copyError");
+}
+
+async function shareH2HStatsForChatGpt(){
+  if(!currentStatsH2HSummary?.match_count)return;
+  const text=buildH2HChatGptPrompt(currentStatsH2HSummary);
+  if(typeof navigator.share==="function"){
+    try{
+      await navigator.share({title:chatGptShareText("h2hStatsTitle"),text});
+      setH2HStatsShareStatus("shared");
+      return;
+    }catch(error){
+      if(error?.name==="AbortError")return;
+      console.warn("H2H Web Share failed; trying clipboard",error);
+    }
+  }
+  const copied=await copyChatGptText(text);
+  setH2HStatsShareStatus(copied?"fallbackCopied":"shareError");
 }
 
 const AI_COACH_TEXT={
@@ -4724,6 +5289,10 @@ $("resumeBox")?.classList.add("hidden");
 
     loadHistory();
 
+    if(S.playerProfileId&&S.opponentProfileId){
+      preloadH2HForOpponent(S.playerProfileId,S.opponentProfileId);
+    }
+
   }
 
 }
@@ -4995,6 +5564,7 @@ function start(){
   S.playerProfileId=profile.id;
   S.opponentProfileId=opponent.id;
   S.names=[profile.display_name,opponent.display_name];
+  preloadH2HForOpponent(profile.id,opponent.id);
   $("serveP1Btn").textContent=S.names[0]+" подаёт";
   $("serveP2Btn").textContent=S.names[1]+" подаёт";
   $("setupScreen").classList.add("hidden");
@@ -7531,6 +8101,104 @@ async function savePlayerStatsSelection(){
   }
 
 }
+
+const H2H_UI_TEXT={
+  ru:{
+    matches:"Матчи",record:"Победы / поражения",winPct:"Win %",sets:"Сеты",
+    comparison:"Сравнение H2H",metric:"Показатель",rally:"Rally по длине",
+    recent:"Последние очные матчи",date:"Дата",result:"Результат",score:"Счёт",
+    noMatches:"Завершённые матчи против этого соперника не найдены.",
+    details:"Расширенная статистика рассчитана по {count} матчам.",
+    excluded:"Исключено вручную: {excluded}. Старые матчи без привязки к профилю соперника не включены: {legacy}."
+  },
+  uk:{
+    matches:"Матчі",record:"Перемоги / поразки",winPct:"Win %",sets:"Сети",
+    comparison:"Порівняння H2H",metric:"Показник",rally:"Rally за довжиною",
+    recent:"Останні очні матчі",date:"Дата",result:"Результат",score:"Рахунок",
+    noMatches:"Завершених матчів проти цього суперника не знайдено.",
+    details:"Розширену статистику розраховано за {count} матчами.",
+    excluded:"Виключено вручну: {excluded}. Старі матчі без прив’язки до профілю суперника не включено: {legacy}."
+  },
+  en:{
+    matches:"Matches",record:"Wins / losses",winPct:"Win %",sets:"Sets",
+    comparison:"H2H comparison",metric:"Metric",rally:"Rally length",
+    recent:"Recent head-to-head matches",date:"Date",result:"Result",score:"Score",
+    noMatches:"No completed matches against this opponent were found.",
+    details:"Detailed statistics are based on {count} matches.",
+    excluded:"Manually excluded: {excluded}. Legacy matches without an opponent profile link excluded: {legacy}."
+  }
+};
+
+function h2hUiText(key,values={}){
+  const language=window.TennisI18n?.getLanguage?.()||"ru";
+  const template=H2H_UI_TEXT[language]?.[key]||H2H_UI_TEXT.ru[key]||key;
+  return String(template).replace(/\{(\w+)\}/g,(_,name)=>
+    Object.prototype.hasOwnProperty.call(values,name)?String(values[name]):""
+  );
+}
+
+function h2hDateDisplay(value){
+  const date=new Date(value||"");
+  if(Number.isNaN(date.getTime()))return "—";
+  return date.toLocaleDateString(window.TennisI18n?.localeTag?.()||"ru-RU");
+}
+
+function renderH2HPlayerStats(summary,title,box){
+  const player=summary.player_stats||h2hBlankStats();
+  const opponent=summary.opponent_stats||h2hBlankStats();
+  const playerName=esc(summary.player_name);
+  const opponentName=esc(summary.opponent_name);
+  const decided=summary.wins+summary.losses;
+  const winPct=decided?Math.round(summary.wins/decided*100)+"%":"—";
+  const rows=[
+    ["Points won",player.ptsWon,opponent.ptsWon],
+    ["1st Serve %",pct(player.fi,player.sp),pct(opponent.fi,opponent.sp)],
+    ["1st Serve Won %",pct(player.fw,player.fi),pct(opponent.fw,opponent.fi)],
+    ["2nd Serve Won %",pct(player.sw,player.sp2),pct(opponent.sw,opponent.sp2)],
+    ["ACE",player.a,opponent.a],
+    ["DF",player.df,opponent.df],
+    ["Winners FH/BH",player.fhw+"/"+player.bhw,opponent.fhw+"/"+opponent.bhw],
+    ["UE FH/BH",player.fhue+"/"+player.bhue,opponent.fhue+"/"+opponent.bhue],
+    ["Forced Errors Won",player.fe,opponent.fe],
+    ["Net Points Won",player.net,opponent.net],
+    ["Break Points Saved",player.bps+"/"+player.bpf,opponent.bps+"/"+opponent.bpf],
+    ["Return vs 1st Won %",pct(player.r1w,player.r1p),pct(opponent.r1w,opponent.r1p)],
+    ["Return vs 2nd Won %",pct(player.r2w,player.r2p),pct(opponent.r2w,opponent.r2p)]
+  ];
+  const rallyRows=["0-4","5-8","9+"].map(bucket=>{
+    const item=summary.rally?.[bucket]||{};
+    return `<tr><td>${bucket}</td><td>${h2hCount(item.player)}</td><td>${h2hCount(item.opponent)}</td><td>${h2hCount(item.total)}</td></tr>`;
+  }).join("");
+  const recent=(summary.recent||[]).map(match=>{
+    const resultClass=match.result==="W"?"win":match.result==="L"?"loss":"";
+    return `<div class="h2hRecentItem"><div><strong>${esc(h2hDateDisplay(match.created_at))}</strong><div class="small">${esc(h2hUiText("score"))}: ${esc(match.score||"—")}</div></div><div class="h2hResult ${resultClass}">${esc(match.result)}</div></div>`;
+  }).join("");
+
+  title.textContent="H2H: "+summary.player_name+" vs "+summary.opponent_name;
+  box.innerHTML=`
+    <div class="kpis">
+      <div class="kpi"><div class="small">${esc(h2hUiText("matches"))}</div><div class="v">${summary.match_count}</div></div>
+      <div class="kpi"><div class="small">${esc(h2hUiText("record"))}</div><div class="v">${summary.wins}–${summary.losses}</div></div>
+      <div class="kpi"><div class="small">${esc(h2hUiText("winPct"))}</div><div class="v">${winPct}</div></div>
+      <div class="kpi"><div class="small">${esc(h2hUiText("sets"))}</div><div class="v">${summary.sets_won}–${summary.sets_lost}</div></div>
+    </div>
+    <div class="section" style="margin-top:16px">${esc(h2hUiText("comparison"))}</div>
+    <div class="h2hCompare"><table>
+      <tr><th>${esc(h2hUiText("metric"))}</th><th>${playerName}</th><th>${opponentName}</th></tr>
+      ${rows.map(row=>`<tr><td>${esc(row[0])}</td><td>${esc(row[1])}</td><td>${esc(row[2])}</td></tr>`).join("")}
+    </table></div>
+    <div class="section" style="margin-top:16px">${esc(h2hUiText("rally"))}</div>
+    <div class="h2hCompare"><table>
+      <tr><th>Rally</th><th>${playerName}</th><th>${opponentName}</th><th>Total</th></tr>
+      ${rallyRows}
+    </table></div>
+    <div class="section" style="margin-top:16px">${esc(h2hUiText("recent"))}</div>
+    <div class="h2hRecent">${recent||"<div class=\"small\">—</div>"}</div>
+    <div class="small" style="margin-top:12px">${esc(h2hUiText("details",{count:summary.matches_with_stats}))}</div>
+    <div class="small" style="margin-top:5px">${esc(h2hUiText("excluded",{excluded:summary.excluded_from_stats,legacy:summary.legacy_without_opponent_id}))}</div>
+  `;
+}
+
   async function loadPlayerStats(){
 
   const profile=selectedPlayerProfile();
@@ -7542,6 +8210,14 @@ async function savePlayerStatsSelection(){
   const box=$("playerStatsContent");
 
   const title=$("playerStatsTitle");
+
+  currentStatsH2HSummary=null;
+
+  h2hStatsShareStatusKey="";
+
+  h2hStatsShareStatusFingerprint="";
+
+  renderH2HStatsShare();
 
   if(!name){
 
@@ -7564,6 +8240,35 @@ async function savePlayerStatsSelection(){
   try{
 
     const data=await listPlayerMatches(profile.id);
+
+    if(statsOpponent){
+
+      const summary=buildH2HSummary(data,profile,statsOpponent);
+
+      currentStatsH2HSummary=summary;
+
+      saveCachedH2H(summary);
+
+      if(h2hMatchesCurrentState(profile.id,statsOpponent.id)){
+        currentH2HSummary=summary;
+        currentH2HError="";
+        renderChatGptShare();
+      }
+
+      if(!summary.match_count){
+        title.textContent="H2H: "+name+" vs "+statsOpponent.display_name;
+        box.textContent=h2hUiText("noMatches");
+        renderH2HStatsShare();
+        return;
+      }
+
+      renderH2HPlayerStats(summary,title,box);
+
+      renderH2HStatsShare();
+
+      return;
+
+    }
 
     const playerName=name.toLowerCase();
 
@@ -7905,6 +8610,12 @@ $("startBtn").onclick=start;
 
     selectedStatsOpponentProfileId=event.target.value || null;
 
+    currentStatsH2HSummary=null;
+
+    h2hStatsShareStatusKey="";
+
+    renderH2HStatsShare();
+
     $("playerMatchesManager").classList.add("hidden");
 
     $("selectedMatchDetails").classList.add("hidden");
@@ -7945,6 +8656,8 @@ $("quickP2").onclick=()=>finish("p2_won");
 $("quickAnalysisToggleBtn").onclick=toggleQuickAnalysis;
 $("chatGptCopyBtn").onclick=copyMatchForChatGpt;
 $("chatGptShareBtn").onclick=shareMatchForChatGpt;
+$("h2hStatsCopyBtn").onclick=copyH2HStatsForChatGpt;
+$("h2hStatsShareBtn").onclick=shareH2HStatsForChatGpt;
 $("aiCoachRequestBtn").onclick=requestAiCoach;
 $("undoBtn").onclick=undo;
 $("changeServerBtn").onclick=changeServer;
@@ -7973,6 +8686,10 @@ window.addEventListener("online",()=>{
 
   loadHistory();
 
+  if(S.playerProfileId&&S.opponentProfileId){
+    preloadH2HForOpponent(S.playerProfileId,S.opponentProfileId);
+  }
+
 });
 window.addEventListener("offline",()=>{
   updateSaveStatus();
@@ -7982,6 +8699,7 @@ window.addEventListener("offline",()=>{
 window.addEventListener("tennis-language-change",()=>{
   resetAiCoachState();
   renderChatGptShare();
+  renderH2HStatsShare();
   renderAiCoach();
 });
 

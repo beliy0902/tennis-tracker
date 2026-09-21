@@ -1,4 +1,4 @@
-const CACHE_NAME = "tennis-tracker-v15-h2h-chatgpt";
+const CACHE_NAME = "tennis-tracker-v16-opponent-profile";
 
 const APP_FILES = [
 

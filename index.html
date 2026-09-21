@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- UPDATED: secure match history + RU/UA/EN + Live Quick Analysis + AI Coach + free ChatGPT H2H share V15 -->
+<!-- UPDATED: secure match history + RU/UA/EN + Live Quick Analysis + AI Coach + opponent profiles V16 -->
 <html lang="ru">
 <head>
 <meta charset="utf-8">
@@ -17,7 +17,8 @@ h1{font-size:22px;text-align:center;margin:4px 0 12px}
 button{border:0;border-radius:14px;min-height:56px;padding:10px;font-size:16px;font-weight:750;background:#e5e5ea;color:#111}
 button:active{opacity:.65;transform:scale(.99)}
 .primary{background:#111;color:#fff}.servebtn{background:#dce8f7}.good{background:#dcefdc}.bad{background:#f4dddd}
-input,select{width:100%;padding:13px;border:1px solid #d7d7db;border-radius:12px;font-size:17px;background:#fff;color:#111}
+input,select,textarea{width:100%;padding:13px;border:1px solid #d7d7db;border-radius:12px;font-size:17px;background:#fff;color:#111;font-family:inherit}
+textarea{min-height:88px;resize:vertical;line-height:1.35}
 button:disabled,select:disabled{opacity:.5}
 .label{font-size:12px;color:#666;margin:0 0 5px}
 .score{display:grid;grid-template-columns:1fr 58px 58px 62px;gap:6px;align-items:center}
@@ -30,6 +31,9 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
 .startTitle{font-size:25px;font-weight:900;text-align:center;margin:8px 0 2px}.startSub{text-align:center;color:#666;font-size:13px;margin-bottom:18px}
 .spacer{height:8px}
 .opponentTools{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}.opponentTools button{min-height:42px;font-size:14px;padding:8px 12px}.opponentStatus{min-height:18px;margin-top:7px}.opponentCreate{margin-top:10px;padding:12px;background:#f6f6f8;border-radius:14px}.opponentError{min-height:18px;color:#b42318;margin-top:7px}
+.opponentProfileEditor{margin-top:14px;padding-top:14px;border-top:1px solid #ddd}.profileField{margin-top:10px}.profileHelp{margin-top:5px}.profileSaveStatus{min-height:18px;margin-top:8px;font-size:12px;line-height:1.35}.profileSaveStatus.success{color:#157347}.profileSaveStatus.error{color:#b42318}
+.opponentPlanPreview{margin:12px 0;padding:12px;border:1px solid #d7d7db;border-radius:14px;background:#fff}.opponentPlanTitle{font-weight:850;margin-bottom:7px}.opponentPlanRows{display:grid;gap:8px}.opponentPlanRow{padding:9px 10px;background:#f6f6f8;border-radius:10px;line-height:1.4;white-space:pre-wrap}.opponentPlanLabel{font-size:12px;color:#666;font-weight:750;margin-bottom:2px}.opponentPlanEmpty{color:#666;font-size:13px;line-height:1.4}
+.matchOpponentPlan{border:1px solid #e3e3e7}.matchOpponentPlan .opponentPlanRows{margin-top:12px}
 .matchover{font-size:20px;font-weight:900;text-align:center;padding:8px 0}.historyItem{border-bottom:1px solid #eee;padding:10px 0}.historyItem:last-child{border-bottom:0}.historyTop{display:flex;justify-content:space-between;gap:8px;align-items:center}.historyScore{font-weight:850}.danger{background:#f4dddd}.muted{color:#666;font-size:12px}.savebar{display:flex;justify-content:space-between;gap:10px;align-items:center}.saveStatus{font-size:12px;font-weight:750}.resumeBox{margin-top:12px;padding:12px;background:#f6f6f8;border-radius:14px}.resumeTitle{font-weight:850;margin-bottom:4px}
 .languageRow{display:flex;align-items:center;justify-content:flex-end;gap:8px;margin:-8px 0 14px}.languageRow .label{margin:0}.languageRow select{width:auto;min-width:132px;padding:8px 32px 8px 10px;font-size:14px}
 .quickAnalysisTips{margin:10px 0 0;padding-left:20px}.quickAnalysisTips li{margin:8px 0;line-height:1.3}
@@ -116,6 +120,40 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
           <button id="renameOpponentBtn" class="primary">СОХРАНИТЬ ИМЯ</button>
           <button id="archiveOpponentBtn" class="danger">АРХИВИРОВАТЬ</button>
         </div>
+        <div class="opponentProfileEditor">
+          <div class="section">🎯 Профиль и план против соперника</div>
+          <div class="small">Наблюдения тренера сохраняются отдельно для этого соперника.</div>
+          <div class="profileField">
+            <label class="label" for="opponentHandedness">Основная рука</label>
+            <select id="opponentHandedness">
+              <option value="unknown">Неизвестно</option>
+              <option value="right">Правша</option>
+              <option value="left">Левша</option>
+            </select>
+          </div>
+          <div class="profileField">
+            <label class="label" for="opponentPlayingStyle">Стиль игры</label>
+            <textarea id="opponentPlayingStyle" maxlength="2000" placeholder="Например: играет агрессивно с задней линии, любит ранний приём"></textarea>
+          </div>
+          <div class="profileField">
+            <label class="label" for="opponentStrengths">Сильные стороны</label>
+            <textarea id="opponentStrengths" maxlength="2000" placeholder="Например: сильный FH, первая подача по центру"></textarea>
+          </div>
+          <div class="profileField">
+            <label class="label" for="opponentWeaknesses">Слабые стороны</label>
+            <textarea id="opponentWeaknesses" maxlength="2000" placeholder="Например: нестабилен в длинном Rally через BH"></textarea>
+          </div>
+          <div class="profileField">
+            <label class="label" for="opponentPreMatchPlan">Предматчевый план</label>
+            <textarea id="opponentPreMatchPlan" maxlength="2000" placeholder="3–5 коротких установок именно на матч против этого соперника"></textarea>
+          </div>
+          <div class="profileField">
+            <label class="label" for="opponentCoachNotes">Дополнительные заметки тренера</label>
+            <textarea id="opponentCoachNotes" maxlength="5000" placeholder="Другие наблюдения, которые стоит помнить"></textarea>
+          </div>
+          <button id="saveOpponentProfileBtn" class="primary" style="width:100%;margin-top:10px">💾 СОХРАНИТЬ ПРОФИЛЬ</button>
+          <div id="opponentProfileSaveStatus" class="profileSaveStatus" aria-live="polite"></div>
+        </div>
         <button id="mergeOpponentToggleBtn" style="width:100%;margin-top:8px">ОБЪЕДИНИТЬ С ДРУГОЙ ЗАПИСЬЮ</button>
         <div id="mergeOpponentPanel" class="hidden" style="margin-top:10px">
           <div class="label">Основной соперник: <span id="mergeTargetName"></span></div>
@@ -145,6 +183,10 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
       </div>
       <div id="opponentArchiveError" class="small opponentError"></div>
       <div class="small">Для просмотра старых матчей выберите соперника в статистике (пометка «архив»).</div>
+    </div>
+    <div id="setupOpponentPlan" class="opponentPlanPreview hidden" data-i18n-ignore>
+      <div id="setupOpponentPlanTitle" class="opponentPlanTitle"></div>
+      <div id="setupOpponentPlanBody"></div>
     </div>
     <div class="spacer"></div>
     <button id="startBtn" class="primary" style="width:100%">НАЧАТЬ МАТЧ</button>
@@ -303,6 +345,11 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
     </div>
   </div>
 
+  <div id="matchOpponentPlanCard" class="card matchOpponentPlan hidden" data-i18n-ignore>
+    <button id="matchOpponentPlanToggleBtn" style="width:100%;min-height:48px"></button>
+    <div id="matchOpponentPlanBody" class="hidden"></div>
+  </div>
+
   <div class="card" id="serveCard">
     <div class="status" id="statusText"></div>
     <div class="grid2" id="serveButtons">
@@ -454,6 +501,23 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
       "Имя соперника":"Ім’я суперника",
       "СОХРАНИТЬ ИМЯ":"ЗБЕРЕГТИ ІМ’Я",
       "АРХИВИРОВАТЬ":"АРХІВУВАТИ",
+      "🎯 Профиль и план против соперника":"🎯 Профіль і план проти суперника",
+      "Наблюдения тренера сохраняются отдельно для этого соперника.":"Спостереження тренера зберігаються окремо для цього суперника.",
+      "Основная рука":"Основна рука",
+      "Неизвестно":"Невідомо",
+      "Правша":"Правша",
+      "Левша":"Лівша",
+      "Стиль игры":"Стиль гри",
+      "Сильные стороны":"Сильні сторони",
+      "Слабые стороны":"Слабкі сторони",
+      "Предматчевый план":"Передматчевий план",
+      "Дополнительные заметки тренера":"Додаткові нотатки тренера",
+      "Например: играет агрессивно с задней линии, любит ранний приём":"Наприклад: грає агресивно із задньої лінії, любить ранній прийом",
+      "Например: сильный FH, первая подача по центру":"Наприклад: сильний FH, 1st Serve по центру",
+      "Например: нестабилен в длинном Rally через BH":"Наприклад: нестабільний у довгому Rally через BH",
+      "3–5 коротких установок именно на матч против этого соперника":"3–5 коротких настанов саме на матч проти цього суперника",
+      "Другие наблюдения, которые стоит помнить":"Інші спостереження, які варто пам’ятати",
+      "💾 СОХРАНИТЬ ПРОФИЛЬ":"💾 ЗБЕРЕГТИ ПРОФІЛЬ",
       "ОБЪЕДИНИТЬ С ДРУГОЙ ЗАПИСЬЮ":"ОБ’ЄДНАТИ З ІНШИМ ЗАПИСОМ",
       "Основной соперник:":"Основний суперник:",
       "Какую вторую запись объединить с ним?":"Який другий запис об’єднати з ним?",
@@ -547,6 +611,8 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
       "Соперник не выбран.":"Суперника не вибрано.",
       "СОХРАНЯЕМ…":"ЗБЕРІГАЄМО…",
       "Имя соперника обновлено.":"Ім’я суперника оновлено.",
+      "Профиль и предматчевый план сохранены.":"Профіль і передматчевий план збережено.",
+      "Профиль соперника обновлён.":"Профіль суперника оновлено.",
       "История матчей сохранится.":"Історія матчів збережеться.",
       "АРХИВИРУЕМ…":"АРХІВУЄМО…",
       "Соперник перемещён в архив. История сохранена.":"Суперника переміщено до архіву. Історію збережено.",
@@ -664,6 +730,23 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
       "Имя соперника":"Opponent name",
       "СОХРАНИТЬ ИМЯ":"SAVE NAME",
       "АРХИВИРОВАТЬ":"ARCHIVE",
+      "🎯 Профиль и план против соперника":"🎯 Opponent profile and plan",
+      "Наблюдения тренера сохраняются отдельно для этого соперника.":"Coach observations are saved separately for this opponent.",
+      "Основная рука":"Playing hand",
+      "Неизвестно":"Unknown",
+      "Правша":"Right-handed",
+      "Левша":"Left-handed",
+      "Стиль игры":"Playing style",
+      "Сильные стороны":"Strengths",
+      "Слабые стороны":"Weaknesses",
+      "Предматчевый план":"Pre-match plan",
+      "Дополнительные заметки тренера":"Additional coach notes",
+      "Например: играет агрессивно с задней линии, любит ранний приём":"For example: aggressive baseliner who likes taking returns early",
+      "Например: сильный FH, первая подача по центру":"For example: strong FH, 1st Serve down the T",
+      "Например: нестабилен в длинном Rally через BH":"For example: inconsistent in long Rally exchanges through BH",
+      "3–5 коротких установок именно на матч против этого соперника":"3–5 short instructions specifically for this opponent",
+      "Другие наблюдения, которые стоит помнить":"Other observations worth remembering",
+      "💾 СОХРАНИТЬ ПРОФИЛЬ":"💾 SAVE PROFILE",
       "ОБЪЕДИНИТЬ С ДРУГОЙ ЗАПИСЬЮ":"MERGE WITH ANOTHER RECORD",
       "Основной соперник:":"Primary opponent:",
       "Какую вторую запись объединить с ним?":"Which second record should be merged into it?",
@@ -757,6 +840,8 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
       "Соперник не выбран.":"No opponent is selected.",
       "СОХРАНЯЕМ…":"SAVING…",
       "Имя соперника обновлено.":"The opponent’s name was updated.",
+      "Профиль и предматчевый план сохранены.":"The profile and pre-match plan were saved.",
+      "Профиль соперника обновлён.":"The opponent profile was updated.",
       "История матчей сохранится.":"Match history will be preserved.",
       "АРХИВИРУЕМ…":"ARCHIVING…",
       "Соперник перемещён в архив. История сохранена.":"The opponent was archived. Match history was preserved.",
@@ -911,6 +996,7 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
     [/^Не удалось объединить соперников: (.+)$/,{uk:"Не вдалося об’єднати суперників: $1",en:"Could not merge opponents: $1"}],
     [/^Не удалось создать соперника: (.+)$/,{uk:"Не вдалося створити суперника: $1",en:"Could not create the opponent: $1"}],
     [/^Не удалось переименовать соперника: (.+)$/,{uk:"Не вдалося перейменувати суперника: $1",en:"Could not rename the opponent: $1"}],
+    [/^Не удалось сохранить профиль: (.+)$/,{uk:"Не вдалося зберегти профіль: $1",en:"Could not save the profile: $1"}],
     [/^Не удалось архивировать соперника: (.+)$/,{uk:"Не вдалося архівувати суперника: $1",en:"Could not archive the opponent: $1"}],
     [/^Не удалось восстановить соперника: (.+)$/,{uk:"Не вдалося відновити суперника: $1",en:"Could not restore the opponent: $1"}],
     [/^Не удалось отменить LIVE-матч: (.+)$/,{uk:"Не вдалося скасувати LIVE-матч: $1",en:"Could not cancel the LIVE match: $1"}],
@@ -1324,6 +1410,10 @@ let h2hStatsShareStatusKey="";
 
 let h2hStatsShareStatusFingerprint="";
 
+const OPPONENT_COACH_PROFILE_KEY="coach_profile_v1";
+
+let matchOpponentPlanOpen=false;
+
 function normalizePlayerProfiles(profiles){
 
   if(!Array.isArray(profiles))return [];
@@ -1403,6 +1493,20 @@ function normalizeOpponentProfiles(profiles,playerProfileId,includeArchived=fals
 
       status:opponent.status,
 
+      handedness:["right","left","unknown"].includes(opponent.handedness)
+        ? opponent.handedness
+        : "unknown",
+
+      coach_notes:typeof opponent.coach_notes==="string"
+        ? opponent.coach_notes.trim().slice(0,5000)
+        : "",
+
+      metadata:opponent.metadata &&
+        typeof opponent.metadata==="object" &&
+        !Array.isArray(opponent.metadata)
+          ? JSON.parse(JSON.stringify(opponent.metadata))
+          : {},
+
       aliases:Array.isArray(opponent.aliases)
 
         ? opponent.aliases
@@ -1475,6 +1579,214 @@ function selectedStatsOpponentProfile(){
       ? opponent
 
       : null;
+
+}
+
+function cleanOpponentProfileText(value,maxLength=2000){
+
+  return typeof value==="string"
+    ? value.trim().slice(0,maxLength)
+    : "";
+
+}
+
+function opponentCoachProfile(opponent){
+
+  const metadata=opponent?.metadata &&
+    typeof opponent.metadata==="object" &&
+    !Array.isArray(opponent.metadata)
+      ? opponent.metadata
+      : {};
+
+  const saved=metadata[OPPONENT_COACH_PROFILE_KEY] &&
+    typeof metadata[OPPONENT_COACH_PROFILE_KEY]==="object" &&
+    !Array.isArray(metadata[OPPONENT_COACH_PROFILE_KEY])
+      ? metadata[OPPONENT_COACH_PROFILE_KEY]
+      : {};
+
+  return {
+    playing_style:cleanOpponentProfileText(saved.playing_style),
+    strengths:cleanOpponentProfileText(saved.strengths),
+    weaknesses:cleanOpponentProfileText(saved.weaknesses),
+    pre_match_plan:cleanOpponentProfileText(saved.pre_match_plan)
+  };
+
+}
+
+function opponentHasCoachProfile(opponent){
+
+  if(!opponent)return false;
+
+  const profile=opponentCoachProfile(opponent);
+
+  return !!(
+    opponent.handedness && opponent.handedness!=="unknown" ||
+    opponent.coach_notes ||
+    profile.playing_style ||
+    profile.strengths ||
+    profile.weaknesses ||
+    profile.pre_match_plan
+  );
+
+}
+
+function currentMatchOpponentProfile(){
+
+  return statsOpponentProfileById(S?.opponentProfileId) ||
+    selectedOpponentProfile() || null;
+
+}
+
+const OPPONENT_PROFILE_UI={
+  ru:{
+    title:name=>"🎯 План против "+name,
+    hand:"Основная рука",
+    right:"Правша",
+    left:"Левша",
+    style:"Стиль игры",
+    strengths:"Сильные стороны",
+    weaknesses:"Слабые стороны",
+    plan:"Предматчевый план",
+    notes:"Заметки тренера",
+    empty:"Профиль пока не заполнен. Добавьте наблюдения через кнопку «Управление».",
+    show:name=>"🎯 ПОКАЗАТЬ ПЛАН ПРОТИВ "+name,
+    hide:"🎯 СКРЫТЬ ПЛАН"
+  },
+  uk:{
+    title:name=>"🎯 План проти "+name,
+    hand:"Основна рука",
+    right:"Правша",
+    left:"Лівша",
+    style:"Стиль гри",
+    strengths:"Сильні сторони",
+    weaknesses:"Слабкі сторони",
+    plan:"Передматчевий план",
+    notes:"Нотатки тренера",
+    empty:"Профіль ще не заповнено. Додайте спостереження через кнопку «Керування».",
+    show:name=>"🎯 ПОКАЗАТИ ПЛАН ПРОТИ "+name,
+    hide:"🎯 СХОВАТИ ПЛАН"
+  },
+  en:{
+    title:name=>"🎯 Plan vs "+name,
+    hand:"Playing hand",
+    right:"Right-handed",
+    left:"Left-handed",
+    style:"Playing style",
+    strengths:"Strengths",
+    weaknesses:"Weaknesses",
+    plan:"Pre-match plan",
+    notes:"Coach notes",
+    empty:"This profile is empty. Add observations with the Manage button.",
+    show:name=>"🎯 SHOW PLAN VS "+name,
+    hide:"🎯 HIDE PLAN"
+  }
+};
+
+function opponentProfileUi(){
+
+  const language=window.TennisI18n?.getLanguage?.() || "ru";
+
+  return OPPONENT_PROFILE_UI[language] || OPPONENT_PROFILE_UI.ru;
+
+}
+
+function opponentProfileRows(opponent){
+
+  if(!opponent)return [];
+
+  const text=opponentProfileUi();
+  const profile=opponentCoachProfile(opponent);
+  const rows=[];
+
+  if(opponent.handedness==="right" || opponent.handedness==="left"){
+    rows.push({
+      label:text.hand,
+      value:opponent.handedness==="right" ? text.right : text.left
+    });
+  }
+
+  if(profile.playing_style)rows.push({label:text.style,value:profile.playing_style});
+  if(profile.strengths)rows.push({label:text.strengths,value:profile.strengths});
+  if(profile.weaknesses)rows.push({label:text.weaknesses,value:profile.weaknesses});
+  if(profile.pre_match_plan)rows.push({label:text.plan,value:profile.pre_match_plan});
+  if(opponent.coach_notes)rows.push({label:text.notes,value:opponent.coach_notes});
+
+  return rows;
+
+}
+
+function renderOpponentProfileRows(container,opponent,showEmpty=false){
+
+  if(!container)return;
+
+  const rows=opponentProfileRows(opponent);
+
+  if(!rows.length){
+    const empty=document.createElement("div");
+    empty.className="opponentPlanEmpty";
+    empty.textContent=showEmpty ? opponentProfileUi().empty : "";
+    container.replaceChildren(empty);
+    return;
+  }
+
+  const list=document.createElement("div");
+  list.className="opponentPlanRows";
+  rows.forEach(row=>{
+    const item=document.createElement("div");
+    item.className="opponentPlanRow";
+    const label=document.createElement("div");
+    label.className="opponentPlanLabel";
+    label.textContent=row.label;
+    const value=document.createElement("div");
+    value.textContent=row.value;
+    item.append(label,value);
+    list.append(item);
+  });
+  container.replaceChildren(list);
+
+}
+
+function renderSetupOpponentPlan(){
+
+  const card=document.getElementById("setupOpponentPlan");
+  const title=document.getElementById("setupOpponentPlanTitle");
+  const body=document.getElementById("setupOpponentPlanBody");
+  if(!card || !title || !body)return;
+
+  const opponent=selectedOpponentProfile();
+  card.classList.toggle("hidden",!opponent);
+  if(!opponent)return;
+
+  title.textContent=opponentProfileUi().title(opponent.display_name);
+  renderOpponentProfileRows(body,opponent,true);
+
+}
+
+function renderMatchOpponentPlan(){
+
+  const card=document.getElementById("matchOpponentPlanCard");
+  const button=document.getElementById("matchOpponentPlanToggleBtn");
+  const body=document.getElementById("matchOpponentPlanBody");
+  if(!card || !button || !body)return;
+
+  const opponent=currentMatchOpponentProfile();
+  const available=opponentHasCoachProfile(opponent);
+  card.classList.toggle("hidden",!available);
+  if(!available)return;
+
+  const text=opponentProfileUi();
+  button.textContent=matchOpponentPlanOpen
+    ? text.hide
+    : text.show(opponent.display_name);
+  body.classList.toggle("hidden",!matchOpponentPlanOpen);
+  renderOpponentProfileRows(body,opponent,false);
+
+}
+
+function toggleMatchOpponentPlan(){
+
+  matchOpponentPlanOpen=!matchOpponentPlanOpen;
+  renderMatchOpponentPlan();
 
 }
 
@@ -1717,6 +2029,10 @@ function chooseOpponentProfile(opponentId){
 
   updateStartButton();
 
+  renderSetupOpponentPlan();
+
+  renderMatchOpponentPlan();
+
   return opponent || null;
 
 }
@@ -1794,6 +2110,10 @@ function renderOpponentProfiles(
   renderMergeSourceOptions();
 
   updateStartButton();
+
+  renderSetupOpponentPlan();
+
+  renderMatchOpponentPlan();
 
 }
 
@@ -1950,6 +2270,35 @@ function setOpponentManageError(message){
 
 }
 
+function setOpponentProfileSaveStatus(message,tone=""){
+
+  const status=document.getElementById("opponentProfileSaveStatus");
+  if(!status)return;
+  status.textContent=message || "";
+  status.className="profileSaveStatus"+(tone ? " "+tone : "");
+
+}
+
+function populateOpponentProfileForm(opponent){
+
+  const profile=opponentCoachProfile(opponent);
+  const handedness=document.getElementById("opponentHandedness");
+  if(handedness)handedness.value=opponent?.handedness || "unknown";
+  const values={
+    opponentPlayingStyle:profile.playing_style,
+    opponentStrengths:profile.strengths,
+    opponentWeaknesses:profile.weaknesses,
+    opponentPreMatchPlan:profile.pre_match_plan,
+    opponentCoachNotes:opponent?.coach_notes || ""
+  };
+  Object.entries(values).forEach(([id,value])=>{
+    const field=document.getElementById(id);
+    if(field)field.value=value;
+  });
+  setOpponentProfileSaveStatus("");
+
+}
+
 function showOpponentManagePanel(){
 
   const opponent=selectedOpponentProfile();
@@ -1965,6 +2314,8 @@ function showOpponentManagePanel(){
   const input=document.getElementById("editOpponentName");
 
   if(input)input.value=opponent?.display_name || "";
+
+  populateOpponentProfileForm(opponent);
 
   const activeActions=document.getElementById("activeOpponentActions");
   const hint=document.getElementById("manageOpponentHint");
@@ -1994,6 +2345,8 @@ function hideOpponentManagePanel(){
     ?.classList.add("hidden");
 
   setOpponentManageError("");
+
+  setOpponentProfileSaveStatus("");
 
 }
 
@@ -2564,6 +2917,102 @@ async function renameSelectedOpponent(){
 
     }
 
+  }
+
+}
+
+async function saveSelectedOpponentProfile(){
+
+  const player=selectedPlayerProfile();
+  const opponent=selectedOpponentProfile();
+  const button=document.getElementById("saveOpponentProfileBtn");
+
+  if(!player || !opponent){
+    setOpponentProfileSaveStatus("Соперник не выбран.","error");
+    return;
+  }
+
+  const handedness=document.getElementById("opponentHandedness")?.value;
+  const coachProfile={
+    playing_style:cleanOpponentProfileText(
+      document.getElementById("opponentPlayingStyle")?.value
+    ),
+    strengths:cleanOpponentProfileText(
+      document.getElementById("opponentStrengths")?.value
+    ),
+    weaknesses:cleanOpponentProfileText(
+      document.getElementById("opponentWeaknesses")?.value
+    ),
+    pre_match_plan:cleanOpponentProfileText(
+      document.getElementById("opponentPreMatchPlan")?.value
+    )
+  };
+  const coachNotes=cleanOpponentProfileText(
+    document.getElementById("opponentCoachNotes")?.value,
+    5000
+  );
+  const metadata={
+    ...(opponent.metadata || {}),
+    [OPPONENT_COACH_PROFILE_KEY]:coachProfile
+  };
+
+  setOpponentProfileSaveStatus("");
+  if(button){
+    button.disabled=true;
+    button.textContent="СОХРАНЯЕМ…";
+  }
+
+  try{
+    const result=await opponentsRequest(
+      "/"+encodeURIComponent(opponent.id),
+      {
+        method:"PATCH",
+        body:JSON.stringify({
+          player_profile_id:player.id,
+          handedness:["right","left","unknown"].includes(handedness)
+            ? handedness
+            : "unknown",
+          coach_notes:coachNotes || null,
+          metadata
+        })
+      }
+    );
+
+    if(selectedPlayerProfileId!==player.id)return;
+
+    const updated=normalizeOpponentProfiles(
+      [result.opponent],player.id
+    )[0];
+    if(!updated){
+      throw new Error("API returned incomplete opponent profile data");
+    }
+
+    opponentsLoadSequence++;
+    const next=[
+      ...opponentProfiles.filter(item=>item.id!==updated.id),
+      updated
+    ];
+    renderOpponentProfiles(next,player.id,updated.id);
+    saveCachedOpponents(player.id,opponentProfiles);
+    chooseOpponentProfile(updated.id);
+    populateOpponentProfileForm(updated);
+    setOpponentProfileSaveStatus(
+      "Профиль и предматчевый план сохранены.",
+      "success"
+    );
+    setOpponentsStatus("Профиль соперника обновлён.");
+  }catch(error){
+    console.error("Opponent profile save error",error);
+    setOpponentProfileSaveStatus(
+      "Не удалось сохранить профиль: "+
+      (error?.message || "неизвестная ошибка"),
+      "error"
+    );
+  }finally{
+    if(button){
+      button.disabled=false;
+      button.textContent="💾 СОХРАНИТЬ ПРОФИЛЬ";
+    }
   }
 
 }
@@ -4230,9 +4679,9 @@ const CHATGPT_SHARE_TEXT={
     h2hStatsDescription:"Скопировать агрегированную статистику и последние очные матчи для бесплатного анализа в ChatGPT.",
     h2hStatsNote:"Ничего не отправляется автоматически. В текст не включаются внутренние ID и данные Telegram.",
     h2hPromptIntro:"Ниже — сохранённая статистика очных теннисных матчей игрока против выбранного соперника. Проанализируй её как теннисный тренер. Используй только указанные данные и учитывай размер выборки.",
-    h2hPromptTask:"ЗАДАЧА:\n1. Кратко опиши устойчивые тенденции этого H2H.\n2. Дай 3 конкретные установки на следующий матч против этого соперника в порядке приоритета.\n3. Отдельно укажи план на своей подаче, на приёме и в Rally.\n4. Для каждого совета назови точную статистику, на которой он основан.\n5. Отделяй устойчивые выводы от слабых сигналов небольшой выборки.\nНе придумывай отсутствующие данные. Ответь по-русски. Tennis terms и сокращения (1st Serve, 2nd Serve, FH, BH, UE, DF, Rally, Winner, Break Point) оставляй на английском.",
+    h2hPromptTask:"ЗАДАЧА:\n1. Кратко опиши устойчивые тенденции этого H2H.\n2. Дай 3 конкретные установки на следующий матч против этого соперника в порядке приоритета.\n3. Отдельно укажи план на своей подаче, на приёме и в Rally.\n4. Для каждого совета назови точную статистику, на которой он основан.\n5. Отделяй устойчивые выводы от слабых сигналов небольшой выборки.\n6. Наблюдения из OPPONENT PROFILE используй только как отдельный контекст тренера, не выдавай их за статистически доказанные факты.\nНе придумывай отсутствующие данные. Ответь по-русски. Tennis terms и сокращения (1st Serve, 2nd Serve, FH, BH, UE, DF, Rally, Winner, Break Point) оставляй на английском.",
     promptIntro:"Ниже — статистика текущего теннисного матча и, если доступна, сохранённая H2H-история против этого соперника. Проанализируй её как теннисный тренер. Используй только указанные данные и учитывай размер каждой выборки.",
-    promptTask:"ЗАДАЧА:\n1. Кратко оцени, что происходит в текущем матче.\n2. Дай 3 конкретные тактические установки на продолжение матча в порядке приоритета.\n3. Отдельно укажи план на своей подаче, на приёме и в Rally.\n4. Для каждого совета назови точную статистику, на которой он основан.\n5. Используй H2H только как отдельный исторический контекст и не смешивай его числа с текущим матчем.\n6. Если данных недостаточно или выборка мала, скажи об этом прямо.\nНе придумывай отсутствующие данные. Ответь по-русски. Tennis terms и сокращения (1st Serve, 2nd Serve, FH, BH, UE, DF, Rally, Winner, Break Point) оставляй на английском."
+    promptTask:"ЗАДАЧА:\n1. Кратко оцени, что происходит в текущем матче.\n2. Дай 3 конкретные тактические установки на продолжение матча в порядке приоритета.\n3. Отдельно укажи план на своей подаче, на приёме и в Rally.\n4. Для каждого совета назови точную статистику, на которой он основан.\n5. Используй H2H только как отдельный исторический контекст и не смешивай его числа с текущим матчем.\n6. Наблюдения из OPPONENT PROFILE используй отдельно как контекст тренера; если они расходятся с текущей статистикой, приоритет у текущего матча.\n7. Если данных недостаточно или выборка мала, скажи об этом прямо.\nНе придумывай отсутствующие данные. Ответь по-русски. Tennis terms и сокращения (1st Serve, 2nd Serve, FH, BH, UE, DF, Rally, Winner, Break Point) оставляй на английском."
   },
   uk:{
     title:"💬 Аналіз у ChatGPT",
@@ -4262,9 +4711,9 @@ const CHATGPT_SHARE_TEXT={
     h2hStatsDescription:"Скопіювати агреговану статистику та останні очні матчі для безплатного аналізу в ChatGPT.",
     h2hStatsNote:"Нічого не надсилається автоматично. У текст не входять внутрішні ID і дані Telegram.",
     h2hPromptIntro:"Нижче — збережена статистика очних тенісних матчів гравця проти вибраного суперника. Проаналізуй її як тенісний тренер. Використовуй лише наведені дані та враховуй розмір вибірки.",
-    h2hPromptTask:"ЗАВДАННЯ:\n1. Коротко опиши стійкі тенденції цього H2H.\n2. Дай 3 конкретні настанови на наступний матч проти цього суперника за пріоритетом.\n3. Окремо вкажи план на своїй подачі, на прийомі та в Rally.\n4. Для кожної поради назви точну статистику, на якій вона базується.\n5. Відокремлюй стійкі висновки від слабких сигналів малої вибірки.\nНе вигадуй відсутні дані. Відповідай українською. Tennis terms і скорочення (1st Serve, 2nd Serve, FH, BH, UE, DF, Rally, Winner, Break Point) залишай англійською.",
+    h2hPromptTask:"ЗАВДАННЯ:\n1. Коротко опиши стійкі тенденції цього H2H.\n2. Дай 3 конкретні настанови на наступний матч проти цього суперника за пріоритетом.\n3. Окремо вкажи план на своїй подачі, на прийомі та в Rally.\n4. Для кожної поради назви точну статистику, на якій вона базується.\n5. Відокремлюй стійкі висновки від слабких сигналів малої вибірки.\n6. Спостереження з OPPONENT PROFILE використовуй лише як окремий контекст тренера, а не як статистично доведені факти.\nНе вигадуй відсутні дані. Відповідай українською. Tennis terms і скорочення (1st Serve, 2nd Serve, FH, BH, UE, DF, Rally, Winner, Break Point) залишай англійською.",
     promptIntro:"Нижче — статистика поточного тенісного матчу і, якщо доступна, збережена H2H-історія проти цього суперника. Проаналізуй її як тенісний тренер. Використовуй лише наведені дані та враховуй розмір кожної вибірки.",
-    promptTask:"ЗАВДАННЯ:\n1. Коротко оціни, що відбувається в поточному матчі.\n2. Дай 3 конкретні тактичні настанови на продовження матчу за пріоритетом.\n3. Окремо вкажи план на своїй подачі, на прийомі та в Rally.\n4. Для кожної поради назви точну статистику, на якій вона базується.\n5. Використовуй H2H лише як окремий історичний контекст і не змішуй його числа з поточним матчем.\n6. Якщо даних недостатньо або вибірка мала, скажи про це прямо.\nНе вигадуй відсутні дані. Відповідай українською. Tennis terms і скорочення (1st Serve, 2nd Serve, FH, BH, UE, DF, Rally, Winner, Break Point) залишай англійською."
+    promptTask:"ЗАВДАННЯ:\n1. Коротко оціни, що відбувається в поточному матчі.\n2. Дай 3 конкретні тактичні настанови на продовження матчу за пріоритетом.\n3. Окремо вкажи план на своїй подачі, на прийомі та в Rally.\n4. Для кожної поради назви точну статистику, на якій вона базується.\n5. Використовуй H2H лише як окремий історичний контекст і не змішуй його числа з поточним матчем.\n6. Спостереження з OPPONENT PROFILE використовуй окремо як контекст тренера; якщо вони суперечать поточній статистиці, пріоритет має поточний матч.\n7. Якщо даних недостатньо або вибірка мала, скажи про це прямо.\nНе вигадуй відсутні дані. Відповідай українською. Tennis terms і скорочення (1st Serve, 2nd Serve, FH, BH, UE, DF, Rally, Winner, Break Point) залишай англійською."
   },
   en:{
     title:"💬 Analyze in ChatGPT",
@@ -4294,9 +4743,9 @@ const CHATGPT_SHARE_TEXT={
     h2hStatsDescription:"Copy aggregate statistics and recent head-to-head matches for analysis in ChatGPT without an API charge from the app.",
     h2hStatsNote:"Nothing is sent automatically. Internal IDs and Telegram data are not included.",
     h2hPromptIntro:"Below are saved head-to-head tennis statistics for a player against the selected opponent. Analyze them as a tennis coach. Use only the supplied data and account for the sample size.",
-    h2hPromptTask:"TASK:\n1. Briefly describe the durable trends in this H2H.\n2. Give 3 specific, prioritized instructions for the next match against this opponent.\n3. Give separate plans for serving, returning, and Rally situations.\n4. Cite the exact statistic supporting each recommendation.\n5. Separate durable findings from weak signals in small samples.\nDo not invent missing data. Reply in English and keep standard tennis terms and abbreviations.",
+    h2hPromptTask:"TASK:\n1. Briefly describe the durable trends in this H2H.\n2. Give 3 specific, prioritized instructions for the next match against this opponent.\n3. Give separate plans for serving, returning, and Rally situations.\n4. Cite the exact statistic supporting each recommendation.\n5. Separate durable findings from weak signals in small samples.\n6. Use OPPONENT PROFILE observations only as separate coach context, not as statistically proven facts.\nDo not invent missing data. Reply in English and keep standard tennis terms and abbreviations.",
     promptIntro:"Below are the statistics for the current tennis match and, when available, saved H2H history against this opponent. Analyze them as a tennis coach. Use only the supplied data and account for each sample size.",
-    promptTask:"TASK:\n1. Briefly assess what is happening in the current match.\n2. Give 3 specific, prioritized tactical instructions for the rest of the match.\n3. Give separate plans for serving, returning, and Rally situations.\n4. Cite the exact statistic supporting each recommendation.\n5. Use H2H only as separate historical context and do not combine its counts with the current match.\n6. State clearly when the data or sample is insufficient.\nDo not invent missing data. Reply in English and keep standard tennis terms and abbreviations."
+    promptTask:"TASK:\n1. Briefly assess what is happening in the current match.\n2. Give 3 specific, prioritized tactical instructions for the rest of the match.\n3. Give separate plans for serving, returning, and Rally situations.\n4. Cite the exact statistic supporting each recommendation.\n5. Use H2H only as separate historical context and do not combine its counts with the current match.\n6. Use OPPONENT PROFILE observations separately as coach context; if they conflict with current statistics, prioritize the current match.\n7. State clearly when the data or sample is insufficient.\nDo not invent missing data. Reply in English and keep standard tennis terms and abbreviations."
   }
 };
 
@@ -4451,6 +4900,49 @@ function chatGptH2HDataBlock(summary,playerName,opponentName){
   ].join("\n");
 }
 
+function chatGptOpponentProfileBlock(opponent){
+  const language=window.TennisI18n?.getLanguage?.()||"ru";
+  const profile=opponentCoachProfile(opponent);
+  const handedness=opponent?.handedness;
+  const labels=language==="en"
+    ? {
+        source:"These are user-entered coach observations, not verified statistics.",
+        empty:"No opponent observations have been saved.",
+        hand:"Playing hand",right:"right-handed",left:"left-handed",unknown:"unknown",
+        style:"Playing style",strengths:"Strengths",weaknesses:"Weaknesses",
+        plan:"Pre-match plan",notes:"Coach notes"
+      }
+    : language==="uk"
+      ? {
+          source:"Це введені користувачем спостереження тренера, а не перевірена статистика.",
+          empty:"Спостережень про суперника ще не збережено.",
+          hand:"Основна рука",right:"правша",left:"лівша",unknown:"невідомо",
+          style:"Стиль гри",strengths:"Сильні сторони",weaknesses:"Слабкі сторони",
+          plan:"Передматчевий план",notes:"Нотатки тренера"
+        }
+      : {
+          source:"Это введённые пользователем наблюдения тренера, а не проверенная статистика.",
+          empty:"Наблюдений о сопернике пока не сохранено.",
+          hand:"Основная рука",right:"правша",left:"левша",unknown:"неизвестно",
+          style:"Стиль игры",strengths:"Сильные стороны",weaknesses:"Слабые стороны",
+          plan:"Предматчевый план",notes:"Заметки тренера"
+        };
+  const rows=[];
+  if(handedness==="right" || handedness==="left"){
+    rows.push("- "+labels.hand+": "+labels[handedness]);
+  }
+  if(profile.playing_style)rows.push("- "+labels.style+": "+profile.playing_style);
+  if(profile.strengths)rows.push("- "+labels.strengths+": "+profile.strengths);
+  if(profile.weaknesses)rows.push("- "+labels.weaknesses+": "+profile.weaknesses);
+  if(profile.pre_match_plan)rows.push("- "+labels.plan+": "+profile.pre_match_plan);
+  if(opponent?.coach_notes)rows.push("- "+labels.notes+": "+opponent.coach_notes);
+  return [
+    "OPPONENT PROFILE (COACH OBSERVATIONS)",
+    "- "+labels.source,
+    ...(rows.length?rows:["- "+labels.empty])
+  ].join("\n");
+}
+
 function buildH2HChatGptPrompt(summary){
   const language=window.TennisI18n?.getLanguage?.()||"ru";
   const playerName=chatGptCleanName(
@@ -4461,8 +4953,13 @@ function buildH2HChatGptPrompt(summary){
     summary?.opponent_name,
     language==="en"?"Opponent":"Соперник"
   );
+  const opponent=statsOpponentProfileById(
+    summary?.opponent_profile_id || selectedStatsOpponentProfileId
+  );
   return [
     chatGptShareText("h2hPromptIntro"),
+    "",
+    chatGptOpponentProfileBlock(opponent),
     "",
     chatGptH2HDataBlock(summary,playerName,opponentName),
     "",
@@ -4488,12 +4985,30 @@ function h2hSummaryFingerprint(summary){
   });
 }
 
+function opponentProfileFingerprint(opponent){
+  if(!opponent)return "";
+  return JSON.stringify({
+    id:opponent.id,
+    handedness:opponent.handedness,
+    coach_notes:opponent.coach_notes,
+    coach_profile:opponentCoachProfile(opponent)
+  });
+}
+
+function h2hStatsShareFingerprint(){
+  return JSON.stringify({
+    h2h:h2hSummaryFingerprint(currentStatsH2HSummary),
+    opponent:opponentProfileFingerprint(selectedStatsOpponentProfile())
+  });
+}
+
 function chatGptShareFingerprint(){
   return JSON.stringify({
     names:S.names,set:S.set,game:S.game,pt:S.pt,srv:S.srv,sn:S.sn,tb:S.tb,
     matchOver:S.matchOver,cancelled:S.cancelled,st:S.st,setStats:S.setStats,
     setScores:S.setScores,tieBreakScores:S.tieBreakScores,log:S.log,
-    h2h:h2hSummaryFingerprint(currentMatchH2HSummary())
+    h2h:h2hSummaryFingerprint(currentMatchH2HSummary()),
+    opponent:opponentProfileFingerprint(currentMatchOpponentProfile())
   });
 }
 
@@ -4542,6 +5057,8 @@ function buildChatGptMatchPrompt(){
     "",
     "LAST 10",
     chatGptRecentSummary(playerName,opponentName),
+    "",
+    chatGptOpponentProfileBlock(currentMatchOpponentProfile()),
     "",
     chatGptH2HDataBlock(currentMatchH2HSummary(),playerName,opponentName),
     "",
@@ -4643,7 +5160,7 @@ async function shareMatchForChatGpt(){
 
 function setH2HStatsShareStatus(key){
   h2hStatsShareStatusKey=key;
-  h2hStatsShareStatusFingerprint=h2hSummaryFingerprint(currentStatsH2HSummary);
+  h2hStatsShareStatusFingerprint=h2hStatsShareFingerprint();
   renderH2HStatsShare();
 }
 
@@ -4662,7 +5179,7 @@ function renderH2HStatsShare(){
   if(
     ["copied","shared","fallbackCopied"].includes(key)&&
     h2hStatsShareStatusFingerprint&&
-    h2hStatsShareStatusFingerprint!==h2hSummaryFingerprint(currentStatsH2HSummary)
+    h2hStatsShareStatusFingerprint!==h2hStatsShareFingerprint()
   )key="changed";
   const status=$("h2hStatsShareStatus");
   status.textContent=key?chatGptShareText(key):"";
@@ -5168,6 +5685,7 @@ liveEditButtons.forEach(btn=>{
   <div class="kpi"><div class="small">Net Points Won</div><div class="v">${a.net} – ${b.net}</div></div>`;
   $("summary").innerHTML=conclusions().map(x=>"<li>"+x+"</li>").join("");
   renderQuickAnalysis();
+  renderMatchOpponentPlan();
   renderChatGptShare();
   renderAiCoach();
 
@@ -5561,6 +6079,7 @@ function start(){
   liveMatchLastUpdatedAt=null;
   liveMatchRefreshError="";
   clearLocal();S=defaultState();resetAiCoachState();
+  matchOpponentPlanOpen=false;
   S.playerProfileId=profile.id;
   S.opponentProfileId=opponent.id;
   S.names=[profile.display_name,opponent.display_name];
@@ -8568,6 +9087,7 @@ $("startBtn").onclick=start;
   };
   $("createOpponentBtn").onclick=createOpponent;
   $("renameOpponentBtn").onclick=renameSelectedOpponent;
+  $("saveOpponentProfileBtn").onclick=saveSelectedOpponentProfile;
   $("archiveOpponentBtn").onclick=archiveSelectedOpponent;
   $("restoreOpponentBtn").onclick=restoreSelectedOpponent;
   $("archivedOpponentSelect").onchange=event=>{
@@ -8658,6 +9178,7 @@ $("chatGptCopyBtn").onclick=copyMatchForChatGpt;
 $("chatGptShareBtn").onclick=shareMatchForChatGpt;
 $("h2hStatsCopyBtn").onclick=copyH2HStatsForChatGpt;
 $("h2hStatsShareBtn").onclick=shareH2HStatsForChatGpt;
+$("matchOpponentPlanToggleBtn").onclick=toggleMatchOpponentPlan;
 $("aiCoachRequestBtn").onclick=requestAiCoach;
 $("undoBtn").onclick=undo;
 $("changeServerBtn").onclick=changeServer;
@@ -8698,6 +9219,8 @@ window.addEventListener("offline",()=>{
 
 window.addEventListener("tennis-language-change",()=>{
   resetAiCoachState();
+  renderSetupOpponentPlan();
+  renderMatchOpponentPlan();
   renderChatGptShare();
   renderH2HStatsShare();
   renderAiCoach();

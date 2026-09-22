@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- UPDATED: secure match history + RU/UA/EN + Live Quick Analysis + AI Coach + opponent profiles V16 -->
+<!-- UPDATED: secure match history + RU/UA/EN + Live Quick Analysis + compact post-match Analysis Hub V17 -->
 <html lang="ru">
 <head>
 <meta charset="utf-8">
@@ -48,6 +48,9 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
 .chatGptShareActions button{min-height:50px;font-size:14px}
 .chatGptShareStatus{min-height:18px;margin-top:9px;font-size:13px;line-height:1.4}
 .chatGptShareStatus.error{color:#b42318}.chatGptShareStatus.success{color:#157347}
+.analysisHubSelect{margin-top:10px}.analysisHubSelect select{width:100%;margin-top:6px}
+.analysisHubDescription{margin-top:9px;padding:10px 12px;border-radius:12px;background:#f6f6f8;line-height:1.4}
+.analysisHubDivider{height:1px;background:#e3e3e7;margin:14px 0}
 .h2hContext{margin-top:9px;padding:9px 10px;border-radius:10px;background:#f6f6f8;color:#555;font-size:12px;line-height:1.4}
 .h2hCompare{overflow-x:auto}.h2hCompare th:first-child,.h2hCompare td:first-child{text-align:left;white-space:nowrap}
 .h2hCompare th:not(:first-child),.h2hCompare td:not(:first-child){min-width:86px;text-align:right}
@@ -424,16 +427,36 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
   </div>
 
   <div class="card" id="aiCoachCard" data-i18n-ignore>
-    <div class="section" id="aiCoachTitle"></div>
-    <div class="small" id="aiCoachDescription"></div>
-    <div id="aiCoachDataQuality" class="aiCoachNotice"></div>
-    <button id="aiCoachRequestBtn" class="primary" style="width:100%;min-height:50px"></button>
-    <div class="small" id="aiCoachCostNote" style="margin-top:8px"></div>
-    <div id="aiCoachStatus" class="aiCoachStatus"></div>
-    <div id="aiCoachResult" class="aiCoachResult hidden">
-      <div id="aiCoachSummary" class="aiCoachSummary"></div>
-      <div id="aiCoachTips"></div>
-      <div id="aiCoachMeta" class="small" style="margin-top:10px"></div>
+    <button id="analysisHubToggleBtn" class="hidden" style="width:100%;min-height:50px"></button>
+    <div id="analysisHubBody">
+      <div id="postMatchModeControls" class="hidden">
+        <div class="section" id="analysisHubTitle"></div>
+        <div class="small" id="analysisHubIntro"></div>
+        <label class="analysisHubSelect">
+          <span class="small" id="analysisHubModeLabel"></span>
+          <select id="analysisHubModeSelect"></select>
+        </label>
+        <div id="analysisHubModeDescription" class="analysisHubDescription small"></div>
+        <div class="chatGptShareActions">
+          <button id="analysisHubCopyBtn" class="primary"></button>
+          <button id="analysisHubShareBtn"></button>
+        </div>
+        <div id="analysisHubHistoryStatus" class="h2hContext"></div>
+        <div id="analysisHubFreeNote" class="small" style="margin-top:9px"></div>
+        <div id="analysisHubShareStatus" class="chatGptShareStatus" aria-live="polite"></div>
+        <div class="analysisHubDivider"></div>
+      </div>
+      <div class="section" id="aiCoachTitle"></div>
+      <div class="small" id="aiCoachDescription"></div>
+      <div id="aiCoachDataQuality" class="aiCoachNotice"></div>
+      <button id="aiCoachRequestBtn" class="primary" style="width:100%;min-height:50px"></button>
+      <div class="small" id="aiCoachCostNote" style="margin-top:8px"></div>
+      <div id="aiCoachStatus" class="aiCoachStatus"></div>
+      <div id="aiCoachResult" class="aiCoachResult hidden">
+        <div id="aiCoachSummary" class="aiCoachSummary"></div>
+        <div id="aiCoachTips"></div>
+        <div id="aiCoachMeta" class="small" style="margin-top:10px"></div>
+      </div>
     </div>
   </div>
 
@@ -4749,8 +4772,210 @@ const CHATGPT_SHARE_TEXT={
   }
 };
 
+const ANALYSIS_HUB_MODES=["plan_review","progress","training_plan"];
+const ANALYSIS_HUB_TEXT={
+  ru:{
+    title:"🧠 Анализ и рекомендации",
+    show:"🧠 ПОКАЗАТЬ АНАЛИЗ И РЕКОМЕНДАЦИИ",
+    hide:"🧠 СКРЫТЬ АНАЛИЗ И РЕКОМЕНДАЦИИ",
+    intro:"Выберите один вид анализа. Для бесплатного варианта подготовьте текст для ChatGPT или запросите результат внутри приложения через AI Coach.",
+    modeLabel:"Вид анализа",
+    plan_review:"Оценка выполнения плана",
+    progress:"Анализ прогресса",
+    training_plan:"Тренировочный план",
+    planDescription:"Сравнить предматчевый план против этого соперника с фактической статистикой завершённого матча.",
+    progressDescription:"Сравнить текущий матч с предыдущими сохранёнными матчами игрока и найти подтверждённые изменения.",
+    trainingDescription:"Определить приоритеты следующего тренировочного цикла по текущему матчу и сохранённой истории.",
+    copyButton:"📋 СКОПИРОВАТЬ ДЛЯ CHATGPT",
+    shareButton:"↗ ПОДЕЛИТЬСЯ",
+    freeNote:"Бесплатный вариант: ничего не отправляется автоматически. Внутренние ID и данные Telegram в текст не включаются.",
+    historyPlan:"Будут использованы текущий матч, предматчевый план и отдельный H2H-контекст.",
+    historyPending:"Сохранённая история игрока загрузится после нажатия «Скопировать» или «Поделиться».",
+    historyLoading:"Загрузка сохранённых матчей игрока…",
+    historyReady:"Подготовлено матчей для сравнения: {matches}; с подробной статистикой: {detailed}.",
+    historyEmpty:"Сохранённых матчей для сравнения пока нет; вывод будет основан только на текущем матче.",
+    historyError:"Историю загрузить не удалось; текст будет подготовлен по текущему матчу с прямым указанием ограничения.",
+    copied:"Данные скопированы. Откройте ChatGPT, вставьте текст и отправьте.",
+    shared:"Открыто системное меню «Поделиться».",
+    fallbackCopied:"Функция «Поделиться» недоступна — текст скопирован.",
+    copyError:"Не удалось скопировать текст. Попробуйте кнопку «Поделиться».",
+    shareError:"Не удалось поделиться или скопировать текст.",
+    changed:"Выбранный вид анализа или данные изменились. Скопируйте текст ещё раз.",
+    shareTitle:"Теннис: анализ и рекомендации",
+    planIntro:"Ниже — завершённый теннисный матч, предматчевый план и отдельный исторический контекст. Оцени выполнение плана как теннисный тренер, используя только указанные данные и учитывая размер выборки.",
+    planTask:"ЗАДАЧА:\n1. Раздели предматчевый план на конкретные установки и для каждой поставь статус: выполнено, частично выполнено, не выполнено или недостаточно данных.\n2. Для каждой оценки назови точную статистику ТЕКУЩЕГО МАТЧА.\n3. Кратко назови 2 сильные стороны выполнения плана и до 3 корректировок на следующий матч.\n4. Не считай отсутствие записанного события доказательством того, что установка не выполнялась.\n5. H2H используй только как отдельный исторический контекст и не смешивай его числа с текущим матчем.\n6. OPPONENT PROFILE — пользовательские наблюдения тренера, а не проверенная статистика.\n7. Если план отсутствует или данных недостаточно, скажи об этом прямо.\nНе придумывай отсутствующие данные. Ответь по-русски. Tennis terms и сокращения оставляй на английском.",
+    progressIntro:"Ниже — завершённый теннисный матч и сохранённая история игрока. Проанализируй прогресс как теннисный тренер, используя только указанные данные и учитывая размер каждой выборки.",
+    progressTask:"ЗАДАЧА:\n1. Сравни RECENT WINDOW и PREVIOUS WINDOW только там, где обе выборки содержат данные.\n2. Назови до 3 подтверждённых улучшений и до 3 зон ухудшения или нестабильности.\n3. Для каждого вывода приведи точные значения, числители/знаменатели и количество матчей с подробной статистикой.\n4. Отделяй устойчивые тенденции от слабых сигналов небольшой выборки; не делай причинных выводов.\n5. Текущий матч и H2H не смешивай с другими выборками, если они показаны отдельно.\n6. Если матчей недостаточно для анализа прогресса, скажи, сколько данных имеется, и не придумывай тенденцию.\nОтветь по-русски. Tennis terms и сокращения оставляй на английском.",
+    trainingIntro:"Ниже — завершённый теннисный матч и сохранённая история игрока. Составь короткий тренировочный план как теннисный тренер, используя только указанные данные и учитывая размер каждой выборки.",
+    trainingTask:"ЗАДАЧА:\n1. Выбери 3 тренировочных приоритета в порядке важности.\n2. Для каждого укажи: статистическое основание, конкретную тренировочную задачу и измеримый показатель проверки в следующих матчах.\n3. Сохрани сильные стороны отдельным коротким блоком — их нельзя потерять при исправлении слабых мест.\n4. Не делай выводов из показателей без попыток или из слишком малой выборки; прямо отмечай ограничения.\n5. Не давай медицинских, травматологических, диетических или лекарственных рекомендаций.\nНе придумывай отсутствующие данные. Ответь по-русски. Tennis terms и сокращения оставляй на английском."
+  },
+  uk:{
+    title:"🧠 Аналіз і рекомендації",
+    show:"🧠 ПОКАЗАТИ АНАЛІЗ І РЕКОМЕНДАЦІЇ", hide:"🧠 СХОВАТИ АНАЛІЗ І РЕКОМЕНДАЦІЇ",
+    intro:"Оберіть один вид аналізу. Для безплатного варіанта підготуйте текст для ChatGPT або запросіть результат у застосунку через AI Coach.",
+    modeLabel:"Вид аналізу", plan_review:"Оцінка виконання плану", progress:"Аналіз прогресу", training_plan:"Тренувальний план",
+    planDescription:"Порівняти передматчевий план проти цього суперника з фактичною статистикою завершеного матчу.",
+    progressDescription:"Порівняти поточний матч із попередніми збереженими матчами гравця та знайти підтверджені зміни.",
+    trainingDescription:"Визначити пріоритети наступного тренувального циклу за поточним матчем і збереженою історією.",
+    copyButton:"📋 СКОПІЮВАТИ ДЛЯ CHATGPT", shareButton:"↗ ПОДІЛИТИСЯ",
+    freeNote:"Безплатний варіант: нічого не надсилається автоматично. Внутрішні ID і дані Telegram до тексту не входять.",
+    historyPlan:"Буде використано поточний матч, передматчевий план та окремий H2H-контекст.",
+    historyPending:"Збережена історія гравця завантажиться після натискання «Скопіювати» або «Поділитися».",
+    historyLoading:"Завантаження збережених матчів гравця…",
+    historyReady:"Підготовлено матчів для порівняння: {matches}; із докладною статистикою: {detailed}.",
+    historyEmpty:"Збережених матчів для порівняння ще немає; висновок базуватиметься лише на поточному матчі.",
+    historyError:"Історію завантажити не вдалося; текст буде підготовлено за поточним матчем із прямою вказівкою обмеження.",
+    copied:"Дані скопійовано. Відкрийте ChatGPT, вставте текст і надішліть.", shared:"Відкрито системне меню «Поділитися».",
+    fallbackCopied:"Функція «Поділитися» недоступна — текст скопійовано.", copyError:"Не вдалося скопіювати текст. Спробуйте кнопку «Поділитися».",
+    shareError:"Не вдалося поділитися або скопіювати текст.", changed:"Вид аналізу або дані змінилися. Скопіюйте текст ще раз.", shareTitle:"Теніс: аналіз і рекомендації",
+    planIntro:"Нижче — завершений тенісний матч, передматчевий план і окремий історичний контекст. Оціни виконання плану як тенісний тренер, використовуючи лише наведені дані та враховуючи розмір вибірки.",
+    planTask:"ЗАВДАННЯ:\n1. Розділи передматчевий план на конкретні настанови й для кожної постав статус: виконано, частково виконано, не виконано або недостатньо даних.\n2. Для кожної оцінки наведи точну статистику ПОТОЧНОГО МАТЧУ.\n3. Коротко назви 2 сильні сторони виконання плану та до 3 коригувань на наступний матч.\n4. Не вважай відсутність записаної події доказом невиконання.\n5. H2H використовуй лише як окремий історичний контекст.\n6. OPPONENT PROFILE — спостереження тренера, а не перевірена статистика.\n7. Якщо плану чи даних недостатньо, скажи прямо.\nНе вигадуй дані. Відповідай українською; Tennis terms залишай англійською.",
+    progressIntro:"Нижче — завершений тенісний матч і збережена історія гравця. Проаналізуй прогрес, використовуючи лише наведені дані та враховуючи розмір вибірки.",
+    progressTask:"ЗАВДАННЯ:\n1. Порівняй RECENT WINDOW і PREVIOUS WINDOW лише за наявності даних в обох вибірках.\n2. Назви до 3 підтверджених покращень і до 3 зон погіршення або нестабільності.\n3. Наведи точні значення, чисельники/знаменники й кількість матчів із докладною статистикою.\n4. Відокремлюй тенденції від слабких сигналів; не роби причинних висновків.\n5. Не змішуй окремі вибірки.\n6. Якщо даних мало, скажи про це прямо.\nВідповідай українською; Tennis terms залишай англійською.",
+    trainingIntro:"Нижче — завершений тенісний матч і збережена історія гравця. Склади короткий тренувальний план, використовуючи лише наведені дані.",
+    trainingTask:"ЗАВДАННЯ:\n1. Обери 3 тренувальні пріоритети.\n2. Для кожного вкажи статистичну підставу, конкретне завдання та вимірюваний показник перевірки.\n3. Окремо назви сильні сторони, які треба зберегти.\n4. Не роби висновків із замалої вибірки.\n5. Не давай медичних, дієтичних або лікарських порад.\nНе вигадуй дані. Відповідай українською; Tennis terms залишай англійською."
+  },
+  en:{
+    title:"🧠 Analysis and recommendations",
+    show:"🧠 SHOW ANALYSIS AND RECOMMENDATIONS", hide:"🧠 HIDE ANALYSIS AND RECOMMENDATIONS",
+    intro:"Choose one analysis. Prepare text for ChatGPT at no API charge, or request the result inside the app through AI Coach.",
+    modeLabel:"Analysis type", plan_review:"Plan execution review", progress:"Progress analysis", training_plan:"Training plan",
+    planDescription:"Compare the pre-match plan for this opponent with the completed match statistics.",
+    progressDescription:"Compare the current match with the player's saved matches and identify evidence-backed changes.",
+    trainingDescription:"Set priorities for the next training cycle using the current match and saved history.",
+    copyButton:"📋 COPY FOR CHATGPT", shareButton:"↗ SHARE",
+    freeNote:"Free option: nothing is sent automatically. Internal IDs and Telegram data are excluded.",
+    historyPlan:"The current match, pre-match plan, and separate H2H context will be used.",
+    historyPending:"Saved player history will load after you press Copy or Share.", historyLoading:"Loading saved player matches…",
+    historyReady:"Matches prepared for comparison: {matches}; with detailed statistics: {detailed}.",
+    historyEmpty:"No saved comparison matches are available; the result will use the current match only.",
+    historyError:"History could not be loaded; the prompt will use the current match and state this limitation.",
+    copied:"Data copied. Open ChatGPT, paste the text, and send it.", shared:"The system Share menu was opened.",
+    fallbackCopied:"Share is unavailable, so the text was copied.", copyError:"Could not copy the text. Try Share.",
+    shareError:"The text could not be shared or copied.", changed:"The analysis type or data changed. Copy the text again.", shareTitle:"Tennis analysis and recommendations",
+    planIntro:"Below are a completed tennis match, its pre-match plan, and separate historical context. Review plan execution as a tennis coach. Use only the supplied data and account for sample size.",
+    planTask:"TASK:\n1. Split the pre-match plan into concrete instructions and mark each: completed, partly completed, not completed, or insufficient data.\n2. Cite exact CURRENT MATCH statistics for every assessment.\n3. Give 2 plan-execution strengths and up to 3 adjustments for the next match.\n4. Do not treat an unrecorded event as proof that an instruction was not followed.\n5. Keep H2H separate from the current match.\n6. OPPONENT PROFILE contains coach observations, not verified statistics.\n7. State clearly if the plan or data is insufficient.\nDo not invent data. Reply in English.",
+    progressIntro:"Below are a completed tennis match and the player's saved match history. Analyze progress as a tennis coach, using only the supplied data and accounting for each sample size.",
+    progressTask:"TASK:\n1. Compare RECENT WINDOW and PREVIOUS WINDOW only where both samples contain data.\n2. Give up to 3 supported improvements and up to 3 areas of decline or instability.\n3. Cite exact values, numerators/denominators, and matches with detailed statistics.\n4. Separate durable trends from weak small-sample signals and do not infer causation.\n5. Do not mix separately labeled samples.\n6. If there is insufficient history, state exactly what is available.\nReply in English.",
+    trainingIntro:"Below are a completed tennis match and the player's saved match history. Create a short training plan as a tennis coach using only the supplied data and accounting for sample size.",
+    trainingTask:"TASK:\n1. Choose 3 training priorities in order.\n2. For each, give statistical evidence, one concrete training objective, and one measurable check for future matches.\n3. Add a short strengths-to-preserve section.\n4. Do not draw conclusions from metrics with no attempts or tiny samples.\n5. Do not provide medical, injury, diet, or medication advice.\nDo not invent data. Reply in English."
+  }
+};
+
 let chatGptShareStatusKey="";
 let chatGptShareStatusFingerprint="";
+let analysisHubOpen=false;
+let analysisHubMode="plan_review";
+let analysisHubShareStatusKey="";
+let analysisHubShareFingerprint="";
+let analysisHubHistoryLoading=false;
+let analysisHubHistoryError="";
+let analysisHubHistoryCache=null;
+let analysisHubMatchKey="";
+
+function analysisHubText(key,values={}){
+  const language=window.TennisI18n?.getLanguage?.() || "ru";
+  const template=ANALYSIS_HUB_TEXT[language]?.[key] || ANALYSIS_HUB_TEXT.ru[key] || key;
+  return String(template).replace(/\{(\w+)\}/g,(_,name)=>
+    Object.prototype.hasOwnProperty.call(values,name)?String(values[name]):""
+  );
+}
+
+function toggleAnalysisHub(){
+  analysisHubOpen=!analysisHubOpen;
+  renderAnalysisHub();
+}
+
+function selectAnalysisHubMode(value){
+  if(!ANALYSIS_HUB_MODES.includes(value))return;
+  analysisHubMode=value;
+  analysisHubShareStatusKey="";
+  analysisHubShareFingerprint="";
+  resetAiCoachState();
+  renderAnalysisHub();
+  renderAiCoach();
+}
+
+function renderAnalysisHub(){
+  const card=$("aiCoachCard");
+  const toggle=$("analysisHubToggleBtn");
+  const body=$("analysisHubBody");
+  const controls=$("postMatchModeControls");
+  if(!card||!toggle||!body||!controls)return;
+
+  const post=!!S.matchOver&&!S.cancelled;
+  const matchKey=post?aiCoachMatchKey():"";
+  if(post&&analysisHubMatchKey!==matchKey){
+    analysisHubMatchKey=matchKey;
+    analysisHubOpen=false;
+    analysisHubHistoryCache=null;
+    analysisHubHistoryError="";
+    analysisHubShareStatusKey="";
+    const plan=opponentCoachProfile(currentMatchOpponentProfile()).pre_match_plan;
+    analysisHubMode=plan?"plan_review":"progress";
+  }else if(!post){
+    analysisHubMatchKey="";
+  }
+
+  toggle.classList.toggle("hidden",!post);
+  toggle.textContent=analysisHubText(analysisHubOpen?"hide":"show");
+  body.classList.toggle("hidden",post&&!analysisHubOpen);
+  controls.classList.toggle("hidden",!post);
+  const liveShareCard=$("chatGptShareCard");
+  if(liveShareCard)liveShareCard.classList.toggle("hidden",post);
+  if(!post)return;
+
+  $("analysisHubTitle").textContent=analysisHubText("title");
+  $("analysisHubIntro").textContent=analysisHubText("intro");
+  $("analysisHubModeLabel").textContent=analysisHubText("modeLabel");
+  const select=$("analysisHubModeSelect");
+  const previous=select.value;
+  select.replaceChildren(...ANALYSIS_HUB_MODES.map(mode=>{
+    const option=document.createElement("option");
+    option.value=mode;
+    option.textContent=analysisHubText(mode);
+    return option;
+  }));
+  select.value=ANALYSIS_HUB_MODES.includes(analysisHubMode)
+    ? analysisHubMode
+    : (ANALYSIS_HUB_MODES.includes(previous)?previous:"plan_review");
+  $("analysisHubModeDescription").textContent=analysisHubText(
+    analysisHubMode==="plan_review"
+      ? "planDescription"
+      : analysisHubMode==="progress"?"progressDescription":"trainingDescription"
+  );
+  $("analysisHubCopyBtn").textContent=analysisHubText("copyButton");
+  $("analysisHubShareBtn").textContent=analysisHubText("shareButton");
+  $("analysisHubFreeNote").textContent=analysisHubText("freeNote");
+
+  const historyStatus=$("analysisHubHistoryStatus");
+  if(analysisHubMode==="plan_review"){
+    historyStatus.textContent=analysisHubText("historyPlan");
+  }else if(analysisHubHistoryLoading){
+    historyStatus.textContent=analysisHubText("historyLoading");
+  }else if(analysisHubHistoryError){
+    historyStatus.textContent=analysisHubText("historyError");
+  }else if(analysisHubHistoryCache){
+    const entries=analysisHubHistoryCache.entries||[];
+    const detailed=entries.filter(entry=>entry.detailed).length;
+    historyStatus.textContent=entries.length
+      ? analysisHubText("historyReady",{matches:entries.length+1,detailed:detailed+1})
+      : analysisHubText("historyEmpty");
+  }else{
+    historyStatus.textContent=analysisHubText("historyPending");
+  }
+
+  let statusKey=analysisHubShareStatusKey;
+  if(
+    ["copied","shared","fallbackCopied"].includes(statusKey)&&
+    analysisHubShareFingerprint&&analysisHubShareFingerprint!==analysisHubFingerprint()
+  )statusKey="changed";
+  const status=$("analysisHubShareStatus");
+  status.textContent=statusKey?analysisHubText(statusKey):"";
+  status.className="chatGptShareStatus";
+  if(["copyError","shareError"].includes(statusKey))status.classList.add("error");
+  if(["copied","shared","fallbackCopied"].includes(statusKey))status.classList.add("success");
+}
 
 function chatGptShareText(key,values={}){
   const language=window.TennisI18n?.getLanguage?.() || "ru";
@@ -5012,7 +5237,7 @@ function chatGptShareFingerprint(){
   });
 }
 
-function buildChatGptMatchPrompt(){
+function buildChatGptMatchPrompt(options={}){
   const language=window.TennisI18n?.getLanguage?.() || "ru";
   const playerName=chatGptCleanName(S.names?.[0],language==="en"?"Player":"Игрок");
   const opponentName=chatGptCleanName(S.names?.[1],language==="en"?"Opponent":"Соперник");
@@ -5031,8 +5256,11 @@ function buildChatGptMatchPrompt(){
     : chatGptCleanName(S.names?.[S.srv],"—")+" ("+(S.sn===2?"2nd Serve":"1st Serve")+")";
   const completedScore=fullScore() || chatGptShareText("noSets");
 
+  const extraBlocks=Array.isArray(options.extraBlocks)
+    ? options.extraBlocks.filter(Boolean)
+    : [];
   return [
-    chatGptShareText("promptIntro"),
+    options.intro || chatGptShareText("promptIntro"),
     "",
     "MATCH",
     "- Players: "+playerName+" vs "+opponentName,
@@ -5061,9 +5289,219 @@ function buildChatGptMatchPrompt(){
     chatGptOpponentProfileBlock(currentMatchOpponentProfile()),
     "",
     chatGptH2HDataBlock(currentMatchH2HSummary(),playerName,opponentName),
+    ...extraBlocks.flatMap(block=>["",block]),
     "",
-    chatGptShareText("promptTask")
+    options.task || chatGptShareText("promptTask")
   ].join("\n");
+}
+
+function analysisHubCurrentSyncKey(){
+  return String(S.pendingSyncId || S.savedMatchId || "").trim();
+}
+
+function analysisHubCurrentEntry(){
+  const playerName=chatGptCleanName(S.names?.[0],"Player");
+  const opponentName=chatGptCleanName(S.names?.[1],"Opponent");
+  const winnerIndex=Number(S.set?.[0]||0)>Number(S.set?.[1]||0)?0:1;
+  return {
+    date:new Date().toISOString().slice(0,10),
+    opponent:opponentName,
+    result:winnerIndex===0?"W":"L",
+    score:fullScore()||"—",
+    setsWon:chatGptCount(S.set?.[0]),
+    setsLost:chatGptCount(S.set?.[1]),
+    stats:aiCoachStats(S.st?.[0]),
+    detailed:true,
+    current:true,
+    playerName
+  };
+}
+
+function analysisHubStoredEntry(match,profile){
+  const playerIndex=h2hPlayerIndex(match,profile);
+  if(playerIndex===null)return null;
+  const opponentIndex=1-playerIndex;
+  const winnerIndex=h2hWinnerIndex(match);
+  const setScore=Array.isArray(match?.sets?.score)?match.sets.score:null;
+  const stats=h2hStatsAt(match,playerIndex);
+  const opponentName=chatGptCleanName(
+    playerIndex===0?match?.player2:match?.player1,
+    "Opponent"
+  );
+  return {
+    date:/^\d{4}-\d{2}-\d{2}/.test(match?.created_at||"")
+      ? String(match.created_at).slice(0,10)
+      : "—",
+    opponent:opponentName,
+    result:winnerIndex===null?"—":winnerIndex===playerIndex?"W":"L",
+    score:h2hScoreForPlayer(match,playerIndex),
+    setsWon:setScore?chatGptCount(setScore[playerIndex]):0,
+    setsLost:setScore?chatGptCount(setScore[opponentIndex]):0,
+    stats:stats?h2hNormalizeStats(stats):null,
+    detailed:!!stats,
+    current:false,
+    playerName:profile.display_name
+  };
+}
+
+function analysisHubAggregateEntries(entries){
+  const aggregate={
+    matches:entries.length,wins:0,losses:0,setsWon:0,setsLost:0,
+    detailed:0,stats:h2hBlankStats()
+  };
+  entries.forEach(entry=>{
+    if(entry.result==="W")aggregate.wins++;
+    else if(entry.result==="L")aggregate.losses++;
+    aggregate.setsWon+=chatGptCount(entry.setsWon);
+    aggregate.setsLost+=chatGptCount(entry.setsLost);
+    if(entry.stats){
+      aggregate.detailed++;
+      h2hAddStats(aggregate.stats,entry.stats);
+    }
+  });
+  return aggregate;
+}
+
+function analysisHubWindowBlock(title,entries,playerName){
+  const aggregate=analysisHubAggregateEntries(entries);
+  if(!entries.length){
+    return [title,"- Matches: 0","- No sample available."].join("\n");
+  }
+  return [
+    title,
+    "- Matches: "+aggregate.matches,
+    "- Match record: "+aggregate.wins+" W / "+aggregate.losses+" L",
+    "- Set record: "+aggregate.setsWon+"–"+aggregate.setsLost,
+    "- Matches with detailed point stats: "+aggregate.detailed,
+    chatGptPlayerStats(playerName+" aggregate",aggregate.stats)
+  ].join("\n");
+}
+
+function analysisHubHistoryBlock(savedEntries,historyError){
+  const current=analysisHubCurrentEntry();
+  const combined=[current,...savedEntries].slice(0,10);
+  const recent=combined.slice(0,5);
+  const previous=combined.slice(5,10);
+  const all=analysisHubAggregateEntries(combined);
+  const resultLines=combined.map((entry,index)=>
+    "- "+(index===0?"CURRENT ":"")+entry.date+": "+entry.result+
+    "; vs "+entry.opponent+"; score "+entry.score+
+    "; detailed stats "+(entry.detailed?"yes":"no")
+  );
+  return [
+    "PLAYER PROGRESS HISTORY",
+    "- The current completed match is shown above and counted once in RECENT WINDOW.",
+    "- Saved earlier matches included: "+savedEntries.length,
+    "- History loading error: "+(historyError?"yes":"no"),
+    "- Total comparison sample (current + saved, maximum 10): "+all.matches,
+    "- Matches with detailed point stats in comparison sample: "+all.detailed,
+    "",
+    analysisHubWindowBlock("RECENT WINDOW (up to 5 newest, includes current match)",recent,current.playerName),
+    "",
+    analysisHubWindowBlock("PREVIOUS WINDOW (next up to 5 matches)",previous,current.playerName),
+    "",
+    "MATCH LIST (newest first)",
+    ...(resultLines.length?resultLines:["- No matches available."])
+  ].join("\n");
+}
+
+function analysisHubHistoryCacheKey(){
+  return [S.playerProfileId||"",analysisHubCurrentSyncKey(),S.log?.length||0].join(":");
+}
+
+async function loadAnalysisHubHistory(){
+  const key=analysisHubHistoryCacheKey();
+  if(analysisHubHistoryCache?.key===key)return analysisHubHistoryCache.entries;
+  analysisHubHistoryLoading=true;
+  analysisHubHistoryError="";
+  renderAnalysisHub();
+  try{
+    const profile=selectedPlayerProfile();
+    if(!profile || !S.playerProfileId)throw new Error("Player profile is unavailable");
+    if(!window.TENNIS_INIT_DATA)throw new Error("Telegram authorization is unavailable");
+    if(!navigator.onLine)throw new Error("Offline");
+    const currentSyncKey=analysisHubCurrentSyncKey();
+    const matches=(await listPlayerMatches(S.playerProfileId))
+      .filter(match=>
+        matchBelongsToPlayerProfile(match,profile) &&
+        match?.sets?.include_in_stats!==false &&
+        (!currentSyncKey || String(match?.sets?.sync_id||"")!==currentSyncKey)
+      )
+      .sort((a,b)=>(Date.parse(b?.created_at||"")||0)-(Date.parse(a?.created_at||"")||0));
+    const entries=matches.map(match=>analysisHubStoredEntry(match,profile)).filter(Boolean);
+    analysisHubHistoryCache={key,entries};
+    return entries;
+  }catch(error){
+    console.warn("Analysis Hub history load failed",error);
+    analysisHubHistoryError=String(error?.message||"History unavailable");
+    return [];
+  }finally{
+    analysisHubHistoryLoading=false;
+    renderAnalysisHub();
+  }
+}
+
+async function buildAnalysisHubPrompt(){
+  if(analysisHubMode==="plan_review"){
+    return buildChatGptMatchPrompt({
+      intro:analysisHubText("planIntro"),
+      task:analysisHubText("planTask")
+    });
+  }
+  const entries=await loadAnalysisHubHistory();
+  return buildChatGptMatchPrompt({
+    intro:analysisHubText(analysisHubMode==="progress"?"progressIntro":"trainingIntro"),
+    extraBlocks:[analysisHubHistoryBlock(entries,analysisHubHistoryError)],
+    task:analysisHubText(analysisHubMode==="progress"?"progressTask":"trainingTask")
+  });
+}
+
+function analysisHubFingerprint(){
+  return JSON.stringify({
+    mode:analysisHubMode,
+    match:chatGptShareFingerprint(),
+    historyKey:analysisHubHistoryCache?.key||"",
+    historyCount:analysisHubHistoryCache?.entries?.length||0
+  });
+}
+
+function setAnalysisHubShareStatus(key){
+  analysisHubShareStatusKey=key;
+  analysisHubShareFingerprint=analysisHubFingerprint();
+  renderAnalysisHub();
+}
+
+async function copyAnalysisHubForChatGpt(){
+  const button=$("analysisHubCopyBtn");
+  if(button)button.disabled=true;
+  try{
+    const copied=await copyChatGptText(await buildAnalysisHubPrompt());
+    setAnalysisHubShareStatus(copied?"copied":"copyError");
+  }finally{
+    if(button)button.disabled=false;
+  }
+}
+
+async function shareAnalysisHubForChatGpt(){
+  const button=$("analysisHubShareBtn");
+  if(button)button.disabled=true;
+  try{
+    const text=await buildAnalysisHubPrompt();
+    if(typeof navigator.share==="function"){
+      try{
+        await navigator.share({title:analysisHubText("shareTitle"),text});
+        setAnalysisHubShareStatus("shared");
+        return;
+      }catch(error){
+        if(error?.name==="AbortError")return;
+        console.warn("Analysis Hub share failed; trying clipboard",error);
+      }
+    }
+    const copied=await copyChatGptText(text);
+    setAnalysisHubShareStatus(copied?"fallbackCopied":"shareError");
+  }finally{
+    if(button)button.disabled=false;
+  }
 }
 
 async function copyChatGptText(text){
@@ -5216,8 +5654,14 @@ const AI_COACH_TEXT={
     title:"🤖 AI Coach",
     liveDescription:"1–3 персональных совета по статистике текущего матча и истории игрока.",
     postDescription:"Короткий послематчевый AI-анализ по статистике матча и истории игрока.",
+    planReviewDescription:"Платная оценка выполнения предматчевого плана непосредственно в приложении.",
+    progressDescription:"Платный анализ прогресса по текущему матчу и сохранённой истории игрока.",
+    trainingDescription:"Платный персональный тренировочный план по статистике матчей.",
     requestLive:"🤖 ПОЛУЧИТЬ СОВЕТ AI COACH",
     requestPost:"🤖 ПОЛУЧИТЬ ПОСЛЕМАТЧЕВЫЙ AI-АНАЛИЗ",
+    requestPlanReview:"🤖 ОЦЕНИТЬ ВЫПОЛНЕНИЕ ПЛАНА",
+    requestProgress:"🤖 ПОЛУЧИТЬ AI-АНАЛИЗ ПРОГРЕССА",
+    requestTraining:"🤖 ПОЛУЧИТЬ AI-ТРЕНИРОВОЧНЫЙ ПЛАН",
     loading:"AI Coach анализирует данные…",
     cost:"Платный API-запрос. Только вручную; автоматические запросы отключены. Ответ не сохраняется.",
     usage:"Запросов с этого устройства в этом матче: {count}.",
@@ -5247,8 +5691,14 @@ const AI_COACH_TEXT={
     title:"🤖 AI Coach",
     liveDescription:"1–3 персональні поради за статистикою поточного матчу та історією гравця.",
     postDescription:"Короткий післяматчевий AI-аналіз за статистикою матчу та історією гравця.",
+    planReviewDescription:"Платна оцінка виконання передматчевого плану безпосередньо в застосунку.",
+    progressDescription:"Платний аналіз прогресу за поточним матчем і збереженою історією гравця.",
+    trainingDescription:"Платний персональний тренувальний план за статистикою матчів.",
     requestLive:"🤖 ОТРИМАТИ ПОРАДУ AI COACH",
     requestPost:"🤖 ОТРИМАТИ ПІСЛЯМАТЧЕВИЙ AI-АНАЛІЗ",
+    requestPlanReview:"🤖 ОЦІНИТИ ВИКОНАННЯ ПЛАНУ",
+    requestProgress:"🤖 ОТРИМАТИ AI-АНАЛІЗ ПРОГРЕСУ",
+    requestTraining:"🤖 ОТРИМАТИ AI-ТРЕНУВАЛЬНИЙ ПЛАН",
     loading:"AI Coach аналізує дані…",
     cost:"Платний API-запит. Лише вручну; автоматичні запити вимкнено. Відповідь не зберігається.",
     usage:"Запитів із цього пристрою в цьому матчі: {count}.",
@@ -5278,8 +5728,14 @@ const AI_COACH_TEXT={
     title:"🤖 AI Coach",
     liveDescription:"1–3 personalized tips based on the current match statistics and player history.",
     postDescription:"A short post-match AI analysis based on match statistics and player history.",
+    planReviewDescription:"A paid in-app review of pre-match plan execution.",
+    progressDescription:"A paid progress analysis using the current match and saved player history.",
+    trainingDescription:"A paid personalized training plan based on match statistics.",
     requestLive:"🤖 GET AI COACH ADVICE",
     requestPost:"🤖 GET POST-MATCH AI ANALYSIS",
+    requestPlanReview:"🤖 REVIEW PLAN EXECUTION",
+    requestProgress:"🤖 GET AI PROGRESS ANALYSIS",
+    requestTraining:"🤖 GET AI TRAINING PLAN",
     loading:"AI Coach is analyzing the data…",
     cost:"Paid API request. Manual only; automatic requests are disabled. The response is not saved.",
     usage:"Requests from this device in this match: {count}.",
@@ -5379,7 +5835,8 @@ function incrementAiCoachUsage(){
 function aiCoachFingerprint(){
   return JSON.stringify({
     set:S.set,game:S.game,pt:S.pt,srv:S.srv,sn:S.sn,tb:S.tb,
-    matchOver:S.matchOver,st:S.st,logLength:Array.isArray(S.log)?S.log.length:0
+    matchOver:S.matchOver,analysisMode:S.matchOver?analysisHubMode:"live_advice",
+    st:S.st,logLength:Array.isArray(S.log)?S.log.length:0
   });
 }
 
@@ -5389,6 +5846,8 @@ function aiCoachPayload(){
     player_profile_id:S.playerProfileId,
     opponent_profile_id:S.opponentProfileId,
     language:window.TennisI18n?.getLanguage?.() || "ru",
+    analysis_mode:S.matchOver?analysisHubMode:"live_advice",
+    current_match_key:analysisHubCurrentSyncKey() || null,
     current_match:{
       sets:[aiCoachSafeCount(S.set?.[0],5),aiCoachSafeCount(S.set?.[1],5)],
       games:[aiCoachSafeCount(S.game?.[0],50),aiCoachSafeCount(S.game?.[1],50)],
@@ -5430,13 +5889,21 @@ function renderAiCoach(){
   if(!button)return;
   const quality=aiCoachDataQuality();
   $("aiCoachTitle").textContent=aiCoachText("title");
-  $("aiCoachDescription").textContent=aiCoachText(S.matchOver?"postDescription":"liveDescription");
+  const postDescriptionKey=analysisHubMode==="plan_review"
+    ? "planReviewDescription"
+    : analysisHubMode==="progress"?"progressDescription":"trainingDescription";
+  $("aiCoachDescription").textContent=aiCoachText(
+    S.matchOver?postDescriptionKey:"liveDescription"
+  );
   const qualityBox=$("aiCoachDataQuality");
   qualityBox.className="aiCoachNotice "+quality.tone;
   qualityBox.textContent=quality.text;
+  const postRequestKey=analysisHubMode==="plan_review"
+    ? "requestPlanReview"
+    : analysisHubMode==="progress"?"requestProgress":"requestTraining";
   button.textContent=aiCoachLoading
     ? aiCoachText("loading")
-    : aiCoachText(S.matchOver?"requestPost":"requestLive");
+    : aiCoachText(S.matchOver?postRequestKey:"requestLive");
   button.disabled=!!(
     aiCoachLoading || liveMatchReadOnly || !navigator.onLine ||
     !window.TENNIS_INIT_DATA || !S.playerProfileId || !S.opponentProfileId || !quality.ready
@@ -5687,6 +6154,7 @@ liveEditButtons.forEach(btn=>{
   renderQuickAnalysis();
   renderMatchOpponentPlan();
   renderChatGptShare();
+  renderAnalysisHub();
   renderAiCoach();
 
   $("matchOverCard").classList.toggle("hidden",!matchClosed);
@@ -9179,6 +9647,10 @@ $("chatGptShareBtn").onclick=shareMatchForChatGpt;
 $("h2hStatsCopyBtn").onclick=copyH2HStatsForChatGpt;
 $("h2hStatsShareBtn").onclick=shareH2HStatsForChatGpt;
 $("matchOpponentPlanToggleBtn").onclick=toggleMatchOpponentPlan;
+$("analysisHubToggleBtn").onclick=toggleAnalysisHub;
+$("analysisHubModeSelect").onchange=event=>selectAnalysisHubMode(event.target.value);
+$("analysisHubCopyBtn").onclick=copyAnalysisHubForChatGpt;
+$("analysisHubShareBtn").onclick=shareAnalysisHubForChatGpt;
 $("aiCoachRequestBtn").onclick=requestAiCoach;
 $("undoBtn").onclick=undo;
 $("changeServerBtn").onclick=changeServer;
@@ -9223,6 +9695,7 @@ window.addEventListener("tennis-language-change",()=>{
   renderMatchOpponentPlan();
   renderChatGptShare();
   renderH2HStatsShare();
+  renderAnalysisHub();
   renderAiCoach();
 });
 

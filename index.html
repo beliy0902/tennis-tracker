@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- UPDATED: secure match history + RU/UA/EN + Live Quick Analysis + compact post-match Analysis Hub V17 -->
+<!-- UPDATED: collapsible opponent plan + saved-match Analysis Hub V18 -->
 <html lang="ru">
 <head>
 <meta charset="utf-8">
@@ -33,6 +33,7 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
 .opponentTools{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}.opponentTools button{min-height:42px;font-size:14px;padding:8px 12px}.opponentStatus{min-height:18px;margin-top:7px}.opponentCreate{margin-top:10px;padding:12px;background:#f6f6f8;border-radius:14px}.opponentError{min-height:18px;color:#b42318;margin-top:7px}
 .opponentProfileEditor{margin-top:14px;padding-top:14px;border-top:1px solid #ddd}.profileField{margin-top:10px}.profileHelp{margin-top:5px}.profileSaveStatus{min-height:18px;margin-top:8px;font-size:12px;line-height:1.35}.profileSaveStatus.success{color:#157347}.profileSaveStatus.error{color:#b42318}
 .opponentPlanPreview{margin:12px 0;padding:12px;border:1px solid #d7d7db;border-radius:14px;background:#fff}.opponentPlanTitle{font-weight:850;margin-bottom:7px}.opponentPlanRows{display:grid;gap:8px}.opponentPlanRow{padding:9px 10px;background:#f6f6f8;border-radius:10px;line-height:1.4;white-space:pre-wrap}.opponentPlanLabel{font-size:12px;color:#666;font-weight:750;margin-bottom:2px}.opponentPlanEmpty{color:#666;font-size:13px;line-height:1.4}
+.setupOpponentPlanBody{margin-top:12px}
 .matchOpponentPlan{border:1px solid #e3e3e7}.matchOpponentPlan .opponentPlanRows{margin-top:12px}
 .matchover{font-size:20px;font-weight:900;text-align:center;padding:8px 0}.historyItem{border-bottom:1px solid #eee;padding:10px 0}.historyItem:last-child{border-bottom:0}.historyTop{display:flex;justify-content:space-between;gap:8px;align-items:center}.historyScore{font-weight:850}.danger{background:#f4dddd}.muted{color:#666;font-size:12px}.savebar{display:flex;justify-content:space-between;gap:10px;align-items:center}.saveStatus{font-size:12px;font-weight:750}.resumeBox{margin-top:12px;padding:12px;background:#f6f6f8;border-radius:14px}.resumeTitle{font-weight:850;margin-bottom:4px}
 .languageRow{display:flex;align-items:center;justify-content:flex-end;gap:8px;margin:-8px 0 14px}.languageRow .label{margin:0}.languageRow select{width:auto;min-width:132px;padding:8px 32px 8px 10px;font-size:14px}
@@ -51,6 +52,8 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
 .analysisHubSelect{margin-top:10px}.analysisHubSelect select{width:100%;margin-top:6px}
 .analysisHubDescription{margin-top:9px;padding:10px 12px;border-radius:12px;background:#f6f6f8;line-height:1.4}
 .analysisHubDivider{height:1px;background:#e3e3e7;margin:14px 0}
+.savedMatchAnalysisPanel{margin-top:16px;padding:12px;border:1px solid #d7d7db;border-radius:14px;background:#fff}
+.savedMatchAnalysisBody{margin-top:14px}
 .h2hContext{margin-top:9px;padding:9px 10px;border-radius:10px;background:#f6f6f8;color:#555;font-size:12px;line-height:1.4}
 .h2hCompare{overflow-x:auto}.h2hCompare th:first-child,.h2hCompare td:first-child{text-align:left;white-space:nowrap}
 .h2hCompare th:not(:first-child),.h2hCompare td:not(:first-child){min-width:86px;text-align:right}
@@ -188,8 +191,8 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
       <div class="small">Для просмотра старых матчей выберите соперника в статистике (пометка «архив»).</div>
     </div>
     <div id="setupOpponentPlan" class="opponentPlanPreview hidden" data-i18n-ignore>
-      <div id="setupOpponentPlanTitle" class="opponentPlanTitle"></div>
-      <div id="setupOpponentPlanBody"></div>
+      <button id="setupOpponentPlanToggleBtn" style="width:100%;min-height:48px"></button>
+      <div id="setupOpponentPlanBody" class="setupOpponentPlanBody hidden"></div>
     </div>
     <div class="spacer"></div>
     <button id="startBtn" class="primary" style="width:100%">НАЧАТЬ МАТЧ</button>
@@ -298,6 +301,38 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
 
     Статистика матча
 
+  </div>
+
+  <div id="savedMatchAnalysisPanel" class="savedMatchAnalysisPanel hidden" data-i18n-ignore>
+    <button id="savedMatchAnalysisToggleBtn" style="width:100%;min-height:50px"></button>
+    <div id="savedMatchAnalysisBody" class="savedMatchAnalysisBody hidden">
+      <div class="section" id="savedMatchAnalysisTitle"></div>
+      <div class="small" id="savedMatchAnalysisIntro"></div>
+      <label class="analysisHubSelect">
+        <span class="small" id="savedMatchAnalysisModeLabel"></span>
+        <select id="savedMatchAnalysisModeSelect"></select>
+      </label>
+      <div id="savedMatchAnalysisModeDescription" class="analysisHubDescription small"></div>
+      <div class="chatGptShareActions">
+        <button id="savedMatchAnalysisCopyBtn" class="primary"></button>
+        <button id="savedMatchAnalysisShareBtn"></button>
+      </div>
+      <div id="savedMatchAnalysisHistoryStatus" class="h2hContext"></div>
+      <div id="savedMatchAnalysisFreeNote" class="small" style="margin-top:9px"></div>
+      <div id="savedMatchAnalysisShareStatus" class="chatGptShareStatus" aria-live="polite"></div>
+      <div class="analysisHubDivider"></div>
+      <div class="section" id="savedMatchAiTitle"></div>
+      <div class="small" id="savedMatchAiDescription"></div>
+      <div id="savedMatchAiDataQuality" class="aiCoachNotice"></div>
+      <button id="savedMatchAiRequestBtn" class="primary" style="width:100%;min-height:50px"></button>
+      <div class="small" id="savedMatchAiCostNote" style="margin-top:8px"></div>
+      <div id="savedMatchAiStatus" class="aiCoachStatus"></div>
+      <div id="savedMatchAiResult" class="aiCoachResult hidden">
+        <div id="savedMatchAiSummary" class="aiCoachSummary"></div>
+        <div id="savedMatchAiTips"></div>
+        <div id="savedMatchAiMeta" class="small" style="margin-top:10px"></div>
+      </div>
+    </div>
   </div>
 
   <div id="selectedMatchContent"></div>
@@ -1437,6 +1472,8 @@ const OPPONENT_COACH_PROFILE_KEY="coach_profile_v1";
 
 let matchOpponentPlanOpen=false;
 
+let setupOpponentPlanOpen=false;
+
 function normalizePlayerProfiles(profiles){
 
   if(!Array.isArray(profiles))return [];
@@ -1772,16 +1809,27 @@ function renderOpponentProfileRows(container,opponent,showEmpty=false){
 function renderSetupOpponentPlan(){
 
   const card=document.getElementById("setupOpponentPlan");
-  const title=document.getElementById("setupOpponentPlanTitle");
+  const button=document.getElementById("setupOpponentPlanToggleBtn");
   const body=document.getElementById("setupOpponentPlanBody");
-  if(!card || !title || !body)return;
+  if(!card || !button || !body)return;
 
   const opponent=selectedOpponentProfile();
   card.classList.toggle("hidden",!opponent);
   if(!opponent)return;
 
-  title.textContent=opponentProfileUi().title(opponent.display_name);
+  const text=opponentProfileUi();
+  button.textContent=setupOpponentPlanOpen
+    ? text.hide
+    : text.show(opponent.display_name);
+  body.classList.toggle("hidden",!setupOpponentPlanOpen);
   renderOpponentProfileRows(body,opponent,true);
+
+}
+
+function toggleSetupOpponentPlan(){
+
+  setupOpponentPlanOpen=!setupOpponentPlanOpen;
+  renderSetupOpponentPlan();
 
 }
 
@@ -2014,9 +2062,14 @@ function updateStartButton(){
 
 function chooseOpponentProfile(opponentId){
 
+  const previousOpponentId=selectedOpponentProfileId;
   const opponent=opponentProfileById(opponentId);
 
   selectedOpponentProfileId=opponent?.id || null;
+
+  if(previousOpponentId!==selectedOpponentProfileId){
+    setupOpponentPlanOpen=false;
+  }
 
   const select=document.getElementById(
 
@@ -2123,6 +2176,10 @@ function renderOpponentProfiles(
     opponentProfileById(storedOpponentId(playerProfileId)) ||
 
     null;
+
+  if(selectedOpponentProfileId!==candidate?.id){
+    setupOpponentPlanOpen=false;
+  }
 
   selectedOpponentProfileId=candidate?.id || null;
 
@@ -3281,7 +3338,13 @@ function choosePlayerProfile(profileId){
 
     selectedOpponentProfileId=null;
 
+    setupOpponentPlanOpen=false;
+
     selectedStatsOpponentProfileId=null;
+
+    document.getElementById("selectedMatchDetails")?.classList.add("hidden");
+
+    closeSavedMatchAnalysis();
 
     currentStatsH2HSummary=null;
 
@@ -4873,6 +4936,20 @@ let analysisHubHistoryError="";
 let analysisHubHistoryCache=null;
 let analysisHubMatchKey="";
 
+let selectedSavedMatch=null;
+let savedMatchAnalysisOpen=false;
+let savedMatchAnalysisMode="plan_review";
+let savedMatchAnalysisShareStatusKey="";
+let savedMatchAnalysisShareFingerprint="";
+let savedMatchAnalysisHistoryLoading=false;
+let savedMatchAnalysisHistoryError="";
+let savedMatchAnalysisHistoryCache=null;
+let savedMatchAiAdvice=null;
+let savedMatchAiLoading=false;
+let savedMatchAiError="";
+let savedMatchAiRequestFingerprint="";
+let savedMatchAiRequestSequence=0;
+
 function analysisHubText(key,values={}){
   const language=window.TennisI18n?.getLanguage?.() || "ru";
   const template=ANALYSIS_HUB_TEXT[language]?.[key] || ANALYSIS_HUB_TEXT.ru[key] || key;
@@ -5504,6 +5581,459 @@ async function shareAnalysisHubForChatGpt(){
   }
 }
 
+function savedMatchAnalysisKey(match=selectedSavedMatch){
+  return String(match?.sets?.sync_id || match?.id || "").trim();
+}
+
+function savedMatchAnalysisContext(){
+  const match=selectedSavedMatch;
+  const profile=selectedPlayerProfile();
+  if(!match || !profile)return null;
+
+  const playerIndex=h2hPlayerIndex(match,profile);
+  if(playerIndex===null)return null;
+  const opponentIndex=1-playerIndex;
+  const playerName=chatGptCleanName(
+    playerIndex===0?match.player1:match.player2,
+    profile.display_name || "Player"
+  );
+  const opponentName=chatGptCleanName(
+    opponentIndex===0?match.player1:match.player2,
+    "Opponent"
+  );
+  const opponentProfileId=typeof match.opponent_profile_id==="string"
+    ? match.opponent_profile_id
+    : null;
+  const opponent=statsOpponentProfileById(opponentProfileId) || {
+    id:opponentProfileId,
+    player_profile_id:profile.id,
+    display_name:opponentName,
+    handedness:"unknown",
+    coach_notes:"",
+    metadata:{}
+  };
+  const rawSetScore=Array.isArray(match?.sets?.score)
+    ? match.sets.score
+    : [0,0];
+  const setScores=(Array.isArray(match?.sets?.set_scores)
+    ? match.sets.set_scores
+    : []).map(score=>Array.isArray(score)
+      ? [chatGptCount(score[playerIndex]),chatGptCount(score[opponentIndex])]
+      : null
+    ).filter(Boolean);
+  const tieBreakScores=(Array.isArray(match?.sets?.tie_break_scores)
+    ? match.sets.tie_break_scores
+    : []).map(score=>Array.isArray(score)
+      ? [chatGptCount(score[playerIndex]),chatGptCount(score[opponentIndex])]
+      : null
+    );
+  const setStats=Array.isArray(match?.sets?.stats)
+    ? match.sets.stats
+    : [];
+  const points=Array.isArray(match?.points)
+    ? match.points
+    : Array.isArray(match?.sets?.log)?match.sets.log:[];
+  const playerStats=aiCoachStats(h2hStatsAt(match,playerIndex));
+  const opponentStats=aiCoachStats(h2hStatsAt(match,opponentIndex));
+  const winnerIndex=h2hWinnerIndex(match);
+  const rallies={total:0,short:0,medium:0,long:0,longWon:0};
+  points.forEach(point=>{
+    const bucket=point?.rally;
+    if(!["0-4","5-8","9+"].includes(bucket))return;
+    rallies.total++;
+    if(bucket==="0-4")rallies.short++;
+    else if(bucket==="5-8")rallies.medium++;
+    else{
+      rallies.long++;
+      if(h2hPointWinnerIndex(point,match)===playerIndex)rallies.longWon++;
+    }
+  });
+
+  return {
+    match,profile,opponent,playerIndex,opponentIndex,
+    playerName,opponentName,
+    playerProfileId:profile.id,
+    opponentProfileId,
+    sets:[
+      chatGptCount(rawSetScore[playerIndex]),
+      chatGptCount(rawSetScore[opponentIndex])
+    ],
+    setScores,tieBreakScores,setStats,points,
+    playerStats,opponentStats,rallies,
+    winnerIndex,
+    result:winnerIndex===null?"—":winnerIndex===playerIndex?"W":"L",
+    score:h2hScoreForPlayer(match,playerIndex),
+    date:/^\d{4}-\d{2}-\d{2}/.test(match?.created_at||"")
+      ? String(match.created_at).slice(0,10)
+      : "—",
+    recordedPoints:Math.max(
+      points.length,
+      chatGptCount(playerStats.ptsWon)+chatGptCount(opponentStats.ptsWon)
+    )
+  };
+}
+
+function savedMatchSetSummary(context){
+  const rows=context.setScores.map((score,index)=>{
+    let scoreText=score[0]+"–"+score[1];
+    const tieBreak=context.tieBreakScores[index];
+    if(
+      Array.isArray(tieBreak) &&
+      Math.max(score[0],score[1])===7 &&
+      Math.min(score[0],score[1])===6
+    )scoreText+=" ("+tieBreak[0]+"–"+tieBreak[1]+")";
+    const pair=context.setStats[index];
+    const player=pair?.[context.playerIndex] || emptyStats();
+    const opponent=pair?.[context.opponentIndex] || emptyStats();
+    return "- Set "+(index+1)+" ("+scoreText+"): Points "+
+      context.playerName+" "+chatGptCount(player.ptsWon)+"–"+
+      chatGptCount(opponent.ptsWon)+" "+context.opponentName+
+      "; 1st Serve "+pct(player.fi,player.sp)+"–"+pct(opponent.fi,opponent.sp)+
+      "; Winners/UE "+
+      (chatGptCount(player.fhw)+chatGptCount(player.bhw))+"/"+
+      (chatGptCount(player.fhue)+chatGptCount(player.bhue))+"–"+
+      (chatGptCount(opponent.fhw)+chatGptCount(opponent.bhw))+"/"+
+      (chatGptCount(opponent.fhue)+chatGptCount(opponent.bhue));
+  });
+  return rows.length?rows.join("\n"):"- "+chatGptShareText("noSets");
+}
+
+function savedMatchRallySummary(context){
+  const buckets=["0-4","5-8","9+"];
+  const rows=buckets.map(bucket=>{
+    const points=context.points.filter(point=>point?.rally===bucket);
+    const playerWins=points.filter(point=>
+      h2hPointWinnerIndex(point,context.match)===context.playerIndex
+    ).length;
+    const opponentWins=points.filter(point=>
+      h2hPointWinnerIndex(point,context.match)===context.opponentIndex
+    ).length;
+    return "- "+bucket+": "+points.length+" total; "+
+      context.playerName+" "+playerWins+", "+context.opponentName+" "+opponentWins;
+  });
+  return context.rallies.total?rows.join("\n"):chatGptShareText("noRallies");
+}
+
+function savedMatchCurrentEntry(context){
+  return {
+    date:context.date,
+    opponent:context.opponentName,
+    result:context.result,
+    score:context.score,
+    setsWon:context.sets[0],
+    setsLost:context.sets[1],
+    stats:context.playerStats,
+    detailed:context.recordedPoints>0,
+    current:false,
+    selected:true,
+    playerName:context.playerName
+  };
+}
+
+function savedMatchHistoryCacheKey(context){
+  return [context.playerProfileId,savedMatchAnalysisKey(context.match)].join(":");
+}
+
+async function loadSavedMatchAnalysisHistory(){
+  const context=savedMatchAnalysisContext();
+  if(!context)return {entries:[],h2h:null};
+  const key=savedMatchHistoryCacheKey(context);
+  if(savedMatchAnalysisHistoryCache?.key===key)return savedMatchAnalysisHistoryCache;
+
+  savedMatchAnalysisHistoryLoading=true;
+  savedMatchAnalysisHistoryError="";
+  renderSavedMatchAnalysis();
+  try{
+    if(!window.TENNIS_INIT_DATA)throw new Error("Telegram authorization is unavailable");
+    if(!navigator.onLine)throw new Error("Offline");
+    const allMatches=(await listPlayerMatches(context.playerProfileId))
+      .filter(match=>
+        matchBelongsToPlayerProfile(match,context.profile) &&
+        match?.sets?.include_in_stats!==false
+      )
+      .sort((a,b)=>(Date.parse(b?.created_at||"")||0)-(Date.parse(a?.created_at||"")||0));
+    const selectedId=String(context.match?.id||"");
+    const selectedSyncId=String(context.match?.sets?.sync_id||"");
+    const otherMatches=allMatches.filter(match=>{
+      if(selectedId && String(match?.id||"")===selectedId)return false;
+      if(selectedSyncId && String(match?.sets?.sync_id||"")===selectedSyncId)return false;
+      return true;
+    });
+    const entries=otherMatches
+      .map(match=>analysisHubStoredEntry(match,context.profile))
+      .filter(Boolean);
+    const h2h=context.opponentProfileId
+      ? buildH2HSummary(allMatches,context.profile,context.opponent)
+      : null;
+    savedMatchAnalysisHistoryCache={key,entries,h2h};
+    if(h2h)saveCachedH2H(h2h);
+    return savedMatchAnalysisHistoryCache;
+  }catch(error){
+    console.warn("Saved-match analysis history load failed",error);
+    savedMatchAnalysisHistoryError=String(error?.message||"History unavailable");
+    const h2h=loadCachedH2H(context.playerProfileId,context.opponentProfileId);
+    savedMatchAnalysisHistoryCache={key,entries:[],h2h};
+    return savedMatchAnalysisHistoryCache;
+  }finally{
+    savedMatchAnalysisHistoryLoading=false;
+    renderSavedMatchAnalysis();
+  }
+}
+
+function savedMatchHistoryBlock(context,entries,historyError){
+  const recent=entries.slice(0,5);
+  const previous=entries.slice(5,10);
+  const selected=savedMatchCurrentEntry(context);
+  const list=entries.slice(0,10).map(entry=>
+    "- "+entry.date+": "+entry.result+"; vs "+entry.opponent+
+    "; score "+entry.score+"; detailed stats "+(entry.detailed?"yes":"no")
+  );
+  return [
+    "PLAYER PROGRESS HISTORY",
+    "- The selected match is shown above as a separate reference match.",
+    "- Selected match: "+selected.date+"; "+selected.result+"; vs "+
+      selected.opponent+"; score "+selected.score+".",
+    "- Other saved matches available: "+entries.length,
+    "- History loading error: "+(historyError?"yes":"no"),
+    "",
+    analysisHubWindowBlock("RECENT WINDOW (up to 5 newest saved matches, excludes selected match)",recent,context.playerName),
+    "",
+    analysisHubWindowBlock("PREVIOUS WINDOW (next up to 5 saved matches)",previous,context.playerName),
+    "",
+    "RECENT MATCH LIST (selected match is listed separately above)",
+    ...(list.length?list:["- No other matches available."])
+  ].join("\n");
+}
+
+function buildSavedMatchBasePrompt(context,options={},h2h=null){
+  const extraBlocks=Array.isArray(options.extraBlocks)
+    ? options.extraBlocks.filter(Boolean)
+    : [];
+  return [
+    options.intro || analysisHubText("planIntro"),
+    "",
+    "SELECTED SAVED MATCH",
+    "- Date: "+context.date,
+    "- Players: "+context.playerName+" vs "+context.opponentName,
+    "- Status: completed",
+    "- Result for "+context.playerName+": "+context.result,
+    "- Sets: "+context.sets[0]+"–"+context.sets[1],
+    "- Completed set scores: "+(context.score||"—"),
+    "- Recorded points: "+context.recordedPoints,
+    "",
+    "MATCH TOTAL",
+    chatGptPlayerStats(context.playerName,context.playerStats),
+    "",
+    chatGptPlayerStats(context.opponentName,context.opponentStats),
+    "",
+    "BY SET",
+    savedMatchSetSummary(context),
+    "",
+    "RALLY LENGTH (winner count)",
+    savedMatchRallySummary(context),
+    "",
+    chatGptOpponentProfileBlock(context.opponent),
+    "",
+    chatGptH2HDataBlock(h2h,context.playerName,context.opponentName),
+    ...extraBlocks.flatMap(block=>["",block]),
+    "",
+    options.task || analysisHubText("planTask")
+  ].join("\n");
+}
+
+async function buildSavedMatchAnalysisPrompt(){
+  const context=savedMatchAnalysisContext();
+  if(!context)throw new Error("Saved match is unavailable");
+  const history=await loadSavedMatchAnalysisHistory();
+  if(savedMatchAnalysisMode==="plan_review"){
+    return buildSavedMatchBasePrompt(context,{
+      intro:analysisHubText("planIntro"),
+      task:analysisHubText("planTask")
+    },history.h2h);
+  }
+  return buildSavedMatchBasePrompt(context,{
+    intro:analysisHubText(
+      savedMatchAnalysisMode==="progress"?"progressIntro":"trainingIntro"
+    ),
+    extraBlocks:[savedMatchHistoryBlock(
+      context,history.entries||[],savedMatchAnalysisHistoryError
+    )],
+    task:analysisHubText(
+      savedMatchAnalysisMode==="progress"?"progressTask":"trainingTask"
+    )
+  },history.h2h);
+}
+
+function savedMatchAnalysisFingerprint(){
+  const context=savedMatchAnalysisContext();
+  return JSON.stringify({
+    match:savedMatchAnalysisKey(),
+    mode:savedMatchAnalysisMode,
+    stats:context?.playerStats,
+    opponentStats:context?.opponentStats,
+    opponent:opponentProfileFingerprint(context?.opponent),
+    historyKey:savedMatchAnalysisHistoryCache?.key||"",
+    historyCount:savedMatchAnalysisHistoryCache?.entries?.length||0
+  });
+}
+
+function resetSavedMatchAiState(){
+  savedMatchAiRequestSequence++;
+  savedMatchAiAdvice=null;
+  savedMatchAiLoading=false;
+  savedMatchAiError="";
+  savedMatchAiRequestFingerprint="";
+}
+
+function selectSavedMatchAnalysis(match){
+  selectedSavedMatch=match || null;
+  savedMatchAnalysisOpen=false;
+  savedMatchAnalysisShareStatusKey="";
+  savedMatchAnalysisShareFingerprint="";
+  savedMatchAnalysisHistoryLoading=false;
+  savedMatchAnalysisHistoryError="";
+  savedMatchAnalysisHistoryCache=null;
+  resetSavedMatchAiState();
+  const context=savedMatchAnalysisContext();
+  savedMatchAnalysisMode=opponentCoachProfile(context?.opponent).pre_match_plan
+    ? "plan_review"
+    : "progress";
+  renderSavedMatchAnalysis();
+}
+
+function closeSavedMatchAnalysis(){
+  selectedSavedMatch=null;
+  savedMatchAnalysisOpen=false;
+  savedMatchAnalysisHistoryCache=null;
+  savedMatchAnalysisHistoryError="";
+  savedMatchAnalysisShareStatusKey="";
+  resetSavedMatchAiState();
+  renderSavedMatchAnalysis();
+}
+
+function toggleSavedMatchAnalysis(){
+  savedMatchAnalysisOpen=!savedMatchAnalysisOpen;
+  renderSavedMatchAnalysis();
+}
+
+function selectSavedMatchAnalysisMode(value){
+  if(!ANALYSIS_HUB_MODES.includes(value))return;
+  savedMatchAnalysisMode=value;
+  savedMatchAnalysisShareStatusKey="";
+  savedMatchAnalysisShareFingerprint="";
+  resetSavedMatchAiState();
+  renderSavedMatchAnalysis();
+}
+
+function renderSavedMatchAnalysis(){
+  const panel=$("savedMatchAnalysisPanel");
+  const toggle=$("savedMatchAnalysisToggleBtn");
+  const body=$("savedMatchAnalysisBody");
+  if(!panel||!toggle||!body)return;
+  const context=savedMatchAnalysisContext();
+  panel.classList.toggle("hidden",!context);
+  if(!context)return;
+
+  toggle.textContent=analysisHubText(savedMatchAnalysisOpen?"hide":"show");
+  body.classList.toggle("hidden",!savedMatchAnalysisOpen);
+  $("savedMatchAnalysisTitle").textContent=analysisHubText("title");
+  $("savedMatchAnalysisIntro").textContent=analysisHubText("intro");
+  $("savedMatchAnalysisModeLabel").textContent=analysisHubText("modeLabel");
+  const select=$("savedMatchAnalysisModeSelect");
+  select.replaceChildren(...ANALYSIS_HUB_MODES.map(mode=>{
+    const option=document.createElement("option");
+    option.value=mode;
+    option.textContent=analysisHubText(mode);
+    return option;
+  }));
+  select.value=savedMatchAnalysisMode;
+  $("savedMatchAnalysisModeDescription").textContent=analysisHubText(
+    savedMatchAnalysisMode==="plan_review"
+      ? "planDescription"
+      : savedMatchAnalysisMode==="progress"?"progressDescription":"trainingDescription"
+  );
+  $("savedMatchAnalysisCopyBtn").textContent=analysisHubText("copyButton");
+  $("savedMatchAnalysisShareBtn").textContent=analysisHubText("shareButton");
+  $("savedMatchAnalysisFreeNote").textContent=analysisHubText("freeNote");
+
+  const historyStatus=$("savedMatchAnalysisHistoryStatus");
+  if(savedMatchAnalysisHistoryLoading){
+    historyStatus.textContent=analysisHubText("historyLoading");
+  }else if(savedMatchAnalysisHistoryError){
+    historyStatus.textContent=analysisHubText("historyError");
+  }else if(savedMatchAnalysisHistoryCache){
+    const entries=savedMatchAnalysisHistoryCache.entries||[];
+    const detailed=entries.filter(entry=>entry.detailed).length;
+    historyStatus.textContent=savedMatchAnalysisMode==="plan_review"
+      ? analysisHubText("historyPlan")
+      : entries.length
+        ? analysisHubText("historyReady",{matches:entries.length+1,detailed:detailed+1})
+        : analysisHubText("historyEmpty");
+  }else{
+    historyStatus.textContent=savedMatchAnalysisMode==="plan_review"
+      ? analysisHubText("historyPlan")
+      : analysisHubText("historyPending");
+  }
+
+  let statusKey=savedMatchAnalysisShareStatusKey;
+  if(
+    ["copied","shared","fallbackCopied"].includes(statusKey) &&
+    savedMatchAnalysisShareFingerprint &&
+    savedMatchAnalysisShareFingerprint!==savedMatchAnalysisFingerprint()
+  )statusKey="changed";
+  const status=$("savedMatchAnalysisShareStatus");
+  status.textContent=statusKey?analysisHubText(statusKey):"";
+  status.className="chatGptShareStatus";
+  if(["copyError","shareError"].includes(statusKey))status.classList.add("error");
+  if(["copied","shared","fallbackCopied"].includes(statusKey))status.classList.add("success");
+  renderSavedMatchAiCoach();
+}
+
+function setSavedMatchAnalysisShareStatus(key){
+  savedMatchAnalysisShareStatusKey=key;
+  savedMatchAnalysisShareFingerprint=savedMatchAnalysisFingerprint();
+  renderSavedMatchAnalysis();
+}
+
+async function copySavedMatchAnalysisForChatGpt(){
+  const button=$("savedMatchAnalysisCopyBtn");
+  if(button)button.disabled=true;
+  try{
+    const copied=await copyChatGptText(await buildSavedMatchAnalysisPrompt());
+    setSavedMatchAnalysisShareStatus(copied?"copied":"copyError");
+  }catch(error){
+    console.error("Saved-match analysis copy failed",error);
+    setSavedMatchAnalysisShareStatus("copyError");
+  }finally{
+    if(button)button.disabled=false;
+  }
+}
+
+async function shareSavedMatchAnalysisForChatGpt(){
+  const button=$("savedMatchAnalysisShareBtn");
+  if(button)button.disabled=true;
+  try{
+    const text=await buildSavedMatchAnalysisPrompt();
+    if(typeof navigator.share==="function"){
+      try{
+        await navigator.share({title:analysisHubText("shareTitle"),text});
+        setSavedMatchAnalysisShareStatus("shared");
+        return;
+      }catch(error){
+        if(error?.name==="AbortError")return;
+        console.warn("Saved-match share failed; trying clipboard",error);
+      }
+    }
+    const copied=await copyChatGptText(text);
+    setSavedMatchAnalysisShareStatus(copied?"fallbackCopied":"shareError");
+  }catch(error){
+    console.error("Saved-match analysis share failed",error);
+    setSavedMatchAnalysisShareStatus("shareError");
+  }finally{
+    if(button)button.disabled=false;
+  }
+}
+
 async function copyChatGptText(text){
   try{
     if(navigator.clipboard?.writeText){
@@ -6029,6 +6559,254 @@ async function requestAiCoach(){
     if(requestId===aiCoachRequestSequence){
       aiCoachLoading=false;
       renderAiCoach();
+    }
+  }
+}
+
+function savedMatchAiDataQuality(){
+  const context=savedMatchAnalysisContext();
+  const recorded=context?.recordedPoints || 0;
+  if(recorded<AI_COACH_MIN_POINTS){
+    return {
+      points:recorded,ready:false,tone:"bad",
+      text:aiCoachText("qualityInsufficient",{points:recorded})
+    };
+  }
+  if(recorded<12){
+    return {
+      points:recorded,ready:true,tone:"warn",
+      text:aiCoachText("qualityBasic",{points:recorded})
+    };
+  }
+  if(recorded<30){
+    return {
+      points:recorded,ready:true,tone:"good",
+      text:aiCoachText("qualitySufficient",{points:recorded})
+    };
+  }
+  return {
+    points:recorded,ready:true,tone:"good",
+    text:aiCoachText("qualityGood",{points:recorded})
+  };
+}
+
+function savedMatchAiKey(){
+  const context=savedMatchAnalysisContext();
+  return "saved:"+(
+    savedMatchAnalysisKey(context?.match) ||
+    [context?.playerProfileId||"player",context?.opponentProfileId||"opponent",context?.date||"date"].join(":")
+  );
+}
+
+function savedMatchAiUsageCount(){
+  const state=aiCoachUsageState();
+  return aiCoachSafeCount(state.matches[savedMatchAiKey()] || 0,1000);
+}
+
+function incrementSavedMatchAiUsage(){
+  const state=aiCoachUsageState();
+  const key=savedMatchAiKey();
+  state.matches[key]=aiCoachSafeCount(state.matches[key] || 0,999)+1;
+  try{localStorage.setItem(AI_COACH_USAGE_KEY,JSON.stringify(state))}catch(error){
+    console.warn("Saved-match AI Coach usage counter save failed",error);
+  }
+}
+
+function savedMatchAiFingerprint(){
+  const context=savedMatchAnalysisContext();
+  return JSON.stringify({
+    match:savedMatchAnalysisKey(context?.match),
+    mode:savedMatchAnalysisMode,
+    player:context?.playerStats,
+    opponent:context?.opponentStats,
+    rallies:context?.rallies
+  });
+}
+
+function savedMatchAiPayload(){
+  const context=savedMatchAnalysisContext();
+  if(!context)return null;
+  return {
+    player_profile_id:context.playerProfileId,
+    opponent_profile_id:context.opponentProfileId,
+    language:window.TennisI18n?.getLanguage?.() || "ru",
+    analysis_mode:savedMatchAnalysisMode,
+    current_match_key:savedMatchAnalysisKey(context.match) || null,
+    current_match:{
+      sets:[
+        aiCoachSafeCount(context.sets[0],5),
+        aiCoachSafeCount(context.sets[1],5)
+      ],
+      games:[0,0],
+      points:[0,0],
+      server_index:0,
+      serve_number:1,
+      tie_break:false,
+      match_over:true,
+      player:aiCoachStats(context.playerStats),
+      opponent:aiCoachStats(context.opponentStats),
+      rallies:{
+        short:context.rallies.short,
+        medium:context.rallies.medium,
+        long:context.rallies.long,
+        long_won:context.rallies.longWon
+      }
+    }
+  };
+}
+
+function renderSavedMatchAiCoach(){
+  const button=$("savedMatchAiRequestBtn");
+  if(!button)return;
+  const context=savedMatchAnalysisContext();
+  if(!context)return;
+  const quality=savedMatchAiDataQuality();
+  $("savedMatchAiTitle").textContent=aiCoachText("title");
+  const descriptionKey=savedMatchAnalysisMode==="plan_review"
+    ? "planReviewDescription"
+    : savedMatchAnalysisMode==="progress"?"progressDescription":"trainingDescription";
+  $("savedMatchAiDescription").textContent=aiCoachText(descriptionKey);
+  const qualityBox=$("savedMatchAiDataQuality");
+  qualityBox.className="aiCoachNotice "+quality.tone;
+  qualityBox.textContent=quality.text;
+  const requestKey=savedMatchAnalysisMode==="plan_review"
+    ? "requestPlanReview"
+    : savedMatchAnalysisMode==="progress"?"requestProgress":"requestTraining";
+  button.textContent=savedMatchAiLoading
+    ? aiCoachText("loading")
+    : aiCoachText(requestKey);
+  button.disabled=!!(
+    savedMatchAiLoading || !navigator.onLine || !window.TENNIS_INIT_DATA ||
+    !context.playerProfileId || !context.opponentProfileId || !quality.ready
+  );
+  $("savedMatchAiCostNote").textContent=
+    aiCoachText("cost")+" "+aiCoachText("usage",{count:savedMatchAiUsageCount()});
+
+  const status=$("savedMatchAiStatus");
+  status.className="aiCoachStatus";
+  if(savedMatchAiLoading){
+    status.textContent=aiCoachText("loading");
+  }else if(savedMatchAiError){
+    status.textContent=savedMatchAiError;
+    status.classList.add("error");
+  }else if(!navigator.onLine){
+    status.textContent=aiCoachText("offline");
+  }else if(!window.TENNIS_INIT_DATA){
+    status.textContent=aiCoachText("auth");
+  }else if(!context.playerProfileId || !context.opponentProfileId){
+    status.textContent=aiCoachText("profiles");
+  }else if(!quality.ready){
+    status.textContent=aiCoachText("lowData");
+  }else if(
+    savedMatchAiAdvice &&
+    savedMatchAiRequestFingerprint!==savedMatchAiFingerprint()
+  ){
+    status.textContent=aiCoachText("stale");
+  }else{
+    status.textContent="";
+  }
+
+  const result=$("savedMatchAiResult");
+  result.classList.toggle("hidden",!savedMatchAiAdvice);
+  if(!savedMatchAiAdvice)return;
+  $("savedMatchAiSummary").textContent=savedMatchAiAdvice.summary;
+  const tips=$("savedMatchAiTips");
+  tips.replaceChildren(...savedMatchAiAdvice.tips.map(tip=>{
+    const item=document.createElement("div");
+    item.className="aiCoachTip "+tip.priority;
+    const title=document.createElement("div");
+    title.className="aiCoachTipTitle";
+    const priorityKey=tip.priority==="high"
+      ? "priorityHigh"
+      : tip.priority==="positive"?"priorityPositive":"priorityMedium";
+    title.textContent=aiCoachText(priorityKey)+" · "+tip.title;
+    const advice=document.createElement("div");
+    advice.textContent=tip.advice;
+    const evidence=document.createElement("div");
+    evidence.className="aiCoachEvidence";
+    evidence.textContent=aiCoachText("evidence")+": "+tip.evidence;
+    item.append(title,advice,evidence);
+    return item;
+  }));
+  const generated=new Date(savedMatchAiAdvice.generatedAt);
+  $("savedMatchAiMeta").textContent=Number.isNaN(generated.getTime())
+    ? ""
+    : aiCoachText("generated",{time:generated.toLocaleTimeString(
+      window.TennisI18n?.localeTag?.() || "ru-RU",{hour:"2-digit",minute:"2-digit"}
+    )});
+}
+
+async function requestSavedMatchAiCoach(){
+  if(savedMatchAiLoading)return;
+  const context=savedMatchAnalysisContext();
+  const quality=savedMatchAiDataQuality();
+  if(!context)return;
+  if(!navigator.onLine){alert(aiCoachText("offline"));return}
+  if(!window.TENNIS_INIT_DATA){alert(aiCoachText("auth"));return}
+  if(!context.playerProfileId || !context.opponentProfileId){
+    alert(aiCoachText("profiles"));
+    return;
+  }
+  if(!quality.ready){alert(aiCoachText("lowData"));return}
+  if(!confirm(aiCoachText("confirm")))return;
+
+  const requestId=++savedMatchAiRequestSequence;
+  const fingerprint=savedMatchAiFingerprint();
+  savedMatchAiLoading=true;
+  savedMatchAiError="";
+  renderSavedMatchAiCoach();
+  try{
+    const response=await fetch(AI_COACH_API,{
+      method:"POST",
+      headers:{
+        "Content-Type":"application/json",
+        "X-Telegram-Init-Data":window.TENNIS_INIT_DATA
+      },
+      body:JSON.stringify(savedMatchAiPayload())
+    });
+    const result=await response.json().catch(()=>({}));
+    if(!response.ok){
+      const error=new Error(result?.error?.message || "AI Coach request failed");
+      error.code=result?.error?.code || "ai_request_failed";
+      throw error;
+    }
+    if(
+      typeof result.summary!=="string" || !result.summary.trim() ||
+      !Array.isArray(result.tips) || result.tips.length<1 || result.tips.length>3
+    ){
+      const error=new Error("Invalid AI Coach response");
+      error.code="ai_invalid_response";
+      throw error;
+    }
+    const tips=result.tips.map(tip=>({
+      priority:["high","medium","positive"].includes(tip?.priority)
+        ? tip.priority
+        : "medium",
+      title:String(tip?.title || "").trim(),
+      advice:String(tip?.advice || "").trim(),
+      evidence:String(tip?.evidence || "").trim()
+    }));
+    if(tips.some(tip=>!tip.title || !tip.advice || !tip.evidence)){
+      const error=new Error("Invalid AI Coach response");
+      error.code="ai_invalid_response";
+      throw error;
+    }
+    if(requestId!==savedMatchAiRequestSequence)return;
+    savedMatchAiAdvice={
+      summary:result.summary.trim(),
+      tips,
+      generatedAt:result.generated_at || new Date().toISOString()
+    };
+    savedMatchAiRequestFingerprint=fingerprint;
+    incrementSavedMatchAiUsage();
+  }catch(error){
+    if(requestId!==savedMatchAiRequestSequence)return;
+    console.error("Saved-match AI Coach request error",error);
+    savedMatchAiError=aiCoachErrorText(error?.code);
+  }finally{
+    if(requestId===savedMatchAiRequestSequence){
+      savedMatchAiLoading=false;
+      renderSavedMatchAiCoach();
     }
   }
 }
@@ -6627,6 +7405,8 @@ async function newMatch(){
   liveMatchLastUpdatedAt=null;
   liveMatchRefreshError="";
   clearLocal();S=defaultState();resetAiCoachState();
+  setupOpponentPlanOpen=false;
+  renderSetupOpponentPlan();
   $("resumeBox").classList.add("hidden");
   $("matchScreen").classList.add("hidden");
   $("serverScreen").classList.add("hidden");
@@ -6645,6 +7425,10 @@ async function loadPlayerMatchesManager(){
   const manager=$("playerMatchesManager");
 
   const box=$("playerMatchesList");
+
+  $("selectedMatchDetails")?.classList.add("hidden");
+
+  closeSavedMatchAnalysis();
 
   if(!name){
 
@@ -6740,7 +7524,7 @@ async function loadPlayerMatchesManager(){
 
             type="checkbox"
 
-            data-stats-match-id="${m.id}"
+            data-stats-match-id="${esc(m.id)}"
 
             ${included?"checked":""}
 
@@ -6762,7 +7546,7 @@ async function loadPlayerMatchesManager(){
 
   type="button"
 
-  data-open-match-id="${m.id}"
+  data-open-match-id="${esc(m.id)}"
 
   style="min-height:38px;padding:7px 12px"
 
@@ -6797,7 +7581,7 @@ async function openPlayerMatchDetails(matchId){
 
   const match=playerStatsMatchesCache.find(
 
-    m=>Number(m.id)===Number(matchId)
+    m=>String(m.id)===String(matchId)
 
   );
 
@@ -9017,6 +9801,8 @@ ${buildRecommendationsBox(
 
   `;
 
+  selectSavedMatchAnalysis(match);
+
   details.classList.remove("hidden");
 
   details.scrollIntoView({
@@ -9052,11 +9838,11 @@ async function savePlayerStatsSelection(){
 
     for(const checkbox of boxes){
 
-      const id=Number(checkbox.dataset.statsMatchId);
+      const id=checkbox.dataset.statsMatchId;
 
       const match=playerStatsMatchesCache.find(
 
-        m=>Number(m.id)===id
+        m=>String(m.id)===String(id)
 
       );
 
@@ -9608,6 +10394,8 @@ $("startBtn").onclick=start;
 
     $("selectedMatchDetails").classList.add("hidden");
 
+    closeSavedMatchAnalysis();
+
   };
   $("managePlayerMatchesBtn").onclick=loadPlayerMatchesManager;
 
@@ -9616,6 +10404,8 @@ $("saveStatsSelectionBtn").onclick=savePlayerStatsSelection;
   $("closeMatchDetailsBtn").onclick=()=>{
 
   $("selectedMatchDetails").classList.add("hidden");
+
+  closeSavedMatchAnalysis();
 
 };
   $("playerStatsBtn").onclick=()=>{
@@ -9632,6 +10422,8 @@ $("backFromStatsBtn").onclick=()=>{
 
   $("setupScreen").classList.remove("hidden");
 
+  closeSavedMatchAnalysis();
+
 };
 $("serveP1Btn").onclick=()=>chooseServer(0);
 $("serveP2Btn").onclick=()=>chooseServer(1);
@@ -9646,11 +10438,18 @@ $("chatGptCopyBtn").onclick=copyMatchForChatGpt;
 $("chatGptShareBtn").onclick=shareMatchForChatGpt;
 $("h2hStatsCopyBtn").onclick=copyH2HStatsForChatGpt;
 $("h2hStatsShareBtn").onclick=shareH2HStatsForChatGpt;
+$("setupOpponentPlanToggleBtn").onclick=toggleSetupOpponentPlan;
 $("matchOpponentPlanToggleBtn").onclick=toggleMatchOpponentPlan;
 $("analysisHubToggleBtn").onclick=toggleAnalysisHub;
 $("analysisHubModeSelect").onchange=event=>selectAnalysisHubMode(event.target.value);
 $("analysisHubCopyBtn").onclick=copyAnalysisHubForChatGpt;
 $("analysisHubShareBtn").onclick=shareAnalysisHubForChatGpt;
+$("savedMatchAnalysisToggleBtn").onclick=toggleSavedMatchAnalysis;
+$("savedMatchAnalysisModeSelect").onchange=event=>
+  selectSavedMatchAnalysisMode(event.target.value);
+$("savedMatchAnalysisCopyBtn").onclick=copySavedMatchAnalysisForChatGpt;
+$("savedMatchAnalysisShareBtn").onclick=shareSavedMatchAnalysisForChatGpt;
+$("savedMatchAiRequestBtn").onclick=requestSavedMatchAiCoach;
 $("aiCoachRequestBtn").onclick=requestAiCoach;
 $("undoBtn").onclick=undo;
 $("changeServerBtn").onclick=changeServer;
@@ -9666,6 +10465,8 @@ window.addEventListener("online",()=>{
   updateSaveStatus();
 
   renderAiCoach();
+
+  renderSavedMatchAnalysis();
 
   if(liveMatchReadOnly){
 
@@ -9687,16 +10488,19 @@ window.addEventListener("online",()=>{
 window.addEventListener("offline",()=>{
   updateSaveStatus();
   renderAiCoach();
+  renderSavedMatchAnalysis();
 });
 
 window.addEventListener("tennis-language-change",()=>{
   resetAiCoachState();
+  resetSavedMatchAiState();
   renderSetupOpponentPlan();
   renderMatchOpponentPlan();
   renderChatGptShare();
   renderH2HStatsShare();
   renderAnalysisHub();
   renderAiCoach();
+  renderSavedMatchAnalysis();
 });
 
 document.addEventListener("visibilitychange",()=>{

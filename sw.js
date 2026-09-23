@@ -1,4 +1,4 @@
-const CACHE_NAME = "tennis-tracker-v20-opponent-delete";
+const CACHE_NAME = "tennis-tracker-v21-1-guarded-live-sync";
 
 const APP_FILES = [
 

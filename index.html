@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- UPDATED: safe permanent opponent deletion V20 -->
+<!-- UPDATED: guarded Live Match sync and recovery V21.1 -->
 <html lang="ru">
 <head>
 <meta charset="utf-8">
@@ -35,7 +35,7 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
 .opponentPlanPreview{margin:12px 0;padding:12px;border:1px solid #d7d7db;border-radius:14px;background:#fff}.opponentPlanTitle{font-weight:850;margin-bottom:7px}.opponentPlanRows{display:grid;gap:8px}.opponentPlanRow{padding:9px 10px;background:#f6f6f8;border-radius:10px;line-height:1.4;white-space:pre-wrap}.opponentPlanLabel{font-size:12px;color:#666;font-weight:750;margin-bottom:2px}.opponentPlanEmpty{color:#666;font-size:13px;line-height:1.4}
 .setupOpponentPlanBody{margin-top:12px}
 .matchOpponentPlan{border:1px solid #e3e3e7}.matchOpponentPlan .opponentPlanRows{margin-top:12px}
-.matchover{font-size:20px;font-weight:900;text-align:center;padding:8px 0}.historyItem{border-bottom:1px solid #eee;padding:10px 0}.historyItem:last-child{border-bottom:0}.historyTop{display:flex;justify-content:space-between;gap:8px;align-items:center}.historyScore{font-weight:850}.danger{background:#f4dddd}.muted{color:#666;font-size:12px}.savebar{display:flex;justify-content:space-between;gap:10px;align-items:center}.saveStatus{font-size:12px;font-weight:750}.resumeBox{margin-top:12px;padding:12px;background:#f6f6f8;border-radius:14px}.resumeTitle{font-weight:850;margin-bottom:4px}
+.matchover{font-size:20px;font-weight:900;text-align:center;padding:8px 0}.historyItem{border-bottom:1px solid #eee;padding:10px 0}.historyItem:last-child{border-bottom:0}.historyTop{display:flex;justify-content:space-between;gap:8px;align-items:center}.historyScore{font-weight:850}.danger{background:#f4dddd}.muted{color:#666;font-size:12px}.savebar{display:flex;justify-content:space-between;gap:10px;align-items:center}.savebar>div{min-width:0;flex:1}.saveStatus{font-size:12px;font-weight:750}.syncRetry{min-height:40px;padding:7px 10px;font-size:12px;flex:0 0 auto}.resumeBox{margin-top:12px;padding:12px;background:#f6f6f8;border-radius:14px}.resumeTitle{font-weight:850;margin-bottom:4px}
 .languageRow{display:flex;align-items:center;justify-content:flex-end;gap:8px;margin:-8px 0 14px}.languageRow .label{margin:0}.languageRow select{width:auto;min-width:132px;padding:8px 32px 8px 10px;font-size:14px}
 .quickAnalysisTips{margin:10px 0 0;padding-left:20px}.quickAnalysisTips li{margin:8px 0;line-height:1.3}
 .aiCoachNotice{border-radius:12px;padding:10px;margin:10px 0;font-size:13px;line-height:1.4;background:#f6f6f8}
@@ -387,6 +387,7 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
       <div class="saveStatus" id="saveStatus">Сохранение…</div>
       <div class="small" id="saveStatusDetail">Матч сохраняется на этом устройстве после каждого действия.</div>
     </div>
+    <button id="retryLiveSyncBtn" class="syncRetry hidden">↻ СИНХРОНИЗИРОВАТЬ</button>
   </div>
 
   <div id="matchOpponentPlanCard" class="card matchOpponentPlan hidden" data-i18n-ignore>
@@ -621,6 +622,7 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
       "Кто подаёт первым?":"Хто подає першим?",
       "Сохранение…":"Збереження…",
       "Матч сохраняется на этом устройстве после каждого действия.":"Матч зберігається на цьому пристрої після кожної дії.",
+      "↻ СИНХРОНИЗИРОВАТЬ":"↻ СИНХРОНІЗУВАТИ",
       "Быстрая запись очка":"Швидкий запис очка",
       "📈 ПОКАЗАТЬ БЫСТРЫЙ АНАЛИЗ":"📈 ПОКАЗАТИ ШВИДКИЙ АНАЛІЗ",
       "📈 СКРЫТЬ БЫСТРЫЙ АНАЛИЗ":"📈 СХОВАТИ ШВИДКИЙ АНАЛІЗ",
@@ -712,6 +714,17 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
       "Матч сохранён на устройстве и в Supabase.":"Матч збережено на пристрої та в Supabase.",
       "🟢 Сохранено на устройстве":"🟢 Збережено на пристрої",
       "Каждое действие записывается локально. История синхронизируется с Supabase при наличии интернета.":"Кожна дія записується локально. Історія синхронізується з Supabase за наявності інтернету.",
+      "🟡 LIVE · Синхронизация…":"🟡 LIVE · Синхронізація…",
+      "Последнее действие сохранено на устройстве и отправляется в Supabase.":"Останню дію збережено на пристрої та надіслано до Supabase.",
+      "🟠 LIVE · Ожидает синхронизации":"🟠 LIVE · Очікує синхронізації",
+      "Не удалось обновить Live Match в Supabase. Матч сохранён на устройстве.":"Не вдалося оновити Live Match у Supabase. Матч збережено на пристрої.",
+      "☁️ LIVE · Синхронизировано":"☁️ LIVE · Синхронізовано",
+      "Последнее состояние матча сохранено в Supabase.":"Останній стан матчу збережено в Supabase.",
+      "🟠 Матч ожидает синхронизации":"🟠 Матч очікує синхронізації",
+      "Завершённый матч сохранён на устройстве и будет отправлен в Supabase.":"Завершений матч збережено на пристрої та буде надіслано до Supabase.",
+      "Завершённый матч сохранён на устройстве и отправляется в Supabase.":"Завершений матч збережено на пристрої та надсилається до Supabase.",
+      "Сессия Telegram истекла. Откройте приложение заново через Telegram.":"Термін дії сесії Telegram минув. Відкрийте застосунок знову через Telegram.",
+      "Данные матча на устройстве и в Supabase расходятся. Чтобы не потерять очки, продолжение заблокировано. Не удаляйте сохранение.":"Дані матчу на пристрої та в Supabase відрізняються. Щоб не втратити очки, продовження заблоковано. Не видаляйте збереження.",
       "Матч завершён и сохранён на устройстве. Он автоматически синхронизируется с Supabase после появления интернета.":"Матч завершено та збережено на пристрої. Він автоматично синхронізується з Supabase після появи інтернету.",
       "Матч сохранён на устройстве, но пока не передан в Supabase. Не удаляйте данные приложения; откройте его заново через Telegram и повторите синхронизацию.":"Матч збережено на пристрої, але ще не передано до Supabase. Не видаляйте дані застосунку; відкрийте його знову через Telegram і повторіть синхронізацію.",
       "Матч завершён и сохранён на устройстве. Синхронизация с Supabase будет повторена автоматически.":"Матч завершено та збережено на пристрої. Синхронізацію з Supabase буде автоматично повторено.",
@@ -738,6 +751,13 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
       "Начать новый матч? Текущий незавершённый матч будет отменён и больше не восстановится.":"Почати новий матч? Поточний незавершений матч буде скасовано без можливості відновлення.",
       "Чтобы отменить текущий LIVE-матч, подключитесь к интернету и повторите попытку.":"Щоб скасувати поточний LIVE-матч, підключіться до інтернету та повторіть спробу.",
       "Отмена матча…":"Скасування матчу…",
+      "Синхронизация завершённого матча…":"Синхронізація завершеного матчу…",
+      "Сначала подключитесь к интернету и синхронизируйте завершённый матч.":"Спочатку підключіться до інтернету та синхронізуйте завершений матч.",
+      "Завершённый матч ещё не синхронизирован с Supabase. Повторите попытку.":"Завершений матч ще не синхронізовано із Supabase. Повторіть спробу.",
+      "Сначала продолжите или удалите сохранённый матч.":"Спочатку продовжте або видаліть збережений матч.",
+      "Сначала синхронизируйте завершённый матч, прежде чем удалять его локальную копию.":"Спочатку синхронізуйте завершений матч, перш ніж видаляти його локальну копію.",
+      "Чтобы исправить завершённый матч, подключитесь к интернету и синхронизируйте его.":"Щоб виправити завершений матч, підключіться до інтернету та синхронізуйте його.",
+      "Сначала завершите или отмените текущий матч, прежде чем исправлять сохранённый.":"Спочатку завершіть або скасуйте поточний матч, перш ніж виправляти збережений.",
       "Введите имя игрока.":"Введіть ім’я гравця.",
       "Игрок 2":"Гравець 2",
       "Supabase не подключён.":"Supabase не підключено.",
@@ -861,6 +881,7 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
       "Кто подаёт первым?":"Who serves first?",
       "Сохранение…":"Saving…",
       "Матч сохраняется на этом устройстве после каждого действия.":"The match is saved on this device after every action.",
+      "↻ СИНХРОНИЗИРОВАТЬ":"↻ SYNC NOW",
       "Быстрая запись очка":"Quick point entry",
       "📈 ПОКАЗАТЬ БЫСТРЫЙ АНАЛИЗ":"📈 SHOW QUICK ANALYSIS",
       "📈 СКРЫТЬ БЫСТРЫЙ АНАЛИЗ":"📈 HIDE QUICK ANALYSIS",
@@ -952,6 +973,17 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
       "Матч сохранён на устройстве и в Supabase.":"The match is saved on the device and in Supabase.",
       "🟢 Сохранено на устройстве":"🟢 Saved on device",
       "Каждое действие записывается локально. История синхронизируется с Supabase при наличии интернета.":"Every action is saved locally. History syncs with Supabase when internet is available.",
+      "🟡 LIVE · Синхронизация…":"🟡 LIVE · Syncing…",
+      "Последнее действие сохранено на устройстве и отправляется в Supabase.":"The latest action is saved on this device and is being sent to Supabase.",
+      "🟠 LIVE · Ожидает синхронизации":"🟠 LIVE · Waiting to sync",
+      "Не удалось обновить Live Match в Supabase. Матч сохранён на устройстве.":"Live Match could not be updated in Supabase. The match is saved on this device.",
+      "☁️ LIVE · Синхронизировано":"☁️ LIVE · Synced",
+      "Последнее состояние матча сохранено в Supabase.":"The latest match state is saved in Supabase.",
+      "🟠 Матч ожидает синхронизации":"🟠 Match waiting to sync",
+      "Завершённый матч сохранён на устройстве и будет отправлен в Supabase.":"The completed match is saved on this device and will be sent to Supabase.",
+      "Завершённый матч сохранён на устройстве и отправляется в Supabase.":"The completed match is saved on this device and is being sent to Supabase.",
+      "Сессия Telegram истекла. Откройте приложение заново через Telegram.":"The Telegram session has expired. Reopen the app through Telegram.",
+      "Данные матча на устройстве и в Supabase расходятся. Чтобы не потерять очки, продолжение заблокировано. Не удаляйте сохранение.":"The match data on this device and in Supabase differs. To protect the points, continuing is blocked. Do not delete the saved match.",
       "Матч завершён и сохранён на устройстве. Он автоматически синхронизируется с Supabase после появления интернета.":"The match is complete and saved on the device. It will sync with Supabase automatically when internet is available.",
       "Матч сохранён на устройстве, но пока не передан в Supabase. Не удаляйте данные приложения; откройте его заново через Telegram и повторите синхронизацию.":"The match is saved on the device but has not reached Supabase yet. Do not delete the app data; reopen it through Telegram and retry synchronization.",
       "Матч завершён и сохранён на устройстве. Синхронизация с Supabase будет повторена автоматически.":"The match is complete and saved on the device. Synchronization with Supabase will retry automatically.",
@@ -978,6 +1010,13 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
       "Начать новый матч? Текущий незавершённый матч будет отменён и больше не восстановится.":"Start a new match? The current unfinished match will be cancelled and cannot be restored.",
       "Чтобы отменить текущий LIVE-матч, подключитесь к интернету и повторите попытку.":"Connect to the internet and try again to cancel the current LIVE match.",
       "Отмена матча…":"Cancelling match…",
+      "Синхронизация завершённого матча…":"Syncing completed match…",
+      "Сначала подключитесь к интернету и синхронизируйте завершённый матч.":"Connect to the internet and sync the completed match first.",
+      "Завершённый матч ещё не синхронизирован с Supabase. Повторите попытку.":"The completed match has not synced with Supabase yet. Try again.",
+      "Сначала продолжите или удалите сохранённый матч.":"Resume or discard the saved match first.",
+      "Сначала синхронизируйте завершённый матч, прежде чем удалять его локальную копию.":"Sync the completed match before deleting its local copy.",
+      "Чтобы исправить завершённый матч, подключитесь к интернету и синхронизируйте его.":"Connect to the internet and sync the completed match before editing it.",
+      "Сначала завершите или отмените текущий матч, прежде чем исправлять сохранённый.":"Finish or cancel the current match before editing a saved one.",
       "Введите имя игрока.":"Enter the player’s name.",
       "Игрок 2":"Player 2",
       "Supabase не подключён.":"Supabase is not connected.",
@@ -2085,7 +2124,7 @@ function updateStartButton(){
 
   if(startButton){
 
-    startButton.disabled=!(player && opponent);
+    startButton.disabled=liveMatchRecoveryConflict || !(player && opponent);
 
   }
 
@@ -3602,13 +3641,14 @@ async function liveMatchRequest(path="",options={}){
 
   if(!response.ok){
 
-    throw new Error(
-
+    const error=new Error(
       result?.error?.message ||
-
       "Live Match request failed"
-
     );
+
+    error.status=response.status;
+    error.apiCode=result?.error?.code || "";
+    throw error;
 
   }
 
@@ -3988,11 +4028,33 @@ async function preloadH2HForOpponent(playerProfileId,opponentProfileId){
   }
 }
 
-async function ensureLiveMatch(){
+function cloneLiveMatchState(state=S){
+
+  return JSON.parse(JSON.stringify(state));
+
+}
+
+function resetLiveMatchSyncState(){
+
+  liveMatchEnsurePromise=null;
+  liveMatchSyncPromise=null;
+  liveMatchPendingSnapshot=null;
+  liveMatchSyncError="";
+  liveMatchLastSyncedAt=null;
+  liveMatchFinishConfirmed=false;
+  liveMatchFinishPromise=null;
+  liveMatchRetryPromise=null;
+  liveMatchSyncRetryable=true;
+
+}
+
+async function ensureLiveMatch(stateSnapshot=S){
 
   if(S.liveMatchId) return S.liveMatchId;
 
-  const profileId=S.playerProfileId || selectedPlayerProfileId;
+  if(liveMatchEnsurePromise) return liveMatchEnsurePromise;
+
+  const profileId=stateSnapshot.playerProfileId || selectedPlayerProfileId;
 
   if(!profileId || !playerProfileById(profileId)){
 
@@ -4010,65 +4072,199 @@ async function ensureLiveMatch(){
 
   }
 
-  const result=await liveMatchRequest("",{
+  const clientMatchId=S.clientMatchId;
+  const createSnapshot=cloneLiveMatchState(stateSnapshot);
+  createSnapshot.clientMatchId=clientMatchId;
+  createSnapshot.playerProfileId=profileId;
 
-    method:"POST",
+  const requestPromise=(async()=>{
 
-    body:JSON.stringify({
+    const result=await liveMatchRequest("",{
 
-      client_match_id:S.clientMatchId,
-
-      player_profile_id:profileId,
-
-      player2:S.names[1],
-
-      match_data:S
-
-    })
-
-  });
-
-  S.liveMatchId=result.match.id;
-
-  if(result.match.player1){
-
-    S.names[0]=result.match.player1;
-
-  }
-
-  saveLocalOnly();
-
-  return S.liveMatchId;
-
-}
-
-async function syncLiveMatch(){
-
-  if(!S.started || S.matchOver || liveMatchClosing) return;
-
-  try{
-
-    const id=await ensureLiveMatch();
-
-    await liveMatchRequest("/"+id,{
-
-      method:"PATCH",
+      method:"POST",
 
       body:JSON.stringify({
 
-        player2:S.names[1],
+        client_match_id:clientMatchId,
 
-        match_data:S
+        player_profile_id:profileId,
+
+        player2:createSnapshot.names[1],
+
+        match_data:createSnapshot
 
       })
 
     });
 
-  }catch(error){
+    if(!result?.match?.id){
 
-    console.error("Live Match sync error",error);
+      throw new Error("Live Match API returned incomplete data");
+
+    }
+
+    if(S.clientMatchId===clientMatchId){
+
+      S.liveMatchId=result.match.id;
+
+      if(result.match.player1){
+
+        S.names[0]=result.match.player1;
+
+      }
+
+      saveLocalOnly();
+
+    }
+
+    return result.match.id;
+
+  })();
+
+  liveMatchEnsurePromise=requestPromise;
+
+  try{
+
+    return await requestPromise;
+
+  }finally{
+
+    if(liveMatchEnsurePromise===requestPromise){
+
+      liveMatchEnsurePromise=null;
+
+    }
 
   }
+
+}
+
+async function drainLiveMatchSyncQueue(){
+
+  if(liveMatchSyncPromise) return liveMatchSyncPromise;
+
+  if(
+    !navigator.onLine ||
+    liveMatchReadOnly ||
+    liveMatchClosing ||
+    !S.started ||
+    S.matchOver ||
+    !liveMatchPendingSnapshot
+  ){
+
+    updateSaveStatus();
+    return false;
+
+  }
+
+  const requestPromise=(async()=>{
+
+    while(
+      navigator.onLine &&
+      !liveMatchReadOnly &&
+      !liveMatchClosing &&
+      liveMatchPendingSnapshot
+    ){
+
+      const snapshot=liveMatchPendingSnapshot;
+      liveMatchPendingSnapshot=null;
+
+      try{
+
+        const id=await ensureLiveMatch(snapshot);
+
+        snapshot.clientMatchId=S.clientMatchId;
+        snapshot.liveMatchId=id;
+
+        await liveMatchRequest("/"+encodeURIComponent(id),{
+
+          method:"PATCH",
+
+          body:JSON.stringify({
+
+            player2:snapshot.names[1],
+
+            match_data:snapshot
+
+          })
+
+        });
+
+        liveMatchSyncError="";
+        liveMatchLastSyncedAt=Date.now();
+
+        if(S.clientMatchId===snapshot.clientMatchId){
+
+          S.lastSyncedRevision=Math.max(
+            S.lastSyncedRevision||0,
+            snapshot.syncRevision||0
+          );
+          saveLocalOnly();
+
+        }
+
+      }catch(error){
+
+        console.error("Live Match sync error",error);
+
+        liveMatchSyncError=String(
+          error?.message || "Live Match request failed"
+        );
+        liveMatchSyncRetryable=![401,403].includes(error?.status);
+
+        if(!liveMatchPendingSnapshot){
+
+          liveMatchPendingSnapshot=snapshot;
+
+        }
+
+        break;
+
+      }
+
+    }
+
+    return !liveMatchPendingSnapshot;
+
+  })();
+
+  liveMatchSyncPromise=requestPromise;
+
+  try{
+
+    return await requestPromise;
+
+  }finally{
+
+    if(liveMatchSyncPromise===requestPromise){
+
+      liveMatchSyncPromise=null;
+
+    }
+
+    updateSaveStatus();
+
+  }
+
+}
+
+async function syncLiveMatch(){
+
+  if(
+    !S.started ||
+    S.matchOver ||
+    liveMatchClosing ||
+    liveMatchReadOnly
+  ) return false;
+
+  liveMatchPendingSnapshot=cloneLiveMatchState(S);
+  liveMatchSyncError="";
+  liveMatchSyncRetryable=true;
+  updateSaveStatus();
+
+  if(!navigator.onLine) return false;
+
+  return drainLiveMatchSyncQueue();
 
 }
 
@@ -4076,7 +4272,15 @@ async function cancelLiveMatch(){
 
   if(!S.started || S.matchOver) return;
 
-  const id=await ensureLiveMatch();
+  if(liveMatchSyncPromise){
+
+    await liveMatchSyncPromise;
+
+  }
+
+  liveMatchPendingSnapshot=null;
+
+  const id=await ensureLiveMatch(S);
 
   const cancelledState=JSON.parse(JSON.stringify(S));
 
@@ -4106,25 +4310,154 @@ async function cancelLiveMatch(){
 
 async function finishLiveMatch(){
 
+  if(liveMatchFinishPromise)return liveMatchFinishPromise;
+
+  if(!S.started || !S.matchOver || liveMatchReadOnly)return false;
+
+  const matchState=S;
+  const previouslyAttempted=matchState.liveFinishAttempted===true;
+  matchState.liveFinishPending=true;
+  saveLocalOnly();
+  const finalSnapshot=cloneLiveMatchState(matchState);
+
+  const work=(async()=>{
+
+    try{
+
+      if(!navigator.onLine)return false;
+
+      if(liveMatchSyncPromise){
+
+        await liveMatchSyncPromise;
+
+      }
+
+      liveMatchPendingSnapshot=null;
+      const id=await ensureLiveMatch(finalSnapshot);
+      finalSnapshot.liveMatchId=id;
+      finalSnapshot.clientMatchId=matchState.clientMatchId;
+
+      let alreadyFinished=false;
+
+      if(previouslyAttempted){
+
+        try{
+
+          const remote=await liveMatchRequest(
+            "/"+encodeURIComponent(id),{method:"GET"}
+          );
+          alreadyFinished=remote?.match?.status==="finished";
+
+        }catch(error){
+
+          console.warn("Live Match finish check failed",error);
+
+        }
+
+      }
+
+      if(!alreadyFinished){
+
+        matchState.liveFinishAttempted=true;
+        finalSnapshot.liveFinishAttempted=true;
+        if(S===matchState)saveLocalOnly();
+
+        await liveMatchRequest(
+          "/"+encodeURIComponent(id)+"/finish",
+          {method:"POST",body:JSON.stringify({match_data:finalSnapshot})}
+        );
+
+      }
+
+      if(S===matchState){
+
+        S.liveFinishPending=false;
+        S.liveMatchId=id;
+        S.lastSyncedRevision=S.syncRevision;
+        saveLocalOnly();
+
+      }
+
+      liveMatchFinishConfirmed=true;
+      liveMatchSyncError="";
+      liveMatchSyncRetryable=true;
+      liveMatchLastSyncedAt=Date.now();
+      return true;
+
+    }catch(error){
+
+      console.error("Live Match finish error",error);
+      liveMatchFinishConfirmed=false;
+      liveMatchSyncError=String(
+        error?.message || "Live Match request failed"
+      );
+      liveMatchSyncRetryable=![401,403].includes(error?.status);
+      return false;
+
+    }
+
+  })();
+
+  liveMatchFinishPromise=work;
+
   try{
 
-    const id=await ensureLiveMatch();
+    return await work;
 
-    await liveMatchRequest("/"+id+"/finish",{
+  }finally{
 
-      method:"POST",
+    if(liveMatchFinishPromise===work)liveMatchFinishPromise=null;
+    updateSaveStatus();
 
-      body:JSON.stringify({
+  }
 
-        match_data:S
+}
 
-      })
+async function retryCurrentMatchSync(){
 
-    });
+  if(liveMatchRetryPromise)return liveMatchRetryPromise;
 
-  }catch(error){
+  if(liveMatchReadOnly || !S.started || !navigator.onLine){
 
-    console.error("Live Match finish error",error);
+    updateSaveStatus();
+    return;
+
+  }
+
+  liveMatchSyncError="";
+  updateSaveStatus();
+
+  const work=(async()=>{
+
+    if(S.matchOver){
+
+      if(S.liveFinishPending){
+
+        await finishLiveMatch();
+
+      }
+
+      await syncPendingMatches();
+
+    }else{
+
+      liveMatchPendingSnapshot=cloneLiveMatchState(S);
+      await drainLiveMatchSyncQueue();
+
+    }
+
+  })();
+
+  liveMatchRetryPromise=work;
+
+  try{
+
+    return await work;
+
+  }finally{
+
+    if(liveMatchRetryPromise===work)liveMatchRetryPromise=null;
+    updateSaveStatus();
 
   }
 
@@ -4152,7 +4485,11 @@ async function findActiveLiveMatch(){
 
     }
 
-    return matches[0];
+    const local=readLocalMatchSnapshot();
+    return matches.find(match=>
+      (local?.liveMatchId && match.id===local.liveMatchId) ||
+      (local?.clientMatchId && match.client_match_id===local.clientMatchId)
+    ) || matches[0];
 
   }catch(error){
 
@@ -4282,6 +4619,27 @@ function applyLiveMatchState(match,preserveSelectedSet=false){
 
   S=serverState;
 
+  S.lastSyncedRevision=S.syncRevision;
+  if(match.status==="finished"){
+
+    S.liveFinishPending=false;
+    S.liveFinishAttempted=false;
+
+  }
+
+  liveMatchPendingSnapshot=null;
+  liveMatchSyncError="";
+  liveMatchFinishConfirmed=match.status==="finished";
+
+  if(!liveMatchReadOnly){
+
+    const syncedAt=Date.parse(match.updated_at || "");
+    liveMatchLastSyncedAt=Number.isFinite(syncedAt)
+      ? syncedAt
+      : Date.now();
+
+  }
+
   liveMatchLastUpdatedAt=
 
     match.updated_at || new Date().toISOString();
@@ -4402,7 +4760,93 @@ async function loadActiveLiveMatchFromServer(){
 
   }
 
-  applyLiveMatchState(match);
+  const local=readLocalMatchSnapshot();
+  const isReadOnly=!!(
+    Number(match.created_by_telegram_id) &&
+    currentTelegramUserId() &&
+    Number(match.created_by_telegram_id)!==currentTelegramUserId()
+  );
+  const sameMatch=!!local && !!(
+    (local.liveMatchId && local.liveMatchId===match.id) ||
+    (local.clientMatchId && local.clientMatchId===match.client_match_id)
+  );
+  const remoteState=normalizeState(match.match_data || {});
+  const localRevision=local?.syncRevision||0;
+  const remoteRevision=remoteState.syncRevision||0;
+  const concurrentUpdates=sameMatch && !!local && (
+    (local.matchOver && match.status==="live" && remoteRevision>localRevision) ||
+    (
+      localRevision>(local.lastSyncedRevision||0) &&
+      remoteRevision>(local.lastSyncedRevision||0) &&
+      remoteRevision>=localRevision
+    )
+  );
+
+  if(
+    local &&
+    !isReadOnly &&
+    hasRecoverableMatch(local) &&
+    (!sameMatch || concurrentUpdates)
+  ){
+
+    S=local;
+    liveMatchRecoveryConflict=true;
+    showResumeOffer();
+    $("resumeText").textContent=
+      "Данные матча на устройстве и в Supabase расходятся. " +
+      "Чтобы не потерять очки, продолжение заблокировано. Не удаляйте сохранение.";
+    $("resumeBtn").disabled=true;
+    $("discardResumeBtn").disabled=true;
+    updateStartButton();
+    return true;
+
+  }
+
+  const recoverLocal=!!(
+    local &&
+    sameMatch &&
+    !isReadOnly &&
+    (
+      (local.matchOver && match.status==="live") ||
+      localRevision>remoteRevision ||
+      (
+        localRevision===0 &&
+        remoteRevision===0 &&
+        (
+          local.log.length>remoteState.log.length ||
+          local.hist.length>remoteState.hist.length ||
+          (local.marked && !remoteState.marked)
+        )
+      )
+    )
+  );
+
+  if(recoverLocal){
+
+    S=local;
+    S.liveMatchId=match.id;
+    S.clientMatchId=match.client_match_id || S.clientMatchId;
+    if(S.matchOver){
+
+      S.liveFinishPending=true;
+
+    }else if(S.syncRevision<=remoteRevision){
+
+      S.syncRevision=remoteRevision+1;
+
+    }
+
+    setLiveMatchAccess(match);
+    liveMatchLastSyncedAt=null;
+    liveMatchSyncError="";
+    saveLocalOnly();
+
+  }else{
+
+    applyLiveMatchState(match);
+    if(!liveMatchReadOnly)saveLocalOnly();
+
+  }
 
   preloadH2HForOpponent(S.playerProfileId,S.opponentProfileId);
 
@@ -4428,13 +4872,20 @@ async function loadActiveLiveMatchFromServer(){
 
   startLiveMatchRefresh();
 
+  if(recoverLocal){
+
+    if(S.matchOver)retryCurrentMatchSync();
+    else syncLiveMatch();
+
+  }
+
   return true;
 
 }
   
 const $=id=>document.getElementById(id);
 const emptyStats=()=>({sp:0,fi:0,fw:0,sp2:0,sw:0,a:0,df:0,fhw:0,bhw:0,fhue:0,bhue:0,fe:0,net:0,bpf:0,bps:0,r1p:0,r1w:0,r2p:0,r2w:0,ptsWon:0});
-const defaultState=()=>({names:["Player 1","Player 2"],playerProfileId:null,opponentProfileId:null,set:[0,0],game:[0,0],pt:[0,0],srv:0,sn:1,marked:false,tb:false,st:[emptyStats(),emptyStats()],setStats:[[emptyStats(),emptyStats()]],hist:[],log:[],last:-1,curSet:0,selectedSet:0,matchOver:false,cancelled:false,cancelledAt:null,savedMatchId:null,pendingSyncId:null,liveMatchId:null,clientMatchId:null,setScores:[],tbFirstServer:null,tieBreakScores:[],started:false,quickAnalysisOpen:false});
+const defaultState=()=>({names:["Player 1","Player 2"],playerProfileId:null,opponentProfileId:null,set:[0,0],game:[0,0],pt:[0,0],srv:0,sn:1,marked:false,tb:false,st:[emptyStats(),emptyStats()],setStats:[[emptyStats(),emptyStats()]],hist:[],log:[],last:-1,curSet:0,selectedSet:0,matchOver:false,cancelled:false,cancelledAt:null,savedMatchId:null,pendingSyncId:null,liveMatchId:null,clientMatchId:null,syncRevision:0,lastSyncedRevision:0,liveFinishPending:false,liveFinishAttempted:false,setScores:[],tbFirstServer:null,tieBreakScores:[],started:false,quickAnalysisOpen:false});
 let S=defaultState();
 
 let liveMatchReadOnly=false;
@@ -4444,7 +4895,19 @@ let liveMatchRefreshInProgress=false;
 let liveMatchLastUpdatedAt=null;
 let liveMatchRefreshError="";
 let liveMatchClosing=false;
+let liveMatchEnsurePromise=null;
+let liveMatchSyncPromise=null;
+let liveMatchPendingSnapshot=null;
+let liveMatchSyncError="";
+let liveMatchLastSyncedAt=null;
+let liveMatchFinishConfirmed=false;
+let liveMatchFinishPromise=null;
+let liveMatchRetryPromise=null;
+let liveMatchSyncRetryable=true;
+let newMatchInProgress=false;
+let liveMatchRecoveryConflict=false;
 const LIVE_MATCH_REFRESH_MS=2000;
+const LIVE_MATCH_RETRY_MS=15000;
 
 const AI_COACH_MIN_POINTS=4;
 const AI_COACH_USAGE_KEY="TennisTrackerAICoachUsageV13";
@@ -4474,6 +4937,11 @@ function normalizeState(x){
   z.setStats=Array.isArray(z.setStats)&&z.setStats.length?z.setStats:[[emptyStats(),emptyStats()]];
   z.hist=Array.isArray(z.hist)?z.hist:[];z.log=Array.isArray(z.log)?z.log:[];
   z.setScores=Array.isArray(z.setScores)?z.setScores:[];z.tieBreakScores=Array.isArray(z.tieBreakScores)?z.tieBreakScores:[];
+  z.syncRevision=Number.isSafeInteger(z.syncRevision)&&z.syncRevision>=0?z.syncRevision:0;
+  z.lastSyncedRevision=Number.isSafeInteger(z.lastSyncedRevision)&&z.lastSyncedRevision>=0
+    ?Math.min(z.lastSyncedRevision,z.syncRevision):0;
+  z.liveFinishPending=z.liveFinishPending===true;
+  z.liveFinishAttempted=z.liveFinishAttempted===true;
   return z
 }
 function hasRecoverableMatch(x){
@@ -4482,7 +4950,7 @@ function hasRecoverableMatch(x){
 
   if(x.matchOver){
 
-    return !x.savedMatchId;
+    return !x.savedMatchId || x.liveFinishPending===true;
 
   }
 
@@ -4507,6 +4975,15 @@ function hasRecoverableMatch(x){
   );
 
 }
+function readLocalMatchSnapshot(){
+  try{
+    const raw=localStorage.getItem(STORAGE_KEY);
+    return raw?normalizeState(JSON.parse(raw)):null;
+  }catch(error){
+    console.warn("Local match was not loaded",error);
+    return null;
+  }
+}
 function saveLocalOnly(){try{localStorage.setItem(STORAGE_KEY,JSON.stringify(S))}catch(e){console.error("Local save failed",e)}}
 function save(){
 
@@ -4520,6 +4997,7 @@ function save(){
 
   }
 
+  S.syncRevision=(S.syncRevision||0)+1;
   saveLocalOnly();
 
   render();
@@ -4536,7 +5014,16 @@ function updateSaveStatus(){
 
   const b=$("saveStatusDetail");
 
+  const retry=$("retryLiveSyncBtn");
+
   if(!a||!b)return;
+
+  if(retry){
+
+    retry.classList.add("hidden");
+    retry.disabled=false;
+
+  }
 
   if(liveMatchReadOnly){
 
@@ -4631,11 +5118,69 @@ function updateSaveStatus(){
 
   }
 
-  if(S.matchOver&&S.savedMatchId){
+  if(S.matchOver&&S.savedMatchId&&!S.liveFinishPending){
 
     a.textContent="☁️ Синхронизировано";
 
     b.textContent="Матч сохранён на устройстве и в Supabase.";
+
+    return;
+
+  }
+
+  if(S.matchOver){
+
+    if(liveMatchFinishPromise || liveMatchRetryPromise || pendingHistorySyncPromise){
+
+      a.textContent="🟡 LIVE · Синхронизация…";
+      b.textContent="Завершённый матч сохранён на устройстве и отправляется в Supabase.";
+
+    }else if(liveMatchSyncError && !liveMatchSyncRetryable){
+
+      a.textContent="🟠 Матч ожидает синхронизации";
+      b.textContent="Сессия Telegram истекла. Откройте приложение заново через Telegram.";
+
+    }else{
+
+      a.textContent="🟠 Матч ожидает синхронизации";
+      b.textContent="Завершённый матч сохранён на устройстве и будет отправлен в Supabase.";
+      if(retry)retry.classList.remove("hidden");
+
+    }
+
+    return;
+
+  }
+
+  if(liveMatchSyncError){
+
+    a.textContent="🟠 LIVE · Ожидает синхронизации";
+
+    b.textContent=liveMatchSyncRetryable
+      ?"Не удалось обновить Live Match в Supabase. Матч сохранён на устройстве."
+      :"Сессия Telegram истекла. Откройте приложение заново через Telegram.";
+
+    if(retry && liveMatchSyncRetryable)retry.classList.remove("hidden");
+
+    return;
+
+  }
+
+  if(liveMatchSyncPromise || liveMatchPendingSnapshot){
+
+    a.textContent="🟡 LIVE · Синхронизация…";
+
+    b.textContent="Последнее действие сохранено на устройстве и отправляется в Supabase.";
+
+    return;
+
+  }
+
+  if(S.started&&liveMatchLastSyncedAt){
+
+    a.textContent="☁️ LIVE · Синхронизировано";
+
+    b.textContent="Последнее состояние матча сохранено в Supabase.";
 
     return;
 
@@ -4660,18 +5205,30 @@ function showResumeOffer(){
   }catch(e){console.error("Restore preview failed",e)}
 }
 function resumeSavedMatch(){
+  if(liveMatchRecoveryConflict)return;
   if(S.playerProfileId)choosePlayerProfile(S.playerProfileId);
   preloadH2HForOpponent(S.playerProfileId,S.opponentProfileId);
   resetAiCoachState();
   $("setupScreen").classList.add("hidden");$("serverScreen").classList.add("hidden");$("matchScreen").classList.remove("hidden");render();updateSaveStatus();loadHistory();
+  if(S.started&&!S.matchOver)syncLiveMatch();
+  else if(S.matchOver&&navigator.onLine)retryCurrentMatchSync();
 }
-function discardSavedMatch(){if(!confirm("Удалить локально сохранённый незавершённый матч?"))return;clearLocal();S=defaultState();resetAiCoachState();$("resumeBox").classList.add("hidden")}
+function discardSavedMatch(){
+  if(liveMatchRecoveryConflict)return;
+  if(S.matchOver&&S.liveFinishPending){
+    alert("Сначала синхронизируйте завершённый матч, прежде чем удалять его локальную копию.");
+    return;
+  }
+  if(!confirm("Удалить локально сохранённый незавершённый матч?"))return;
+  clearLocal();S=defaultState();resetLiveMatchSyncState();resetAiCoachState();
+  $("resumeBox").classList.add("hidden");
+}
 function isBP(server){if(S.tb)return false;let r=1-server,rp=S.pt[r],sp=S.pt[server];if(rp<3)return false;if(rp===3&&sp<=2)return true;return rp>=3&&sp>=3&&rp===sp+1}
 function inc(o,k){o[k]=(o[k]||0)+1}
-function firstIn(){if(liveMatchReadOnly||S.matchOver||S.marked)return;snapshot();S.marked=true;S.sn=1;save()}
-function firstOut(){if(liveMatchReadOnly||S.matchOver||S.marked)return;snapshot();S.marked=true;S.sn=2;save()}
+function firstIn(){if(liveMatchReadOnly||liveMatchClosing||S.matchOver||S.marked)return;snapshot();S.marked=true;S.sn=1;save()}
+function firstOut(){if(liveMatchReadOnly||liveMatchClosing||S.matchOver||S.marked)return;snapshot();S.marked=true;S.sn=2;save()}
 function finish(type){
-  if(liveMatchReadOnly||S.matchOver)return;
+  if(liveMatchReadOnly||liveMatchClosing||S.matchOver)return;
   snapshot();ensureSet();
   let sv=S.srv,rc=1-sv,w=null,bp=isBP(sv),serv=S.st[sv],ret=S.st[rc],ss=S.setStats[S.curSet][sv],sr=S.setStats[S.curSet][rc];
   if(type==="df"){S.marked=true;S.sn=2}else if(!S.marked)S.marked=true;
@@ -4735,12 +5292,30 @@ function winSet(w){
   S.curSet++;ensureSet();S.selectedSet=S.curSet
 }
 function pointText(i){if(S.tb)return S.pt[i];let a=S.pt[i],b=S.pt[1-i];if(a>=3&&b>=3)return a===b?"40":a>b?"AD":"40";return["0","15","30","40"][Math.min(a,3)]}
-function markRally(r){if(liveMatchReadOnly||S.matchOver||S.last<0)return;snapshot();S.log[S.last].rally=r;save()}
-function changeServer(){if(liveMatchReadOnly||S.matchOver)return;snapshot();S.srv=1-S.srv;S.sn=1;S.marked=false;save()}
+function markRally(r){if(liveMatchReadOnly||liveMatchClosing||S.matchOver||S.last<0)return;snapshot();S.log[S.last].rally=r;save()}
+function changeServer(){if(liveMatchReadOnly||liveMatchClosing||S.matchOver)return;snapshot();S.srv=1-S.srv;S.sn=1;S.marked=false;save()}
 
 async function undo(){
 
-  if(liveMatchReadOnly||!S.hist.length)return;
+  if(liveMatchReadOnly||liveMatchClosing||newMatchInProgress||!S.hist.length)return;
+
+  const wasCompleted=S.matchOver;
+
+  if(wasCompleted && (S.liveFinishPending || liveMatchFinishPromise)){
+
+    if(!navigator.onLine){
+      alert("Чтобы исправить завершённый матч, подключитесь к интернету и синхронизируйте его.");
+      return;
+    }
+
+    if(!await finishLiveMatch()){
+      alert("Завершённый матч ещё не синхронизирован с Supabase. Повторите попытку.");
+      return;
+    }
+
+  }
+
+  if(pendingHistorySyncPromise)await pendingHistorySyncPromise;
 
   const savedId=S.savedMatchId;
 
@@ -4788,13 +5363,25 @@ async function undo(){
 
   }
 
-  S=restored;
+  S=normalizeState(restored);
 
   S.hist=newHist;
 
   S.savedMatchId=null;
 
   S.pendingSyncId=null;
+
+  if(wasCompleted){
+
+    S.liveMatchId=null;
+    S.clientMatchId=null;
+    S.liveFinishPending=false;
+    S.liveFinishAttempted=false;
+    S.syncRevision=0;
+    S.lastSyncedRevision=0;
+    resetLiveMatchSyncState();
+
+  }
 
   save();
 
@@ -7112,12 +7699,14 @@ liveEditButtons.forEach(btn=>{
 }
 
 const PENDING_MATCHES_KEY = "tennis_pending_matches_v1";
+let pendingHistorySyncPromise=null;
 
 function getPendingMatches(){
 
   try{
 
-    return JSON.parse(localStorage.getItem(PENDING_MATCHES_KEY) || "[]");
+    const items=JSON.parse(localStorage.getItem(PENDING_MATCHES_KEY) || "[]");
+    return Array.isArray(items)?items:[];
 
   }catch(e){
 
@@ -7167,57 +7756,80 @@ function addPendingMatch(payload){
 
 async function syncPendingMatches(){
 
-  if(!window.TENNIS_INIT_DATA || !navigator.onLine) return;
+  if(!window.TENNIS_INIT_DATA || !navigator.onLine)return false;
 
-  const items = getPendingMatches();
+  if(pendingHistorySyncPromise)return pendingHistorySyncPromise;
 
-  if(!items.length) return;
+  if(!getPendingMatches().length)return true;
 
-  const remaining = [];
+  const work=(async()=>{
 
-  for(const payload of items){
+    const attempted=new Set();
+    let syncedAny=false;
 
-    try{
+    while(navigator.onLine){
 
-      const syncId = payload.sets?.sync_id;
-
-      // Проверяем, не был ли этот матч уже записан раньше.
-
-      await matchHistoryRequest("",{
-        method:"POST",body:JSON.stringify(payload)
+      const payload=getPendingMatches().find(item=>{
+        const id=item?.sets?.sync_id;
+        return id && !attempted.has(id);
       });
 
-if(syncId && S.pendingSyncId === syncId){
+      if(!payload)break;
 
-  S.savedMatchId = syncId;
+      const syncId=payload.sets.sync_id;
+      attempted.add(syncId);
 
-  S.pendingSyncId = null;
+      try{
 
-  saveLocalOnly();
-$("resumeBox")?.classList.add("hidden");
-}
+        await matchHistoryRequest("",{
+          method:"POST",body:JSON.stringify(payload)
+        });
 
-}catch(e){
+        setPendingMatches(getPendingMatches().filter(
+          item=>item?.sets?.sync_id!==syncId
+        ));
+        syncedAny=true;
 
-      console.error("Pending match sync error",e);
+        if(S.pendingSyncId===syncId){
 
-      remaining.push(payload);
+          S.savedMatchId=syncId;
+          S.pendingSyncId=null;
+          saveLocalOnly();
+          if(!S.liveFinishPending)$("resumeBox")?.classList.add("hidden");
+
+        }
+
+      }catch(error){
+
+        console.error("Pending match sync error",error);
+
+      }
 
     }
 
-  }
+    if(syncedAny){
 
-  setPendingMatches(remaining);
+      loadHistory();
+      if(S.playerProfileId&&S.opponentProfileId){
+        preloadH2HForOpponent(S.playerProfileId,S.opponentProfileId);
+      }
 
-  if(remaining.length === 0){
+    }
 
+    return getPendingMatches().length===0;
+
+  })();
+
+  pendingHistorySyncPromise=work;
+
+  try{
+
+    return await work;
+
+  }finally{
+
+    if(pendingHistorySyncPromise===work)pendingHistorySyncPromise=null;
     updateSaveStatus();
-
-    loadHistory();
-
-    if(S.playerProfileId&&S.opponentProfileId){
-      preloadH2HForOpponent(S.playerProfileId,S.opponentProfileId);
-    }
 
   }
 
@@ -7313,7 +7925,7 @@ S.pendingSyncId = syncId;
 
       .some(x => x.sets?.sync_id === syncId);
 
-    if(!stillPending){
+    if(!stillPending&&S.pendingSyncId===syncId){
 
       S.savedMatchId = syncId;
 
@@ -7390,6 +8002,11 @@ async function loadHistory(){
 }
  async function editLastMatch(id){
 
+  if(liveMatchReadOnly||hasRecoverableMatch(S)){
+    alert("Сначала завершите или отмените текущий матч, прежде чем исправлять сохранённый.");
+    return;
+  }
+
   if(!confirm("Исправить последний завершённый матч? Матч будет удалён из истории и открыт для исправления."))return;
 
   try{
@@ -7422,6 +8039,18 @@ S.matchOver=false;
 
 S.started=true;
 
+S.liveMatchId=null;
+
+S.clientMatchId=null;
+
+S.syncRevision=0;
+
+S.lastSyncedRevision=0;
+
+S.liveFinishPending=false;
+
+S.liveFinishAttempted=false;
+
 S.savedMatchId=null;
     
 S.pendingSyncId=null;
@@ -7431,6 +8060,8 @@ S.marked=false;
 S.sn=1;
 
 S.hist=[];
+
+resetLiveMatchSyncState();
 
 saveLocalOnly();
 
@@ -7472,6 +8103,11 @@ function exportCSV(){
   a.href=url;a.download="tennis_match.csv";document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url)
 }
 function start(){
+  if(liveMatchRecoveryConflict)return;
+  if(hasRecoverableMatch(readLocalMatchSnapshot())){
+    alert("Сначала продолжите или удалите сохранённый матч.");
+    return;
+  }
   const profile=selectedPlayerProfile();
   const opponent=selectedOpponentProfile();
   if(!profile){
@@ -7487,6 +8123,8 @@ function start(){
   activeLiveMatchCreatorId=null;
   liveMatchLastUpdatedAt=null;
   liveMatchRefreshError="";
+  liveMatchRecoveryConflict=false;
+  resetLiveMatchSyncState();
   clearLocal();S=defaultState();resetAiCoachState();
   matchOpponentPlanOpen=false;
   S.playerProfileId=profile.id;
@@ -7500,7 +8138,7 @@ function start(){
 }
 function chooseServer(i){S.srv=i;S.started=true;$("serverScreen").classList.add("hidden");$("matchScreen").classList.remove("hidden");save();loadHistory()}
 async function newMatch(){
-  if(liveMatchReadOnly)return;
+  if(liveMatchReadOnly || newMatchInProgress || liveMatchRecoveryConflict)return;
 
   const hasUnfinishedLiveMatch=S.started&&!S.matchOver;
 
@@ -7510,70 +8148,72 @@ async function newMatch(){
 
   if(!confirm(message))return;
 
-  if(hasUnfinishedLiveMatch){
+  const button=$("newMatchBtn");
+  const originalText=button.textContent;
+  newMatchInProgress=true;
+  button.disabled=true;
 
-    if(!navigator.onLine){
+  try{
 
-      alert("Чтобы отменить текущий LIVE-матч, подключитесь к интернету и повторите попытку.");
+    if(hasUnfinishedLiveMatch){
 
-      return;
+      if(!navigator.onLine){
+        alert("Чтобы отменить текущий LIVE-матч, подключитесь к интернету и повторите попытку.");
+        return;
+      }
 
-    }
+      liveMatchClosing=true;
+      button.textContent="Отмена матча…";
 
-    const button=$("newMatchBtn");
+      try{
+        await cancelLiveMatch();
+      }catch(error){
+        console.error("Live Match cancellation error",error);
+        alert("Не удалось отменить LIVE-матч: "+
+          (error?.message||"неизвестная ошибка")+
+          ". Старый матч сохранён — попробуйте ещё раз.");
+        return;
+      }
 
-    const originalText=button.textContent;
+    }else if(S.matchOver && (S.liveFinishPending || liveMatchFinishPromise)){
 
-    liveMatchClosing=true;
+      if(!navigator.onLine){
+        alert("Сначала подключитесь к интернету и синхронизируйте завершённый матч.");
+        return;
+      }
 
-    button.disabled=true;
+      button.textContent="Синхронизация завершённого матча…";
+      const finished=await finishLiveMatch();
 
-    button.textContent="Отмена матча…";
-
-    try{
-
-      await cancelLiveMatch();
-
-    }catch(error){
-
-      console.error("Live Match cancellation error",error);
-
-      alert(
-
-        "Не удалось отменить LIVE-матч: "+
-
-        (error?.message||"неизвестная ошибка")+
-
-        ". Старый матч сохранён — попробуйте ещё раз."
-
-      );
-
-      return;
-
-    }finally{
-
-      liveMatchClosing=false;
-
-      button.disabled=false;
-
-      button.textContent=originalText;
+      if(!finished){
+        alert("Завершённый матч ещё не синхронизирован с Supabase. Повторите попытку.");
+        return;
+      }
 
     }
+
+    stopLiveMatchRefresh();
+    liveMatchReadOnly=false;
+    activeLiveMatchCreatorId=null;
+    liveMatchLastUpdatedAt=null;
+    liveMatchRefreshError="";
+    resetLiveMatchSyncState();
+    clearLocal();S=defaultState();resetAiCoachState();
+    setupOpponentPlanOpen=false;
+    renderSetupOpponentPlan();
+    $("resumeBox").classList.add("hidden");
+    $("matchScreen").classList.add("hidden");
+    $("serverScreen").classList.add("hidden");
+    $("setupScreen").classList.remove("hidden");
+
+  }finally{
+
+    liveMatchClosing=false;
+    newMatchInProgress=false;
+    button.disabled=false;
+    button.textContent=originalText;
 
   }
-
-  stopLiveMatchRefresh();
-  liveMatchReadOnly=false;
-  activeLiveMatchCreatorId=null;
-  liveMatchLastUpdatedAt=null;
-  liveMatchRefreshError="";
-  clearLocal();S=defaultState();resetAiCoachState();
-  setupOpponentPlanOpen=false;
-  renderSetupOpponentPlan();
-  $("resumeBox").classList.add("hidden");
-  $("matchScreen").classList.add("hidden");
-  $("serverScreen").classList.add("hidden");
-  $("setupScreen").classList.remove("hidden")
 }
   let playerStatsMatchesCache=[];
 
@@ -10603,6 +11243,7 @@ $("savedMatchAiRequestBtn").onclick=requestSavedMatchAiCoach;
 $("aiCoachRequestBtn").onclick=requestAiCoach;
 $("undoBtn").onclick=undo;
 $("changeServerBtn").onclick=changeServer;
+$("retryLiveSyncBtn").onclick=retryCurrentMatchSync;
 $("exportBtn").onclick=exportCSV;
 $("newMatchBtn").onclick=newMatch;
 $("refreshHistoryBtn").onclick=loadHistory;
@@ -10626,7 +11267,21 @@ window.addEventListener("online",()=>{
 
   }
 
-  syncPendingMatches();
+  if(liveMatchRecoveryConflict)return;
+
+  if(S.started&&S.matchOver){
+
+    retryCurrentMatchSync();
+
+  }else if(S.started){
+
+    syncLiveMatch();
+
+  }else{
+
+    syncPendingMatches();
+
+  }
 
   loadHistory();
 
@@ -10655,13 +11310,62 @@ window.addEventListener("tennis-language-change",()=>{
 
 document.addEventListener("visibilitychange",()=>{
 
-  if(!document.hidden && liveMatchReadOnly){
+  if(document.hidden)return;
+
+  if(liveMatchReadOnly){
 
     refreshReadOnlyLiveMatch();
+
+    return;
+
+  }
+
+  if(liveMatchRecoveryConflict)return;
+
+  if(S.started&&S.matchOver&&S.liveFinishPending){
+
+    retryCurrentMatchSync();
+
+  }else if(S.started&&!S.matchOver){
+
+    syncLiveMatch();
 
   }
 
 });
+
+setInterval(()=>{
+
+  if(
+    document.hidden ||
+    !navigator.onLine ||
+    !window.TENNIS_INIT_DATA ||
+    liveMatchReadOnly ||
+    liveMatchRecoveryConflict ||
+    newMatchInProgress
+  )return;
+
+  if(S.started&&!S.matchOver){
+
+    if(liveMatchSyncError && liveMatchSyncRetryable && !liveMatchSyncPromise){
+      retryCurrentMatchSync();
+    }
+
+  }else if(S.started&&S.matchOver){
+
+    if(S.liveFinishPending && liveMatchSyncRetryable && !liveMatchFinishPromise){
+      retryCurrentMatchSync();
+    }else if(!S.liveFinishPending && getPendingMatches().length){
+      syncPendingMatches();
+    }
+
+  }else if(getPendingMatches().length){
+
+    syncPendingMatches();
+
+  }
+
+},LIVE_MATCH_RETRY_MS);
 
 window.addEventListener("tennis-auth-ready",event=>{
 

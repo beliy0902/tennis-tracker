@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- UPDATED: compact saved-match report + history-aware opponents V19 -->
+<!-- UPDATED: safe permanent opponent deletion V20 -->
 <html lang="ru">
 <head>
 <meta charset="utf-8">
@@ -183,7 +183,7 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
     </div>
     <div id="opponentArchivePanel" class="opponentCreate hidden">
       <div class="section">Архив соперников</div>
-      <div class="label">Выберите соперника для восстановления</div>
+      <div class="label">Выберите соперника из архива</div>
       <select id="archivedOpponentSelect" disabled>
         <option value="">Загрузка архива…</option>
       </select>
@@ -191,7 +191,9 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
         <button id="restoreOpponentBtn" class="primary" disabled>ВОССТАНОВИТЬ</button>
         <button id="cancelArchiveOpponentBtn">ОТМЕНА</button>
       </div>
+      <button id="deleteArchivedOpponentBtn" class="danger" style="width:100%;margin-top:8px" disabled>🗑 УДАЛИТЬ НАВСЕГДА</button>
       <div id="opponentArchiveError" class="small opponentError"></div>
+      <div class="small">Удаление доступно только для архивного соперника без сохранённых матчей.</div>
       <div class="small">Для просмотра старых матчей выберите соперника в статистике (пометка «архив»).</div>
     </div>
     <div id="setupOpponentPlan" class="opponentPlanPreview hidden" data-i18n-ignore>
@@ -590,8 +592,11 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
       "Архивация скрывает соперника из выбора, но сохраняет всю историю матчей.":"Архівація приховує суперника зі списку вибору, але зберігає всю історію матчів.",
       "Архив соперников":"Архів суперників",
       "Выберите соперника для восстановления":"Виберіть суперника для відновлення",
+      "Выберите соперника из архива":"Виберіть суперника з архіву",
       "Загрузка архива…":"Завантаження архіву…",
       "ВОССТАНОВИТЬ":"ВІДНОВИТИ",
+      "🗑 УДАЛИТЬ НАВСЕГДА":"🗑 ВИДАЛИТИ НАЗАВЖДИ",
+      "Удаление доступно только для архивного соперника без сохранённых матчей.":"Видалення доступне лише для архівного суперника без збережених матчів.",
       "Для просмотра старых матчей выберите соперника в статистике (пометка «архив»).":"Щоб переглянути старі матчі, виберіть суперника у статистиці (позначка «архів»).",
       "НАЧАТЬ МАТЧ":"ПОЧАТИ МАТЧ",
       "📊 СТАТИСТИКА ИГРОКА":"📊 СТАТИСТИКА ГРАВЦЯ",
@@ -681,6 +686,13 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
       "Выберите соперника из архива.":"Виберіть суперника з архіву.",
       "ВОССТАНАВЛИВАЕМ…":"ВІДНОВЛЮЄМО…",
       "Соперник восстановлен и выбран. История сохранена.":"Суперника відновлено й вибрано. Історію збережено.",
+      "УДАЛЯЕМ…":"ВИДАЛЯЄМО…",
+      "Соперник удалён навсегда.":"Суперника видалено назавжди.",
+      "Сначала удалите все сохранённые матчи с этим соперником.":"Спочатку видаліть усі збережені матчі з цим суперником.",
+      "У этого соперника есть объединённые профили, поэтому удалить его нельзя.":"Цей суперник має об’єднані профілі, тому його не можна видалити.",
+      "Завершите или отмените активный матч с этим соперником.":"Завершіть або скасуйте активний матч із цим суперником.",
+      "У соперника остались связанные данные, поэтому удалить его нельзя.":"У суперника залишилися пов’язані дані, тому його не можна видалити.",
+      "Соперник уже не находится в архиве. Обновите список.":"Суперник уже не перебуває в архіві. Оновіть список.",
       "Откройте приложение заново через Telegram.":"Відкрийте застосунок знову через Telegram.",
       "Не удалось обратиться к истории матчей":"Не вдалося звернутися до історії матчів",
       "Не удалось обновить счёт":"Не вдалося оновити рахунок",
@@ -820,8 +832,11 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
       "Архивация скрывает соперника из выбора, но сохраняет всю историю матчей.":"Archiving hides the opponent from selection while preserving all match history.",
       "Архив соперников":"Opponent archive",
       "Выберите соперника для восстановления":"Select an opponent to restore",
+      "Выберите соперника из архива":"Select an opponent from the archive",
       "Загрузка архива…":"Loading archive…",
       "ВОССТАНОВИТЬ":"RESTORE",
+      "🗑 УДАЛИТЬ НАВСЕГДА":"🗑 DELETE PERMANENTLY",
+      "Удаление доступно только для архивного соперника без сохранённых матчей.":"Permanent deletion is available only for an archived opponent with no saved matches.",
       "Для просмотра старых матчей выберите соперника в статистике (пометка «архив»).":"To view old matches, select the opponent in Statistics (marked “archive”).",
       "НАЧАТЬ МАТЧ":"START MATCH",
       "📊 СТАТИСТИКА ИГРОКА":"📊 PLAYER STATISTICS",
@@ -911,6 +926,13 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
       "Выберите соперника из архива.":"Select an opponent from the archive.",
       "ВОССТАНАВЛИВАЕМ…":"RESTORING…",
       "Соперник восстановлен и выбран. История сохранена.":"The opponent was restored and selected. Match history was preserved.",
+      "УДАЛЯЕМ…":"DELETING…",
+      "Соперник удалён навсегда.":"The opponent was permanently deleted.",
+      "Сначала удалите все сохранённые матчи с этим соперником.":"Delete all saved matches against this opponent first.",
+      "У этого соперника есть объединённые профили, поэтому удалить его нельзя.":"This opponent has merged profiles and cannot be deleted.",
+      "Завершите или отмените активный матч с этим соперником.":"Finish or cancel the active match against this opponent.",
+      "У соперника остались связанные данные, поэтому удалить его нельзя.":"The opponent still has linked data and cannot be deleted.",
+      "Соперник уже не находится в архиве. Обновите список.":"The opponent is no longer archived. Refresh the list.",
       "Откройте приложение заново через Telegram.":"Reopen the app through Telegram.",
       "Не удалось обратиться к истории матчей":"Could not access match history",
       "Не удалось обновить счёт":"Could not refresh the score",
@@ -1063,8 +1085,10 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
     [/^Не удалось сохранить профиль: (.+)$/,{uk:"Не вдалося зберегти профіль: $1",en:"Could not save the profile: $1"}],
     [/^Не удалось архивировать соперника: (.+)$/,{uk:"Не вдалося архівувати суперника: $1",en:"Could not archive the opponent: $1"}],
     [/^Не удалось восстановить соперника: (.+)$/,{uk:"Не вдалося відновити суперника: $1",en:"Could not restore the opponent: $1"}],
+    [/^Не удалось удалить соперника: (.+)$/,{uk:"Не вдалося видалити суперника: $1",en:"Could not delete the opponent: $1"}],
     [/^Не удалось отменить LIVE-матч: (.+)$/,{uk:"Не вдалося скасувати LIVE-матч: $1",en:"Could not cancel the LIVE match: $1"}],
     [/^Архивировать соперника (.+)\? История матчей сохранится\.$/,{uk:"Архівувати суперника $1? Історія матчів збережеться.",en:"Archive opponent $1? Match history will be preserved."}],
+    [/^Удалить соперника «(.+)» НАВСЕГДА\? Сначала должны быть удалены все его сохранённые матчи\. Это действие нельзя отменить\.$/,{uk:"Видалити суперника «$1» НАЗАВЖДИ? Спочатку потрібно видалити всі збережені матчі з ним. Цю дію не можна скасувати.",en:"Permanently delete opponent “$1”? All saved matches against this opponent must be deleted first. This action cannot be undone."}],
     [/^Объединить «(.+)» с «(.+)»\? Завершённые матчи будут учитываться за основным соперником\. Старое имя останется в истории\. Отменить объединение в приложении нельзя\.$/,{uk:"Об’єднати «$1» з «$2»? Завершені матчі враховуватимуться за основним суперником. Старе ім’я залишиться в історії. Об’єднання не можна скасувати в застосунку.",en:"Merge “$1” with “$2”? Completed matches will count under the primary opponent. The old name will remain in history. This cannot be undone in the app."}],
     [/^Последнее обновление: (.+)$/,{uk:"Останнє оновлення: $1",en:"Last updated: $1"}],
     [/^Матч обновлён (.+) назад\. Проверьте интернет или откройте приложение заново\.$/,{uk:"Матч оновлено $1 тому. Перевірте інтернет або відкрийте застосунок знову.",en:"The match was updated $1 ago. Check your connection or reopen the app."}],
@@ -2224,6 +2248,7 @@ function renderArchivedOpponents(){
 
   const select=document.getElementById("archivedOpponentSelect");
   const restoreButton=document.getElementById("restoreOpponentBtn");
+  const deleteButton=document.getElementById("deleteArchivedOpponentBtn");
   if(!select)return;
 
   const previous=select.value;
@@ -2248,6 +2273,7 @@ function renderArchivedOpponents(){
     opponent=>opponent.id===previous
   ) ? previous : "";
   if(restoreButton)restoreButton.disabled=!select.value;
+  if(deleteButton)deleteButton.disabled=!select.value;
 
 }
 
@@ -2566,15 +2592,12 @@ async function opponentsRequest(path="",options={}){
   const result=await response.json().catch(()=>({}));
 
   if(!response.ok){
-
-    throw new Error(
-
+    const requestError=new Error(
       result?.error?.message ||
-
       "Opponent request failed"
-
     );
-
+    requestError.apiCode=result?.error?.code || "opponent_request_failed";
+    throw requestError;
   }
 
   return result;
@@ -3325,6 +3348,86 @@ async function restoreSelectedOpponent(){
       button.textContent="ВОССТАНОВИТЬ";
       button.disabled=!select?.value;
     }
+  }
+
+}
+
+async function deleteSelectedArchivedOpponent(){
+
+  const player=selectedPlayerProfile();
+  const select=document.getElementById("archivedOpponentSelect");
+  const deleteButton=document.getElementById("deleteArchivedOpponentBtn");
+  const restoreButton=document.getElementById("restoreOpponentBtn");
+  const opponent=archivedOpponentProfiles.find(
+    item=>item.id===select?.value
+  );
+
+  if(!player || !opponent){
+    setOpponentArchiveError("Выберите соперника из архива.");
+    return;
+  }
+
+  if(!confirm(
+    "Удалить соперника «"+opponent.display_name+"» НАВСЕГДА? "+
+    "Сначала должны быть удалены все его сохранённые матчи. "+
+    "Это действие нельзя отменить."
+  ))return;
+
+  setOpponentArchiveError("");
+  if(deleteButton){
+    deleteButton.disabled=true;
+    deleteButton.textContent="УДАЛЯЕМ…";
+  }
+  if(restoreButton)restoreButton.disabled=true;
+  if(select)select.disabled=true;
+
+  try{
+    const result=await opponentsRequest(
+      "/"+encodeURIComponent(opponent.id),{
+        method:"DELETE",
+        body:JSON.stringify({player_profile_id:player.id})
+      }
+    );
+
+    if(selectedPlayerProfileId!==player.id)return;
+    if(result?.deleted?.id!==opponent.id){
+      throw new Error("API returned incomplete deleted opponent data");
+    }
+
+    opponentsLoadSequence++;
+    archivedOpponentProfiles=archivedOpponentProfiles.filter(
+      item=>item.id!==opponent.id
+    );
+    if(selectedStatsOpponentProfileId===opponent.id){
+      selectedStatsOpponentProfileId=null;
+    }
+    renderArchivedOpponents();
+    renderStatsOpponentProfiles();
+    renderMergeSourceOptions();
+    setOpponentsStatus("Соперник удалён навсегда.");
+
+  }catch(error){
+    console.error("Opponent permanent delete error",error);
+    const messages={
+      opponent_has_saved_matches:
+        "Сначала удалите все сохранённые матчи с этим соперником.",
+      opponent_has_merged_sources:
+        "У этого соперника есть объединённые профили, поэтому удалить его нельзя.",
+      opponent_has_live_match:
+        "Завершите или отмените активный матч с этим соперником.",
+      opponent_has_linked_data:
+        "У соперника остались связанные данные, поэтому удалить его нельзя.",
+      opponent_must_be_archived:
+        "Соперник уже не находится в архиве. Обновите список."
+    };
+    setOpponentArchiveError(
+      messages[error?.apiCode] ||
+      "Не удалось удалить соперника: "+
+      (error?.message || "неизвестная ошибка")
+    );
+  }finally{
+    if(deleteButton)deleteButton.textContent="🗑 УДАЛИТЬ НАВСЕГДА";
+    renderArchivedOpponents();
   }
 
 }
@@ -10387,8 +10490,10 @@ $("startBtn").onclick=start;
   $("saveOpponentProfileBtn").onclick=saveSelectedOpponentProfile;
   $("archiveOpponentBtn").onclick=archiveSelectedOpponent;
   $("restoreOpponentBtn").onclick=restoreSelectedOpponent;
+  $("deleteArchivedOpponentBtn").onclick=deleteSelectedArchivedOpponent;
   $("archivedOpponentSelect").onchange=event=>{
     $("restoreOpponentBtn").disabled=!event.target.value;
+    $("deleteArchivedOpponentBtn").disabled=!event.target.value;
     setOpponentArchiveError("");
   };
   $("retryOpponentsBtn").onclick=()=>{

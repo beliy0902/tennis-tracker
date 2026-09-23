@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- UPDATED: collapsible opponent plan + saved-match Analysis Hub V18 -->
+<!-- UPDATED: compact saved-match report + history-aware opponents V19 -->
 <html lang="ru">
 <head>
 <meta charset="utf-8">
@@ -59,6 +59,10 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
 .h2hCompare th:not(:first-child),.h2hCompare td:not(:first-child){min-width:86px;text-align:right}
 .h2hRecent{margin-top:12px}.h2hRecentItem{padding:9px 0;border-bottom:1px solid #eee;display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
 .h2hRecentItem:last-child{border-bottom:0}.h2hResult{font-weight:850}.h2hResult.win{color:#157347}.h2hResult.loss{color:#b42318}
+.matchAnalysisDetails{margin-top:12px;border:1px solid #d7d7db;border-radius:14px;background:#fff;overflow:hidden}
+.matchAnalysisDetails>summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px;font-size:17px;font-weight:850;line-height:1.3}
+.matchAnalysisDetails>summary::-webkit-details-marker{display:none}.matchAnalysisDetails>summary::after{content:"⌄";font-size:22px;line-height:1;transition:transform .16s ease}.matchAnalysisDetails[open]>summary::after{transform:rotate(180deg)}
+.matchAnalysisDetails[open]>summary{border-bottom:1px solid #e7e7ea}.matchAnalysisDetailsBody{padding:0 12px 12px}.matchAnalysisRecommendations{line-height:1.45}
 @media(max-width:420px){.chatGptShareActions{grid-template-columns:1fr}}
 </style>
 </head>
@@ -760,6 +764,7 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
       "Счёт":"Рахунок",
       "Победитель":"Переможець",
       "Краткий итог":"Короткий підсумок",
+      "📊 Подробный анализ игроков":"📊 Детальний аналіз гравців",
       "Список матчей пуст.":"Список матчів порожній.",
       "Выбор матчей сохранён.":"Вибір матчів збережено.",
       "Загрузка статистики…":"Завантаження статистики…",
@@ -989,6 +994,7 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
       "Счёт":"Score",
       "Победитель":"Winner",
       "Краткий итог":"Brief summary",
+      "📊 Подробный анализ игроков":"📊 Detailed player analysis",
       "Список матчей пуст.":"The match list is empty.",
       "Выбор матчей сохранён.":"Match selection saved.",
       "Загрузка статистики…":"Loading statistics…",
@@ -1452,6 +1458,12 @@ let selectedOpponentProfileId=null;
 
 let selectedStatsOpponentProfileId=null;
 
+let statsOpponentIdsWithMatches=null;
+
+let statsOpponentsMatchesPlayerId=null;
+
+let statsOpponentsRefreshSequence=0;
+
 let opponentsLoadSequence=0;
 
 let currentH2HSummary=null;
@@ -1877,7 +1889,20 @@ function renderStatsOpponentProfiles(){
 
   allOption.textContent="Все соперники";
 
-  const options=[...opponentProfiles,...archivedOpponentProfiles]
+  const allProfiles=[...opponentProfiles,...archivedOpponentProfiles];
+
+  const matchIds=
+    statsOpponentsMatchesPlayerId===selectedPlayerProfileId &&
+    statsOpponentIdsWithMatches &&
+    typeof statsOpponentIdsWithMatches.has==="function"
+      ? statsOpponentIdsWithMatches
+      : null;
+
+  const visibleProfiles=matchIds
+    ? allProfiles.filter(opponent=>matchIds.has(opponent.id))
+    : allProfiles;
+
+  const options=visibleProfiles
     .sort((a,b)=>a.display_name.localeCompare(
       b.display_name,"ru",{sensitivity:"base"}
     ))
@@ -1894,11 +1919,9 @@ function renderStatsOpponentProfiles(){
 
   });
 
-  const selected=statsOpponentProfileById(
-
-    selectedStatsOpponentProfileId
-
-  );
+  const selected=visibleProfiles.find(
+    opponent=>opponent.id===selectedStatsOpponentProfileId
+  ) || null;
 
   selectedStatsOpponentProfileId=selected?.id || null;
 
@@ -3342,6 +3365,10 @@ function choosePlayerProfile(profileId){
 
     selectedStatsOpponentProfileId=null;
 
+    statsOpponentIdsWithMatches=null;
+
+    statsOpponentsMatchesPlayerId=null;
+
     document.getElementById("selectedMatchDetails")?.classList.add("hidden");
 
     closeSavedMatchAnalysis();
@@ -3516,6 +3543,38 @@ async function listPlayerMatches(profileId,limit=500){
     if(page.length<limit)break;
   }
   return matches;
+}
+
+function rememberStatsOpponentsFromMatches(profileId,matches){
+  const profile=selectedPlayerProfile();
+  if(!profile || profileId!==selectedPlayerProfileId)return;
+  statsOpponentsMatchesPlayerId=profileId;
+  statsOpponentIdsWithMatches=new Set(
+    (Array.isArray(matches)?matches:[])
+      .filter(match=>matchBelongsToPlayerProfile(match,profile))
+      .map(match=>match?.opponent_profile_id)
+      .filter(id=>typeof id==="string" && id)
+  );
+  renderStatsOpponentProfiles();
+}
+
+async function refreshStatsOpponentProfilesFromHistory(){
+  const profile=selectedPlayerProfile();
+  if(!profile || !window.TENNIS_INIT_DATA)return;
+  const requestId=++statsOpponentsRefreshSequence;
+  try{
+    const matches=await listPlayerMatches(profile.id);
+    if(
+      requestId!==statsOpponentsRefreshSequence ||
+      profile.id!==selectedPlayerProfileId
+    )return;
+    rememberStatsOpponentsFromMatches(profile.id,matches);
+  }catch(error){
+    console.warn(
+      "Could not filter statistics opponents by match history",
+      error
+    );
+  }
 }
 
 const H2H_STAT_KEYS=[
@@ -7299,6 +7358,7 @@ async function deleteHistoryMatch(id){
     });
     if(String(S.savedMatchId)===String(id))S.savedMatchId=null;
     loadHistory();
+    refreshStatsOpponentProfilesFromHistory();
   }catch(e){alert("Не удалось удалить матч: "+e.message)}
 }
 
@@ -7453,6 +7513,8 @@ async function loadPlayerMatchesManager(){
   try{
 
     const data=await listPlayerMatches(profile.id);
+
+    rememberStatsOpponentsFromMatches(profile.id,data);
 
     const n=name.toLowerCase();
 
@@ -9340,29 +9402,7 @@ function buildRecommendationsBox(r1,r2,p1,p2,winner){
 
   return `
 
-    <div style="
-
-      border:1px solid #ddd;
-
-      border-radius:16px;
-
-      padding:14px;
-
-      margin-top:14px;
-
-    ">
-
-      <div style="
-
-        font-size:20px;
-
-        font-weight:800;
-
-      ">
-
-        🎾 Рекомендации тренеру
-
-      </div>
+    <div class="matchAnalysisRecommendations">
 
       ${playerRecommendations(p1,r1)}
 
@@ -9472,35 +9512,36 @@ const coach2 = buildCoachReport(
 
 const analysisHtml = `
 
-  <div class="section">
+  <div class="section">Анализ матча</div>
 
-    Анализ матча
+  <details class="matchAnalysisDetails">
+    <summary>🧠 Coach Summary</summary>
+    <div class="matchAnalysisDetailsBody">
+      ${coachSummary1.html}
+      ${coachSummary2.html}
+    </div>
+  </details>
 
-${coachSummary1.html}
+  <details class="matchAnalysisDetails">
+    <summary>📊 Подробный анализ игроков</summary>
+    <div class="matchAnalysisDetailsBody">
+      ${coach1.html}
+      ${coach2.html}
+    </div>
+  </details>
 
-${coachSummary2.html}
-
-<div style="height:14px"></div>
-
-    ${coach1.html}
-
-    ${coach2.html}
-
-${buildRecommendationsBox(
-
-  coachSummary1.priorities,
-
-  coachSummary2.priorities,
-
-  p1,
-
-  p2,
-
-  winner
-
-)}
-
-  </div>
+  <details class="matchAnalysisDetails">
+    <summary>🎾 Рекомендации тренеру</summary>
+    <div class="matchAnalysisDetailsBody">
+      ${buildRecommendationsBox(
+        coachSummary1.priorities,
+        coachSummary2.priorities,
+        p1,
+        p2,
+        winner
+      )}
+    </div>
+  </details>
 
 `;
   title.textContent=`${p1} vs ${p2}`;
@@ -10014,6 +10055,8 @@ function renderH2HPlayerStats(summary,title,box){
 
     const data=await listPlayerMatches(profile.id);
 
+    rememberStatsOpponentsFromMatches(profile.id,data);
+
     if(statsOpponent){
 
       const summary=buildH2HSummary(data,profile,statsOpponent);
@@ -10413,6 +10456,8 @@ $("saveStatsSelectionBtn").onclick=savePlayerStatsSelection;
   $("setupScreen").classList.add("hidden");
 
   $("playerStatsScreen").classList.remove("hidden");
+
+  refreshStatsOpponentProfilesFromHistory();
 
 };
 

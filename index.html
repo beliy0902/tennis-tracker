@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- UPDATED: full saved-match history CSV export V22 -->
+<!-- UPDATED: numeric match IDs in saved-match history export V22.1 -->
 <html lang="ru">
 <head>
 <meta charset="utf-8">
@@ -3769,8 +3769,8 @@ function historyExportText(key,...args){
   return typeof value==="function"?value(...args):value;
 }
 
-// Unlike the statistics view, an export cannot silently stop at a server page cap.
-async function listAllPlayerMatchesForExport(profileId,pageSize=100){
+// The match-history endpoint uses offset pages and database IDs may be numbers.
+async function listAllPlayerMatchesForExport(profileId,pageSize=50){
   const matches=[];
   const seen=new Set();
   for(let offset=0;;){
@@ -3782,15 +3782,20 @@ async function listAllPlayerMatchesForExport(profileId,pageSize=100){
     const page=result.matches;
     if(!page.length)break;
     for(const match of page){
-      if(!match || typeof match.id!=="string" || !match.id){
+      const id=match?.id;
+      const validId=(typeof id==="string" && id.trim()) ||
+        (typeof id==="number" && Number.isSafeInteger(id) && id>=0);
+      if(!validId){
         throw new Error(historyExportText("invalid"));
       }
-      if(seen.has(match.id))throw new Error(historyExportText("repeat"));
-      seen.add(match.id);
+      const key=String(id);
+      if(seen.has(key))throw new Error(historyExportText("repeat"));
+      seen.add(key);
       matches.push(match);
     }
     offset+=page.length;
     if(offset>100000)throw new Error(historyExportText("repeat"));
+    if(page.length<pageSize)break;
   }
   return matches;
 }

@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- UPDATED: guarded Live Match sync and recovery V21.1 -->
+<!-- UPDATED: full saved-match history CSV export V22 -->
 <html lang="ru">
 <head>
 <meta charset="utf-8">
@@ -63,6 +63,13 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
 .matchAnalysisDetails>summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px;font-size:17px;font-weight:850;line-height:1.3}
 .matchAnalysisDetails>summary::-webkit-details-marker{display:none}.matchAnalysisDetails>summary::after{content:"⌄";font-size:22px;line-height:1;transition:transform .16s ease}.matchAnalysisDetails[open]>summary::after{transform:rotate(180deg)}
 .matchAnalysisDetails[open]>summary{border-bottom:1px solid #e7e7ea}.matchAnalysisDetailsBody{padding:0 12px 12px}.matchAnalysisRecommendations{line-height:1.45}
+.historyExportDetails>summary{cursor:pointer;font-weight:850;line-height:1.35;min-height:45px;display:flex;align-items:center}
+.historyExportDetails .small{margin:8px 0 12px}
+.historyExportActions{display:grid;gap:8px;margin-top:10px}
+.historyExportActions a{display:flex;align-items:center;justify-content:center;min-height:50px;border-radius:14px;padding:10px;background:#111;color:#fff;text-decoration:none;font-size:16px;font-weight:750;text-align:center}
+.historyExportActions button{min-height:50px}
+.historyExportStatus{margin-top:10px;font-size:13px;line-height:1.4;color:#555}
+.historyExportStatus.error{color:#b42318}
 @media(max-width:420px){.chatGptShareActions{grid-template-columns:1fr}}
 </style>
 </head>
@@ -258,6 +265,18 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
 
     </div>
 
+  </div>
+  <div class="card" id="historyExportCard" data-i18n-ignore>
+    <details class="historyExportDetails" id="historyExportDetails">
+      <summary id="historyExportTitle"></summary>
+      <div class="small" id="historyExportNote"></div>
+      <button id="prepareHistoryCsvBtn" style="width:100%;min-height:50px"></button>
+      <div id="historyExportStatus" class="historyExportStatus" role="status" aria-live="polite"></div>
+      <div id="historyExportActions" class="historyExportActions hidden">
+        <a id="downloadHistoryCsvLink" download></a>
+        <button id="shareHistoryCsvBtn" class="hidden"></button>
+      </div>
+    </details>
   </div>
   <div class="card hidden" id="h2hStatsShareCard" data-i18n-ignore>
     <div class="section" id="h2hStatsShareTitle"></div>
@@ -3501,6 +3520,14 @@ function choosePlayerProfile(profileId){
 
   if(changed || opponentsPlayerProfileId!==profile.id){
 
+    if(changed){
+      ++historyExportSequence;
+      clearPreparedHistoryCsv();
+      const status=document.getElementById("historyExportStatus");
+      historyExportNotice=null;
+      if(status){status.textContent="";status.classList.remove("error")}
+    }
+
     selectedOpponentProfileId=null;
 
     setupOpponentPlanOpen=false;
@@ -3686,6 +3713,260 @@ async function listPlayerMatches(profileId,limit=500){
     if(page.length<limit)break;
   }
   return matches;
+}
+
+const HISTORY_EXPORT_TEXT={
+  ru:{
+    title:"⬇️ Экспорт истории матчей",
+    note:"Все сохранённые матчи выбранного игрока из Supabase, включая исключённые из статистики и матчи с архивными соперниками. CSV содержит результаты и общую статистику; поочковый журнал в него не входит.",
+    prepare:"ПОДГОТОВИТЬ CSV",loading:"Загрузка всей истории…",download:"⬇️ СКАЧАТЬ CSV",
+    share:"↗ ПОДЕЛИТЬСЯ ФАЙЛОМ",choose:"Выберите профиль игрока.",
+    telegram:"Откройте приложение заново через Telegram.",offline:"Подключитесь к интернету и повторите загрузку.",
+    pending:"Есть завершённый матч, который ещё не синхронизирован. Сначала дождитесь сохранения в Supabase.",
+    empty:"У этого игрока пока нет сохранённых матчей.",
+    ready:count=>`Подготовлено матчей: ${count}. Нажмите «Скачать CSV» или «Поделиться файлом».`,
+    failed:error=>`Не удалось загрузить всю историю. CSV не создан: ${error}`,
+    invalid:"Сервер вернул неполные данные истории.",
+    repeat:"Сервер повторил страницу истории. Полнота выгрузки не подтверждена.",
+    shared:"Открыто меню «Поделиться».",
+    shareFailed:"Не удалось поделиться файлом. Попробуйте «Скачать CSV»."
+  },
+  uk:{
+    title:"⬇️ Експорт історії матчів",
+    note:"Усі збережені матчі вибраного гравця із Supabase, зокрема виключені зі статистики та матчі з архівними суперниками. CSV містить результати й загальну статистику; журнал очок до нього не входить.",
+    prepare:"ПІДГОТУВАТИ CSV",loading:"Завантаження всієї історії…",download:"⬇️ ЗАВАНТАЖИТИ CSV",
+    share:"↗ ПОДІЛИТИСЯ ФАЙЛОМ",choose:"Виберіть профіль гравця.",
+    telegram:"Відкрийте застосунок знову через Telegram.",offline:"Підключіться до інтернету й повторіть завантаження.",
+    pending:"Є завершений матч, який ще не синхронізовано. Спочатку дочекайтеся збереження в Supabase.",
+    empty:"У цього гравця поки немає збережених матчів.",
+    ready:count=>`Підготовлено матчів: ${count}. Натисніть «Завантажити CSV» або «Поділитися файлом».`,
+    failed:error=>`Не вдалося завантажити всю історію. CSV не створено: ${error}`,
+    invalid:"Сервер повернув неповні дані історії.",
+    repeat:"Сервер повторив сторінку історії. Повноту експорту не підтверджено.",
+    shared:"Відкрито меню «Поділитися».",
+    shareFailed:"Не вдалося поділитися файлом. Спробуйте «Завантажити CSV»."
+  },
+  en:{
+    title:"⬇️ Export match history",
+    note:"All saved Supabase matches for the selected player, including matches excluded from statistics and matches against archived opponents. The CSV includes results and match totals, but no point-by-point log.",
+    prepare:"PREPARE CSV",loading:"Loading the full history…",download:"⬇️ DOWNLOAD CSV",
+    share:"↗ SHARE FILE",choose:"Select a player profile.",
+    telegram:"Reopen the app through Telegram.",offline:"Connect to the internet and load the history again.",
+    pending:"A completed match has not yet synced. Wait until it is saved in Supabase.",
+    empty:"This player has no saved matches yet.",
+    ready:count=>`Matches prepared: ${count}. Tap “Download CSV” or “Share file”.`,
+    failed:error=>`Could not load the full history. No CSV was created: ${error}`,
+    invalid:"The server returned incomplete match history.",
+    repeat:"The server repeated a history page. Export completeness could not be confirmed.",
+    shared:"The Share menu is open.",
+    shareFailed:"Could not share the file. Try “Download CSV”."
+  }
+};
+
+function historyExportText(key,...args){
+  const language=window.TennisI18n?.getLanguage() || "ru";
+  const value=(HISTORY_EXPORT_TEXT[language]||HISTORY_EXPORT_TEXT.ru)[key];
+  return typeof value==="function"?value(...args):value;
+}
+
+// Unlike the statistics view, an export cannot silently stop at a server page cap.
+async function listAllPlayerMatchesForExport(profileId,pageSize=100){
+  const matches=[];
+  const seen=new Set();
+  for(let offset=0;;){
+    const query=new URLSearchParams({
+      player_profile_id:profileId,limit:String(pageSize),offset:String(offset)
+    });
+    const result=await matchHistoryRequest("?"+query);
+    if(!Array.isArray(result?.matches))throw new Error(historyExportText("invalid"));
+    const page=result.matches;
+    if(!page.length)break;
+    for(const match of page){
+      if(!match || typeof match.id!=="string" || !match.id){
+        throw new Error(historyExportText("invalid"));
+      }
+      if(seen.has(match.id))throw new Error(historyExportText("repeat"));
+      seen.add(match.id);
+      matches.push(match);
+    }
+    offset+=page.length;
+    if(offset>100000)throw new Error(historyExportText("repeat"));
+  }
+  return matches;
+}
+
+const HISTORY_EXPORT_STATS=[
+  ["sp","Serve attempts"],["fi","1st Serve In"],["fw","1st Serve Won"],
+  ["sp2","2nd Serve attempts"],["sw","2nd Serve Won"],
+  ["a","ACE"],["df","DF"],["fhw","FH Winners"],["bhw","BH Winners"],
+  ["fhue","FH UE"],["bhue","BH UE"],["fe","Forced Errors Won"],
+  ["net","Net Points Won"],["bpf","Break Points Faced"],
+  ["bps","Break Points Saved"],["r1p","Return vs 1st points"],
+  ["r1w","Return vs 1st Won"],["r2p","Return vs 2nd points"],
+  ["r2w","Return vs 2nd Won"],["ptsWon","Points Won"]
+];
+
+function historyExportCount(value){
+  if(value===null || value===undefined || value==="")return "";
+  const number=Number(value);
+  return Number.isSafeInteger(number)&&number>=0?number:"";
+}
+
+function historyExportCell(value){
+  let content=String(value ?? "");
+  // Spreadsheet apps may execute formula-looking text entered as a player name.
+  if(/^[\s\u0000-\u001f]*[=+\-@]/u.test(content))content="'"+content;
+  return '"'+content.replace(/"/g,'""')+'"';
+}
+
+function buildPlayerHistoryCsv(matches,profile){
+  const header=[
+    "Match ID","Saved at (ISO 8601)","Player","Opponent","Result","Winner",
+    "Sets won","Sets lost","Set scores","Included in statistics","Recorded points",
+    ...["Player","Opponent"].flatMap(side=>
+      HISTORY_EXPORT_STATS.map(([,label])=>side+" "+label)
+    )
+  ];
+  const rows=matches.map(match=>{
+    const index=h2hPlayerIndex(match,profile);
+    const other=1-index;
+    const score=Array.isArray(match.sets?.score)?match.sets.score:null;
+    const winnerIndex=h2hWinnerIndex(match);
+    const points=Array.isArray(match.points)?match.points:
+      Array.isArray(match.sets?.log)?match.sets.log:null;
+    const row=[
+      match.id,match.created_at||"",profile.display_name,
+      index===0?match.player2:match.player1,
+      winnerIndex===null?"":winnerIndex===index?"W":"L",
+      match.winner||"",
+      score?historyExportCount(score[index]):"",
+      score?historyExportCount(score[other]):"",
+      match.sets?.set_scores?.length || match.score
+        ? h2hScoreForPlayer(match,index) : "",
+      match.sets?.include_in_stats===false?"no":"yes",
+      points?points.length:""
+    ];
+    for(const stats of [h2hStatsAt(match,index),h2hStatsAt(match,other)]){
+      row.push(...HISTORY_EXPORT_STATS.map(([key])=>
+        stats?historyExportCount(stats[key]):""
+      ));
+    }
+    return row;
+  });
+  return "\ufeff"+[header,...rows]
+    .map(row=>row.map(historyExportCell).join(",")).join("\r\n")+"\r\n";
+}
+
+let preparedHistoryCsv=null;
+let historyExportSequence=0;
+let historyExportNotice=null;
+
+function setHistoryExportNotice(key,args=[],error=false){
+  historyExportNotice={key,args,error};
+  const status=$("historyExportStatus");
+  status.textContent=historyExportText(key,...args);
+  status.classList.toggle("error",error);
+}
+
+function clearPreparedHistoryCsv(){
+  if(preparedHistoryCsv?.url)URL.revokeObjectURL(preparedHistoryCsv.url);
+  preparedHistoryCsv=null;
+  const actions=document.getElementById("historyExportActions");
+  if(actions)actions.classList.add("hidden");
+  const link=document.getElementById("downloadHistoryCsvLink");
+  if(link)link.removeAttribute("href");
+}
+
+function renderHistoryExport(){
+  const title=document.getElementById("historyExportTitle");
+  if(!title)return;
+  title.textContent=historyExportText("title");
+  $("historyExportNote").textContent=historyExportText("note");
+  $("prepareHistoryCsvBtn").textContent=historyExportText("prepare");
+  $("downloadHistoryCsvLink").textContent=historyExportText("download");
+  $("shareHistoryCsvBtn").textContent=historyExportText("share");
+  if(historyExportNotice){
+    const {key,args,error}=historyExportNotice;
+    setHistoryExportNotice(key,args,error);
+  }
+}
+
+function historyExportHasUnsyncedMatch(profile){
+  return getPendingMatches().some(item=>
+    item.tracked_player_id===profile.id ||
+    (!item.tracked_player_id && item.player1===profile.display_name)
+  ) || (S.matchOver && S.playerProfileId===profile.id &&
+    (S.liveFinishPending || (S.pendingSyncId && !S.savedMatchId)));
+}
+
+async function preparePlayerHistoryCsv(){
+  const button=$("prepareHistoryCsvBtn");
+  if(button.disabled)return;
+  const profile=selectedPlayerProfile();
+  ++historyExportSequence;
+  const sequence=historyExportSequence;
+  clearPreparedHistoryCsv();
+  if(!profile || !window.TENNIS_INIT_DATA || !navigator.onLine){
+    setHistoryExportNotice(!profile?"choose":
+      !window.TENNIS_INIT_DATA?"telegram":"offline",[],true);
+    return;
+  }
+  if(historyExportHasUnsyncedMatch(profile)){
+    setHistoryExportNotice("pending",[],true);
+    return;
+  }
+  button.disabled=true;
+  setHistoryExportNotice("loading");
+  try{
+    const matches=await listAllPlayerMatchesForExport(profile.id);
+    if(sequence!==historyExportSequence || selectedPlayerProfileId!==profile.id)return;
+    if(historyExportHasUnsyncedMatch(profile)){
+      throw new Error(historyExportText("pending"));
+    }
+    if(matches.some(match=>!matchBelongsToPlayerProfile(match,profile))){
+      throw new Error(historyExportText("invalid"));
+    }
+    if(!matches.length){setHistoryExportNotice("empty");return}
+    const csv=buildPlayerHistoryCsv(matches,profile);
+    const filename="tennis_history_"+new Date().toISOString().slice(0,10)+".csv";
+    const blob=new Blob([csv],{type:"text/csv;charset=utf-8"});
+    const url=URL.createObjectURL(blob);
+    const link=$("downloadHistoryCsvLink");
+    link.href=url;
+    link.download=filename;
+    preparedHistoryCsv={url,blob,filename,profileId:profile.id};
+    const shareButton=$("shareHistoryCsvBtn");
+    let canShare=false;
+    if(typeof File==="function" && typeof navigator.share==="function" &&
+       typeof navigator.canShare==="function"){
+      try{
+        const file=new File([blob],filename,{type:blob.type});
+        canShare=navigator.canShare({files:[file]});
+      }catch(error){console.warn("CSV sharing unavailable",error)}
+    }
+    shareButton.classList.toggle("hidden",!canShare);
+    $("historyExportActions").classList.remove("hidden");
+    setHistoryExportNotice("ready",[matches.length]);
+  }catch(error){
+    if(sequence!==historyExportSequence)return;
+    clearPreparedHistoryCsv();
+    setHistoryExportNotice("failed",[error?.message||"network error"],true);
+  }finally{
+    button.disabled=false;
+  }
+}
+
+async function sharePlayerHistoryCsv(){
+  const prepared=preparedHistoryCsv;
+  if(!prepared || prepared.profileId!==selectedPlayerProfileId)return;
+  try{
+    const file=new File([prepared.blob],prepared.filename,{type:prepared.blob.type});
+    await navigator.share({files:[file],title:prepared.filename});
+    setHistoryExportNotice("shared");
+  }catch(error){
+    if(error?.name==="AbortError")return;
+    setHistoryExportNotice("shareFailed",[],true);
+  }
 }
 
 function rememberStatsOpponentsFromMatches(profileId,matches){
@@ -11168,6 +11449,9 @@ $("startBtn").onclick=start;
 
   };
   $("loadPlayerStatsBtn").onclick=loadPlayerStats;
+  $("prepareHistoryCsvBtn").onclick=preparePlayerHistoryCsv;
+  $("shareHistoryCsvBtn").onclick=sharePlayerHistoryCsv;
+  renderHistoryExport();
   $("statsOpponentProfile").onchange=event=>{
 
     selectedStatsOpponentProfileId=event.target.value || null;
@@ -11297,6 +11581,7 @@ window.addEventListener("offline",()=>{
 });
 
 window.addEventListener("tennis-language-change",()=>{
+  renderHistoryExport();
   resetAiCoachState();
   resetSavedMatchAiState();
   renderSetupOpponentPlan();
@@ -11307,6 +11592,7 @@ window.addEventListener("tennis-language-change",()=>{
   renderAiCoach();
   renderSavedMatchAnalysis();
 });
+window.addEventListener("pagehide",clearPreparedHistoryCsv);
 
 document.addEventListener("visibilitychange",()=>{
 

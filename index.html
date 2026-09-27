@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- UPDATED: numeric match IDs in saved-match history export V22.1 -->
+<!-- UPDATED: full post-match review and next-opponent plan V23 -->
 <html lang="ru">
 <head>
 <meta charset="utf-8">
@@ -5870,7 +5870,17 @@ const CHATGPT_SHARE_TEXT={
   }
 };
 
-const ANALYSIS_HUB_MODES=["plan_review","progress","training_plan"];
+const ANALYSIS_HUB_MODES=["post_match","plan_review","progress","training_plan","next_match_plan"];
+const ANALYSIS_MODE_CONFIG={
+  post_match:{prefix:"post",description:"postDescription",aiDescription:"postDescription",request:"requestPost",history:false,maxTips:8},
+  plan_review:{prefix:"plan",description:"planDescription",aiDescription:"planReviewDescription",request:"requestPlanReview",history:false,maxTips:3},
+  progress:{prefix:"progress",description:"progressDescription",aiDescription:"progressDescription",request:"requestProgress",history:true,maxTips:3},
+  training_plan:{prefix:"training",description:"trainingDescription",aiDescription:"trainingDescription",request:"requestTraining",history:true,maxTips:3},
+  next_match_plan:{prefix:"next",description:"nextDescription",aiDescription:"nextMatchDescription",request:"requestNextMatch",history:false,maxTips:5}
+};
+function analysisModeConfig(mode){return ANALYSIS_MODE_CONFIG[mode]||ANALYSIS_MODE_CONFIG.post_match}
+function isDetailedAnalysisMode(mode){return mode==="post_match"||mode==="next_match_plan"}
+
 const ANALYSIS_HUB_TEXT={
   ru:{
     title:"🧠 Анализ и рекомендации",
@@ -5960,10 +5970,46 @@ const ANALYSIS_HUB_TEXT={
   }
 };
 
+
+// V23: each analysis mode has its own task in all supported languages.
+Object.assign(ANALYSIS_HUB_TEXT.ru,{
+  "post_match": "Полный разбор матча",
+  "next_match_plan": "План следующей игры с этим соперником",
+  "postDescription": "Разобрать завершённый матч целиком: подачу, Return, Winners/UE, Break Points, Rally, изменения по сетам и главные выводы.",
+  "nextDescription": "Подготовить тактику следующей встречи с этим соперником по выбранному матчу, H2H и наблюдениям тренера.",
+  "historyMatch": "Выбранный матч и H2H будут показаны отдельно. H2H может включать этот матч; их числа не суммируются.",
+  "postIntro": "Ниже — завершённый теннисный матч, доступная статистика по сетам и отдельный H2H-контекст. Сделай полный послематчевый разбор как теннисный тренер. Используй только указанные данные.",
+  "postTask": "ЗАДАЧА:\n1. Кратко оцени результат и главные подтверждённые особенности матча.\n2. Отдельно разбери 1st Serve, 2nd Serve, ACE/DF и Return против обеих подач.\n3. Разбери Winners/UE по FH/BH, Forced Errors Won, Net Points Won, Break Points и Rally. Число выигранных очков у сетки не равно эффективности без числа попыток. Не оценивай показатель с нулём попыток.\n4. Сравни сеты только по имеющимся данным. Называй проценты вместе с числителем и знаменателем; при отсутствии данных так и напиши.\n5. Выдели 2–3 сильные стороны и до 3 приоритетных корректировок с точной статистикой.\n6. Учитывай размер каждой выборки и полноту отметок Rally. Ноль отметок не доказывает отсутствие события. Не придумывай направления ударов, технические, физические или психологические причины.\n7. H2H — отдельный исторический контекст: он может включать выбранный матч. Не складывай его с текущим матчем и не выдавай малую выборку за устойчивую тенденцию.\n8. OPPONENT PROFILE содержит наблюдения тренера и текущую запись плана; это не доказательство того, какой план действовал в дату старого матча.\nНе давай медицинских, травматологических, диетических или лекарственных рекомендаций. Ответь по-русски, сохрани Tennis terms и сокращения на английском.",
+  "nextIntro": "Ниже — выбранный завершённый теннисный матч против конкретного соперника, отдельная H2H-история и наблюдения тренера. Составь практичный план следующей игры именно с этим соперником, используя только указанные данные.",
+  "nextTask": "ЗАДАЧА:\n1. Дай 3 главные установки по приоритету и отдельный план на своей подаче, на Return и в Rally.\n2. Для каждой установки укажи конкретное действие, точную статистику и размер выборки, а также измеримый показатель для проверки в следующем матче.\n3. Назови, что сохранить после выбранного матча и что скорректировать. Добавь короткий запасной вариант, если основная тактика не работает, как предложение для проверки, а не установленный факт.\n4. Используй выбранный матч и H2H раздельно. H2H может включать выбранный матч; не суммируй их и учитывай даты более поздних встреч.\n5. Наблюдения тренера и текущий план используй только как отдельный контекст. Не приписывай текущий план старому матчу без сохранённой исторической версии.\n6. Не придумывай покрытия, направления подачи, слабый FH/BH, физические или психологические особенности. Если статистика не позволяет выбрать направление или тактику, обозначь это как предварительную гипотезу либо прямо скажи, что данных мало.\n7. Учитывай неотмеченные Rally, нулевые попытки и малые выборки; не принимай отсутствие записи за отсутствие события.\nОтветь по-русски. Tennis terms и сокращения оставляй на английском. Не давай медицинских, травматологических, диетических или лекарственных рекомендаций."
+});
+Object.assign(ANALYSIS_HUB_TEXT.uk,{
+  "post_match": "Повний розбір матчу",
+  "next_match_plan": "План наступної гри з цим суперником",
+  "postDescription": "Повністю розібрати завершений матч: подачу, Return, Winners/UE, Break Points, Rally, зміни за сетами та головні висновки.",
+  "nextDescription": "Підготувати тактику наступної зустрічі з цим суперником за вибраним матчем, H2H і спостереженнями тренера.",
+  "historyMatch": "Вибраний матч і H2H показані окремо. H2H може включати цей матч; їхні числа не підсумовуються.",
+  "postIntro": "Нижче — завершений тенісний матч, доступна статистика за сетами й окремий H2H-контекст. Зроби повний післяматчевий розбір як тенісний тренер, використовуючи лише наведені дані.",
+  "postTask": "ЗАВДАННЯ:\n1. Коротко оціни результат і головні підтверджені особливості матчу.\n2. Окремо розбери 1st Serve, 2nd Serve, ACE/DF та Return проти обох подач.\n3. Розбери Winners/UE за FH/BH, Forced Errors Won, Net Points Won, Break Points і Rally. Без кількості спроб біля сітки не оцінюй ефективність. Не оцінюй показник без спроб.\n4. Порівняй сети лише за доступними даними; наводь чисельники, знаменники й відсотки. Прямо позначай відсутні дані.\n5. Назви 2–3 сильні сторони й до 3 пріоритетних коригувань із точною статистикою.\n6. Враховуй розмір вибірки та повноту позначок Rally. Відсутність запису не доводить відсутності події. Не вигадуй напрямків ударів, технічних, фізичних чи психологічних причин.\n7. H2H — окремий контекст, що може включати вибраний матч. Не додавай ці числа й не називай малу вибірку стійкою тенденцією.\n8. OPPONENT PROFILE містить спостереження тренера й поточний план; він не доводить, який план діяв у дату старого матчу.\nНе давай медичних, травматологічних, дієтичних чи лікарських порад. Відповідай українською; Tennis terms і скорочення залишай англійською.",
+  "nextIntro": "Нижче — вибраний завершений тенісний матч проти конкретного суперника, окрема H2H-історія та спостереження тренера. Склади практичний план наступної гри саме з цим суперником, використовуючи лише наведені дані.",
+  "nextTask": "ЗАВДАННЯ:\n1. Дай 3 головні пріоритетні настанови й окремий план на своїй подачі, на Return та в Rally.\n2. Для кожної настанови вкажи конкретну дію, точну статистику, розмір вибірки й вимірюваний показник перевірки в наступному матчі.\n3. Назви, що зберегти й що скоригувати після вибраного матчу. Додай короткий запасний варіант як пропозицію для перевірки, якщо основна тактика не працює.\n4. Використовуй вибраний матч і H2H окремо. H2H може включати цей матч; не підсумовуй числа та враховуй дати пізніших зустрічей.\n5. Спостереження тренера й поточний план — окремий контекст. Не приписуй поточний план старому матчу без історичної версії.\n6. Не вигадуй покриття, напрямки подачі, слабкий FH/BH, фізичні чи психологічні особливості. Якщо даних мало, скажи прямо або познач пораду як попередню гіпотезу.\n7. Враховуй непозначені Rally, відсутність спроб і малі вибірки. Відсутність запису не доводить відсутності події.\nВідповідай українською; Tennis terms і скорочення залишай англійською. Не давай медичних, травматологічних, дієтичних чи лікарських порад."
+});
+Object.assign(ANALYSIS_HUB_TEXT.en,{
+  "post_match": "Full post-match review",
+  "next_match_plan": "Next-match plan against this opponent",
+  "postDescription": "Review the completed match: serve, Return, Winners/UE, Break Points, Rally, set-by-set changes, and key conclusions.",
+  "nextDescription": "Prepare tactics for the next meeting with this opponent using the selected match, H2H, and coach observations.",
+  "historyMatch": "The selected match and H2H are separate samples. H2H may include the selected match; do not add their counts.",
+  "postIntro": "Below are a completed tennis match, available set-by-set statistics, and separate H2H context. Give a full post-match review as a tennis coach using only the supplied data.",
+  "postTask": "TASK:\n1. Briefly assess the result and the main supported match patterns.\n2. Review 1st Serve, 2nd Serve, ACE/DF, and Return against both serves separately.\n3. Review Winners/UE by FH/BH, Forced Errors Won, Net Points Won, Break Points, and Rally. Net points won alone do not show efficiency without attempts. Do not evaluate zero-attempt rates.\n4. Compare sets only with available data. Include numerators and denominators alongside percentages; state missing data explicitly.\n5. Identify 2–3 strengths and up to 3 prioritized adjustments with exact evidence.\n6. Account for each sample size and incomplete Rally tagging. Missing records do not prove that events did not happen. Do not invent shot directions or technical, physical, or psychological causes.\n7. Keep H2H separate: it may include the selected match. Do not add the samples or label tiny samples durable trends.\n8. OPPONENT PROFILE contains coach observations and the current plan; it does not establish the plan in force on the date of an older match.\nDo not give medical, injury, diet, or medication advice. Reply in English with standard tennis terms.",
+  "nextIntro": "Below are a selected completed tennis match against a specific opponent, separate H2H history, and coach observations. Create a practical plan for the next meeting with this same opponent using only the supplied data.",
+  "nextTask": "TASK:\n1. Give 3 prioritized instructions and a separate plan for serving, Return, and Rally.\n2. For each instruction, provide a concrete action, exact statistical evidence, sample size, and a measurable check in the next match.\n3. Explain what to retain and adjust after the selected match. Add a short fallback if the main tactic fails, clearly framed as a proposal to test.\n4. Keep the selected match and H2H separate. H2H may include this match; do not add the counts and account for any more recent meetings.\n5. Treat coach observations and the current plan as separate context. Do not attribute the current plan to an older match without a historical snapshot.\n6. Do not invent surface, serve directions, weak FH/BH, physical or psychological traits. State insufficient data or label tactical ideas as provisional hypotheses.\n7. Account for untagged Rally, zero attempts, and small samples. Missing records do not prove absent events.\nReply in English with standard tennis terms. Do not give medical, injury, diet, or medication advice."
+});
+
 let chatGptShareStatusKey="";
 let chatGptShareStatusFingerprint="";
 let analysisHubOpen=false;
-let analysisHubMode="plan_review";
+let analysisHubMode="post_match";
 let analysisHubShareStatusKey="";
 let analysisHubShareFingerprint="";
 let analysisHubHistoryLoading=false;
@@ -5973,7 +6019,7 @@ let analysisHubMatchKey="";
 
 let selectedSavedMatch=null;
 let savedMatchAnalysisOpen=false;
-let savedMatchAnalysisMode="plan_review";
+let savedMatchAnalysisMode="post_match";
 let savedMatchAnalysisShareStatusKey="";
 let savedMatchAnalysisShareFingerprint="";
 let savedMatchAnalysisHistoryLoading=false;
@@ -6023,8 +6069,7 @@ function renderAnalysisHub(){
     analysisHubHistoryCache=null;
     analysisHubHistoryError="";
     analysisHubShareStatusKey="";
-    const plan=opponentCoachProfile(currentMatchOpponentProfile()).pre_match_plan;
-    analysisHubMode=plan?"plan_review":"progress";
+    analysisHubMode="post_match";
   }else if(!post){
     analysisHubMatchKey="";
   }
@@ -6050,19 +6095,17 @@ function renderAnalysisHub(){
   }));
   select.value=ANALYSIS_HUB_MODES.includes(analysisHubMode)
     ? analysisHubMode
-    : (ANALYSIS_HUB_MODES.includes(previous)?previous:"plan_review");
+    : (ANALYSIS_HUB_MODES.includes(previous)?previous:"post_match");
   $("analysisHubModeDescription").textContent=analysisHubText(
-    analysisHubMode==="plan_review"
-      ? "planDescription"
-      : analysisHubMode==="progress"?"progressDescription":"trainingDescription"
+    analysisModeConfig(analysisHubMode).description
   );
   $("analysisHubCopyBtn").textContent=analysisHubText("copyButton");
   $("analysisHubShareBtn").textContent=analysisHubText("shareButton");
   $("analysisHubFreeNote").textContent=analysisHubText("freeNote");
 
   const historyStatus=$("analysisHubHistoryStatus");
-  if(analysisHubMode==="plan_review"){
-    historyStatus.textContent=analysisHubText("historyPlan");
+  if(!analysisModeConfig(analysisHubMode).history){
+    historyStatus.textContent=analysisHubText(analysisHubMode==="plan_review"?"historyPlan":"historyMatch");
   }else if(analysisHubHistoryLoading){
     historyStatus.textContent=analysisHubText("historyLoading");
   }else if(analysisHubHistoryError){
@@ -6111,6 +6154,44 @@ function chatGptRate(won,total){
   const safeWon=chatGptCount(won);
   const safeTotal=chatGptCount(total);
   return safeWon+"/"+safeTotal+" ("+pct(safeWon,safeTotal)+")";
+}
+
+function analysisRecordedStats(name,stats){
+  return stats&&typeof stats==="object"
+    ? chatGptPlayerStats(name,stats)
+    : name+":\n- Detailed point stats: unavailable.";
+}
+function analysisDetailedSets(setScores,setStats,names,playerIndex=0,tieBreakScores=[]){
+  if(!setScores?.length)return "- Completed set data: unavailable.";
+  return setScores.map((score,index)=>{
+    const tieBreak=tieBreakScores?.[index];
+    const tieBreakText=Array.isArray(tieBreak)&&Math.max(score[0],score[1])===7&&Math.min(score[0],score[1])===6
+      ? " (Tie-break "+tieBreak[0]+"–"+tieBreak[1]+")"
+      : "";
+    return [
+      "Set "+(index+1)+": "+score[0]+"–"+score[1]+tieBreakText,
+      analysisRecordedStats(names[0],setStats?.[index]?.[playerIndex]),
+      analysisRecordedStats(names[1],setStats?.[index]?.[1-playerIndex])
+    ].join("\n");
+  }).join("\n\n");
+}
+function analysisDetailedPayload(setScores,setStats,playerIndex,recordedPoints,tieBreakScores=[]){
+  return {
+    recorded_points:aiCoachSafeCount(recordedPoints),
+    completed_sets:(setScores||[]).slice(0,5).map((score,index)=>({
+      set_number:index+1,
+      score:[aiCoachSafeCount(score[0],50),aiCoachSafeCount(score[1],50)],
+      tie_break_score:Array.isArray(tieBreakScores?.[index])
+        ? [
+            aiCoachSafeCount(tieBreakScores[index][0],100),
+            aiCoachSafeCount(tieBreakScores[index][1],100)
+          ]
+        : null,
+      player:setStats?.[index]?.[playerIndex]?aiCoachStats(setStats[index][playerIndex]):null,
+      opponent:setStats?.[index]?.[1-playerIndex]?aiCoachStats(setStats[index][1-playerIndex]):null
+    })),
+    opponent_profile_source:"current_profile_not_historical_snapshot"
+  };
 }
 
 function chatGptPlayerStats(name,stats){
@@ -6390,7 +6471,7 @@ function buildChatGptMatchPrompt(options={}){
     chatGptPlayerStats(opponentName,S.st?.[1]),
     "",
     "BY SET",
-    chatGptSetSummary(playerName,opponentName),
+    options.detailed?analysisDetailedSets(S.setScores,S.setStats,[playerName,opponentName],0,S.tieBreakScores):chatGptSetSummary(playerName,opponentName),
     "",
     "RALLY LENGTH (winner count)",
     chatGptRallySummary(playerName,opponentName),
@@ -6554,17 +6635,18 @@ async function loadAnalysisHubHistory(){
 }
 
 async function buildAnalysisHubPrompt(){
-  if(analysisHubMode==="plan_review"){
-    return buildChatGptMatchPrompt({
-      intro:analysisHubText("planIntro"),
-      task:analysisHubText("planTask")
-    });
-  }
-  const entries=await loadAnalysisHubHistory();
+  const mode=analysisHubMode;
+  const config=analysisModeConfig(mode);
+  const matchKey=aiCoachMatchKey();
+  let entries=[];
+  if(config.history)entries=await loadAnalysisHubHistory();
+  else if(isDetailedAnalysisMode(mode))await preloadH2HForOpponent(S.playerProfileId,S.opponentProfileId);
+  if(mode!==analysisHubMode||matchKey!==aiCoachMatchKey())throw new Error(analysisHubText("changed"));
   return buildChatGptMatchPrompt({
-    intro:analysisHubText(analysisHubMode==="progress"?"progressIntro":"trainingIntro"),
-    extraBlocks:[analysisHubHistoryBlock(entries,analysisHubHistoryError)],
-    task:analysisHubText(analysisHubMode==="progress"?"progressTask":"trainingTask")
+    intro:analysisHubText(config.prefix+"Intro"),
+    extraBlocks:config.history?[analysisHubHistoryBlock(entries,analysisHubHistoryError)]:[],
+    detailed:isDetailedAnalysisMode(mode),
+    task:analysisHubText(config.prefix+"Task")
   });
 }
 
@@ -6857,12 +6939,12 @@ function buildSavedMatchBasePrompt(context,options={},h2h=null){
     "- Recorded points: "+context.recordedPoints,
     "",
     "MATCH TOTAL",
-    chatGptPlayerStats(context.playerName,context.playerStats),
+    options.detailed?analysisRecordedStats(context.playerName,h2hStatsAt(context.match,context.playerIndex)):chatGptPlayerStats(context.playerName,context.playerStats),
     "",
-    chatGptPlayerStats(context.opponentName,context.opponentStats),
+    options.detailed?analysisRecordedStats(context.opponentName,h2hStatsAt(context.match,context.opponentIndex)):chatGptPlayerStats(context.opponentName,context.opponentStats),
     "",
     "BY SET",
-    savedMatchSetSummary(context),
+    options.detailed?analysisDetailedSets(context.setScores,context.setStats,[context.playerName,context.opponentName],context.playerIndex,context.tieBreakScores):savedMatchSetSummary(context),
     "",
     "RALLY LENGTH (winner count)",
     savedMatchRallySummary(context),
@@ -6879,23 +6961,16 @@ function buildSavedMatchBasePrompt(context,options={},h2h=null){
 async function buildSavedMatchAnalysisPrompt(){
   const context=savedMatchAnalysisContext();
   if(!context)throw new Error("Saved match is unavailable");
+  const mode=savedMatchAnalysisMode;
+  const config=analysisModeConfig(mode);
+  const key=savedMatchAnalysisKey(context.match);
   const history=await loadSavedMatchAnalysisHistory();
-  if(savedMatchAnalysisMode==="plan_review"){
-    return buildSavedMatchBasePrompt(context,{
-      intro:analysisHubText("planIntro"),
-      task:analysisHubText("planTask")
-    },history.h2h);
-  }
+  if(mode!==savedMatchAnalysisMode||key!==savedMatchAnalysisKey())throw new Error(analysisHubText("changed"));
   return buildSavedMatchBasePrompt(context,{
-    intro:analysisHubText(
-      savedMatchAnalysisMode==="progress"?"progressIntro":"trainingIntro"
-    ),
-    extraBlocks:[savedMatchHistoryBlock(
-      context,history.entries||[],savedMatchAnalysisHistoryError
-    )],
-    task:analysisHubText(
-      savedMatchAnalysisMode==="progress"?"progressTask":"trainingTask"
-    )
+    intro:analysisHubText(config.prefix+"Intro"),
+    extraBlocks:config.history?[savedMatchHistoryBlock(context,history.entries||[],savedMatchAnalysisHistoryError)]:[],
+    detailed:isDetailedAnalysisMode(mode),
+    task:analysisHubText(config.prefix+"Task")
   },history.h2h);
 }
 
@@ -6930,9 +7005,7 @@ function selectSavedMatchAnalysis(match){
   savedMatchAnalysisHistoryCache=null;
   resetSavedMatchAiState();
   const context=savedMatchAnalysisContext();
-  savedMatchAnalysisMode=opponentCoachProfile(context?.opponent).pre_match_plan
-    ? "plan_review"
-    : "progress";
+  savedMatchAnalysisMode="post_match";
   renderSavedMatchAnalysis();
 }
 
@@ -6983,9 +7056,7 @@ function renderSavedMatchAnalysis(){
   }));
   select.value=savedMatchAnalysisMode;
   $("savedMatchAnalysisModeDescription").textContent=analysisHubText(
-    savedMatchAnalysisMode==="plan_review"
-      ? "planDescription"
-      : savedMatchAnalysisMode==="progress"?"progressDescription":"trainingDescription"
+    analysisModeConfig(savedMatchAnalysisMode).description
   );
   $("savedMatchAnalysisCopyBtn").textContent=analysisHubText("copyButton");
   $("savedMatchAnalysisShareBtn").textContent=analysisHubText("shareButton");
@@ -6999,14 +7070,14 @@ function renderSavedMatchAnalysis(){
   }else if(savedMatchAnalysisHistoryCache){
     const entries=savedMatchAnalysisHistoryCache.entries||[];
     const detailed=entries.filter(entry=>entry.detailed).length;
-    historyStatus.textContent=savedMatchAnalysisMode==="plan_review"
-      ? analysisHubText("historyPlan")
+    historyStatus.textContent=!analysisModeConfig(savedMatchAnalysisMode).history
+      ? analysisHubText(savedMatchAnalysisMode==="plan_review"?"historyPlan":"historyMatch")
       : entries.length
         ? analysisHubText("historyReady",{matches:entries.length+1,detailed:detailed+1})
         : analysisHubText("historyEmpty");
   }else{
-    historyStatus.textContent=savedMatchAnalysisMode==="plan_review"
-      ? analysisHubText("historyPlan")
+    historyStatus.textContent=!analysisModeConfig(savedMatchAnalysisMode).history
+      ? analysisHubText(savedMatchAnalysisMode==="plan_review"?"historyPlan":"historyMatch")
       : analysisHubText("historyPending");
   }
 
@@ -7328,6 +7399,25 @@ const AI_COACH_TEXT={
   }
 };
 
+Object.assign(AI_COACH_TEXT.ru,{
+  "postDescription": "Платный полный разбор завершённого матча с отдельным H2H-контекстом.",
+  "requestPost": "🤖 ПОЛУЧИТЬ ПОЛНЫЙ РАЗБОР МАТЧА",
+  "nextMatchDescription": "Платный план следующей встречи с этим соперником по матчу и H2H.",
+  "requestNextMatch": "🤖 ПОЛУЧИТЬ ПЛАН СЛЕДУЮЩЕЙ ИГРЫ"
+});
+Object.assign(AI_COACH_TEXT.uk,{
+  "postDescription": "Платний повний розбір завершеного матчу з окремим H2H-контекстом.",
+  "requestPost": "🤖 ОТРИМАТИ ПОВНИЙ РОЗБІР МАТЧУ",
+  "nextMatchDescription": "Платний план наступної зустрічі з цим суперником за матчем і H2H.",
+  "requestNextMatch": "🤖 ОТРИМАТИ ПЛАН НАСТУПНОЇ ГРИ"
+});
+Object.assign(AI_COACH_TEXT.en,{
+  "postDescription": "A paid full review of the completed match with separate H2H context.",
+  "requestPost": "🤖 GET FULL POST-MATCH REVIEW",
+  "nextMatchDescription": "A paid next-match plan against this opponent using the match and H2H.",
+  "requestNextMatch": "🤖 GET NEXT-MATCH PLAN"
+});
+
 function aiCoachText(key,values={}){
   const language=window.TennisI18n?.getLanguage?.() || "ru";
   const template=AI_COACH_TEXT[language]?.[key] || AI_COACH_TEXT.ru[key] || key;
@@ -7412,6 +7502,9 @@ function aiCoachPayload(){
     opponent_profile_id:S.opponentProfileId,
     language:window.TennisI18n?.getLanguage?.() || "ru",
     analysis_mode:S.matchOver?analysisHubMode:"live_advice",
+    ...(S.matchOver&&isDetailedAnalysisMode(analysisHubMode)?{match_details:analysisDetailedPayload(
+      S.setScores,S.setStats,0,Math.max(S.log?.length||0,(S.st[0]?.ptsWon||0)+(S.st[1]?.ptsWon||0)),S.tieBreakScores
+    )}:{}),
     current_match_key:analysisHubCurrentSyncKey() || null,
     current_match:{
       sets:[aiCoachSafeCount(S.set?.[0],5),aiCoachSafeCount(S.set?.[1],5)],
@@ -7454,18 +7547,14 @@ function renderAiCoach(){
   if(!button)return;
   const quality=aiCoachDataQuality();
   $("aiCoachTitle").textContent=aiCoachText("title");
-  const postDescriptionKey=analysisHubMode==="plan_review"
-    ? "planReviewDescription"
-    : analysisHubMode==="progress"?"progressDescription":"trainingDescription";
+  const postDescriptionKey=analysisModeConfig(analysisHubMode).aiDescription;
   $("aiCoachDescription").textContent=aiCoachText(
     S.matchOver?postDescriptionKey:"liveDescription"
   );
   const qualityBox=$("aiCoachDataQuality");
   qualityBox.className="aiCoachNotice "+quality.tone;
   qualityBox.textContent=quality.text;
-  const postRequestKey=analysisHubMode==="plan_review"
-    ? "requestPlanReview"
-    : analysisHubMode==="progress"?"requestProgress":"requestTraining";
+  const postRequestKey=analysisModeConfig(analysisHubMode).request;
   button.textContent=aiCoachLoading
     ? aiCoachText("loading")
     : aiCoachText(S.matchOver?postRequestKey:"requestLive");
@@ -7515,6 +7604,7 @@ function renderAiCoach(){
     title.textContent=aiCoachText(priorityKey)+" · "+tip.title;
     const advice=document.createElement("div");
     advice.textContent=tip.advice;
+    advice.style.whiteSpace="pre-wrap";
     const evidence=document.createElement("div");
     evidence.className="aiCoachEvidence";
     evidence.textContent=aiCoachText("evidence")+": "+tip.evidence;
@@ -7541,6 +7631,7 @@ async function requestAiCoach(){
 
   const requestId=++aiCoachRequestSequence;
   const fingerprint=aiCoachFingerprint();
+  const maxTips=S.matchOver?analysisModeConfig(analysisHubMode).maxTips:3;
   aiCoachLoading=true;
   aiCoachError="";
   renderAiCoach();
@@ -7561,7 +7652,7 @@ async function requestAiCoach(){
     }
     if(
       typeof result.summary!=="string" || !result.summary.trim() ||
-      !Array.isArray(result.tips) || result.tips.length<1 || result.tips.length>3
+      !Array.isArray(result.tips) || result.tips.length<1 || result.tips.length>maxTips
     ){
       const error=new Error("Invalid AI Coach response");
       error.code="ai_invalid_response";
@@ -7666,6 +7757,10 @@ function savedMatchAiPayload(){
     opponent_profile_id:context.opponentProfileId,
     language:window.TennisI18n?.getLanguage?.() || "ru",
     analysis_mode:savedMatchAnalysisMode,
+    ...(isDetailedAnalysisMode(savedMatchAnalysisMode)?{match_details:{
+      ...analysisDetailedPayload(context.setScores,context.setStats,context.playerIndex,context.recordedPoints,context.tieBreakScores),
+      totals_available:{player:!!h2hStatsAt(context.match,context.playerIndex),opponent:!!h2hStatsAt(context.match,context.opponentIndex)}
+    }}:{}),
     current_match_key:savedMatchAnalysisKey(context.match) || null,
     current_match:{
       sets:[
@@ -7697,16 +7792,12 @@ function renderSavedMatchAiCoach(){
   if(!context)return;
   const quality=savedMatchAiDataQuality();
   $("savedMatchAiTitle").textContent=aiCoachText("title");
-  const descriptionKey=savedMatchAnalysisMode==="plan_review"
-    ? "planReviewDescription"
-    : savedMatchAnalysisMode==="progress"?"progressDescription":"trainingDescription";
+  const descriptionKey=analysisModeConfig(savedMatchAnalysisMode).aiDescription;
   $("savedMatchAiDescription").textContent=aiCoachText(descriptionKey);
   const qualityBox=$("savedMatchAiDataQuality");
   qualityBox.className="aiCoachNotice "+quality.tone;
   qualityBox.textContent=quality.text;
-  const requestKey=savedMatchAnalysisMode==="plan_review"
-    ? "requestPlanReview"
-    : savedMatchAnalysisMode==="progress"?"requestProgress":"requestTraining";
+  const requestKey=analysisModeConfig(savedMatchAnalysisMode).request;
   button.textContent=savedMatchAiLoading
     ? aiCoachText("loading")
     : aiCoachText(requestKey);
@@ -7757,6 +7848,7 @@ function renderSavedMatchAiCoach(){
     title.textContent=aiCoachText(priorityKey)+" · "+tip.title;
     const advice=document.createElement("div");
     advice.textContent=tip.advice;
+    advice.style.whiteSpace="pre-wrap";
     const evidence=document.createElement("div");
     evidence.className="aiCoachEvidence";
     evidence.textContent=aiCoachText("evidence")+": "+tip.evidence;
@@ -7787,6 +7879,7 @@ async function requestSavedMatchAiCoach(){
 
   const requestId=++savedMatchAiRequestSequence;
   const fingerprint=savedMatchAiFingerprint();
+  const maxTips=analysisModeConfig(savedMatchAnalysisMode).maxTips;
   savedMatchAiLoading=true;
   savedMatchAiError="";
   renderSavedMatchAiCoach();
@@ -7807,7 +7900,7 @@ async function requestSavedMatchAiCoach(){
     }
     if(
       typeof result.summary!=="string" || !result.summary.trim() ||
-      !Array.isArray(result.tips) || result.tips.length<1 || result.tips.length>3
+      !Array.isArray(result.tips) || result.tips.length<1 || result.tips.length>maxTips
     ){
       const error=new Error("Invalid AI Coach response");
       error.code="ai_invalid_response";

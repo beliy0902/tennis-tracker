@@ -1,4 +1,4 @@
-const CACHE_NAME = "tennis-tracker-v22-1-history-csv-export";
+const CACHE_NAME = "tennis-tracker-v23-post-match-analysis";
 
 const APP_FILES = [
 

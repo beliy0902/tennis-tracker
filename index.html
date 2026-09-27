@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- UPDATED: full post-match review and next-opponent plan V23 -->
+<!-- UPDATED: sample-aware Return analysis and archived-opponent post-match AI V23.1 -->
 <html lang="ru">
 <head>
 <meta charset="utf-8">
@@ -1104,8 +1104,11 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
     [/^⚡ <b>(.+):<\/b> (\d+) эйсов — подача создавала прямое давление\.$/,{uk:"⚡ <b>$1:</b> $2 ACE — подача створювала прямий тиск.",en:"⚡ <b>$1:</b> $2 ACE — the serve created direct pressure."}],
     [/^🔴 <b>(.+):<\/b> невынужденных ошибок больше, чем winners — (\d+)\/(\d+)\.$/,{uk:"🔴 <b>$1:</b> невимушених помилок більше, ніж Winners — $2/$3.",en:"🔴 <b>$1:</b> more Unforced Errors than Winners — $2/$3."}],
     [/^🟢 <b>(.+):<\/b> положительный баланс Winners \/ UE — (\d+)\/(\d+)\.$/,{uk:"🟢 <b>$1:</b> позитивний баланс Winners / UE — $2/$3.",en:"🟢 <b>$1:</b> positive Winners / UE balance — $2/$3."}],
-    [/^🎯 <b>(.+):<\/b> сильный приём первой подачи — выиграно (\d+)% очков\.$/,{uk:"🎯 <b>$1:</b> сильний прийом 1st Serve — виграно $2% очок.",en:"🎯 <b>$1:</b> strong return against the 1st Serve — $2% of points won."}],
-    [/^🔴 <b>(.+):<\/b> слабый приём первой подачи — выиграно только (\d+)% очков\.$/,{uk:"🔴 <b>$1:</b> слабкий прийом 1st Serve — виграно лише $2% очок.",en:"🔴 <b>$1:</b> weak return against the 1st Serve — only $2% of points won."}],
+    [/^📌 <b>(.+):<\/b> Return vs 1st Serve — (\d+)\/(\d+) \((\d+)%\)\. Выборка мала; у соперника (\d+) ACE за матч, поэтому качество приёма нельзя уверенно оценить\.$/,{uk:"📌 <b>$1:</b> Return проти 1st Serve — $2/$3 ($4%). Вибірка мала; у суперника $5 ACE за матч, тому якість прийому не можна впевнено оцінити.",en:"📌 <b>$1:</b> Return vs 1st Serve — $2/$3 ($4%). The sample is small; the opponent recorded $5 ACE in the match, so return quality cannot be assessed confidently."}],
+    [/^📌 <b>(.+):<\/b> Return vs 1st Serve — (\d+)\/(\d+) \((\d+)%\)\. Выборка мала, поэтому качество приёма нельзя уверенно оценить\.$/,{uk:"📌 <b>$1:</b> Return проти 1st Serve — $2/$3 ($4%). Вибірка мала, тому якість прийому не можна впевнено оцінити.",en:"📌 <b>$1:</b> Return vs 1st Serve — $2/$3 ($4%). The sample is small, so return quality cannot be assessed confidently."}],
+    [/^📌 <b>(.+):<\/b> Return vs 1st Serve — (\d+)\/(\d+) \((\d+)%\)\. У соперника (\d+) ACE за матч; по этим данным качество приёма нельзя уверенно оценить\.$/,{uk:"📌 <b>$1:</b> Return проти 1st Serve — $2/$3 ($4%). У суперника $5 ACE за матч; за цими даними якість прийому не можна впевнено оцінити.",en:"📌 <b>$1:</b> Return vs 1st Serve — $2/$3 ($4%). The opponent recorded $5 ACE in the match; these data do not support a confident assessment of return quality."}],
+    [/^🎯 <b>(.+):<\/b> высокая эффективность Return против 1st Serve — (\d+)\/(\d+) \((\d+)%\)\.$/,{uk:"🎯 <b>$1:</b> висока ефективність Return проти 1st Serve — $2/$3 ($4%).",en:"🎯 <b>$1:</b> high Return effectiveness against the 1st Serve — $2/$3 ($4%)."}],
+    [/^🔴 <b>(.+):<\/b> низкая эффективность Return против 1st Serve — (\d+)\/(\d+) \((\d+)%\)\.$/,{uk:"🔴 <b>$1:</b> низька ефективність Return проти 1st Serve — $2/$3 ($4%).",en:"🔴 <b>$1:</b> low Return effectiveness against the 1st Serve — $2/$3 ($4%)."}],
     [/^🎯 <b>(.+):<\/b> сильная игра против второй подачи — (\d+)% выигранных очков\.$/,{uk:"🎯 <b>$1:</b> сильна гра проти 2nd Serve — $2% виграних очок.",en:"🎯 <b>$1:</b> strong play against the 2nd Serve — $2% of points won."}],
     [/^🔴 <b>(.+):<\/b> низкая эффективность приёма второй подачи — (\d+)%\.$/,{uk:"🔴 <b>$1:</b> низька ефективність прийому 2nd Serve — $2%.",en:"🔴 <b>$1:</b> low return effectiveness against the 2nd Serve — $2%."}],
     [/^🛡 <b>(.+):<\/b> брейк-пойнтов на своей подаче не допущено\.$/,{uk:"🛡 <b>$1:</b> Break Points на своїй подачі не допущено.",en:"🛡 <b>$1:</b> allowed no Break Points on serve."}],
@@ -9109,13 +9112,47 @@ if(!winner) winner="—";
 
   }
 
-  function numPct(a,b){
+function numPct(a,b){
 
   return Number(b)>0
 
     ? Math.round(Number(a||0)/Number(b)*100)
 
     : null;
+
+}
+
+function firstServeReturnAssessment(st, opponentSt){
+
+  const attempts = Math.max(0, Number(st?.r1p || 0));
+
+  if(attempts === 0)return null;
+
+  const won = Math.min(
+
+    attempts,
+
+    Math.max(0, Number(st?.r1w || 0))
+
+  );
+
+  const opponentAces = Math.max(0, Number(opponentSt?.a || 0));
+
+  return {
+
+    attempts,
+
+    won,
+
+    percentage:Math.round(won / attempts * 100),
+
+    opponentAces,
+
+    smallSample:attempts < 10,
+
+    aceHeavy:opponentAces >= 3 && opponentAces * 2 >= attempts
+
+  };
 
 }
 
@@ -9138,7 +9175,7 @@ function buildCoachReport(name, st, opponentName, opponentSt){
 
   const secondServeWon = numPct(st.sw, st.sp2);
 
-  const return1 = numPct(st.r1w, st.r1p);
+  const return1Assessment = firstServeReturnAssessment(st, opponentSt);
 
   const return2 = numPct(st.r2w, st.r2p);
 
@@ -9396,21 +9433,45 @@ function buildCoachReport(name, st, opponentName, opponentSt){
 
   // =========================
 
-  if(return1 !== null){
+  if(return1Assessment){
 
-    if(return1 >= 40){
+    const {attempts, won, percentage, opponentAces, smallSample, aceHeavy} =
 
-      good.push(
+      return1Assessment;
 
-        `🎯 <b>${name}:</b> сильный приём первой подачи — выиграно ${return1}% очков.`
+    if(smallSample){
+
+      warning.push(
+
+        opponentAces > 0
+
+          ? `📌 <b>${name}:</b> Return vs 1st Serve — ${won}/${attempts} (${percentage}%). Выборка мала; у соперника ${opponentAces} ACE за матч, поэтому качество приёма нельзя уверенно оценить.`
+
+          : `📌 <b>${name}:</b> Return vs 1st Serve — ${won}/${attempts} (${percentage}%). Выборка мала, поэтому качество приёма нельзя уверенно оценить.`
 
       );
 
-    } else if(return1 < 25){
+    } else if(percentage < 25 && aceHeavy){
+
+      warning.push(
+
+        `📌 <b>${name}:</b> Return vs 1st Serve — ${won}/${attempts} (${percentage}%). У соперника ${opponentAces} ACE за матч; по этим данным качество приёма нельзя уверенно оценить.`
+
+      );
+
+    } else if(percentage >= 40){
+
+      good.push(
+
+        `🎯 <b>${name}:</b> высокая эффективность Return против 1st Serve — ${won}/${attempts} (${percentage}%).`
+
+      );
+
+    } else if(percentage < 25){
 
       problems.push(
 
-        `🔴 <b>${name}:</b> слабый приём первой подачи — выиграно только ${return1}% очков.`
+        `🔴 <b>${name}:</b> низкая эффективность Return против 1st Serve — ${won}/${attempts} (${percentage}%).`
 
       );
 
@@ -9618,7 +9679,7 @@ function buildCoachReport(name, st, opponentName, opponentSt){
 
   const firstServeAttempts = Number(st.fi || 0);
 
-  const return1Attempts = Number(st.r1p || 0);
+  const return1Assessment = firstServeReturnAssessment(st, opponentSt);
 
   const return2Attempts = Number(st.r2p || 0);
 
@@ -9834,7 +9895,15 @@ function buildCoachReport(name, st, opponentName, opponentSt){
 
   // =================================
 
-  if(return1 !== null && return1Attempts >= 4){
+  if(
+
+    return1Assessment &&
+
+    !return1Assessment.smallSample &&
+
+    !(return1 < 25 && return1Assessment.aceHeavy)
+
+  ){
 
     if(return1 < 25){
 

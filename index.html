@@ -1,5 +1,5 @@
-<!doctype html>
-<!-- UPDATED: sample-aware Return analysis and archived-opponent post-match AI V23.1 -->
+﻿<!doctype html>
+<!-- UPDATED: safe abandoned Live Match recovery V24.1 -->
 <html lang="ru">
 <head>
 <meta charset="utf-8">
@@ -70,6 +70,13 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
 .historyExportActions button{min-height:50px}
 .historyExportStatus{margin-top:10px;font-size:13px;line-height:1.4;color:#555}
 .historyExportStatus.error{color:#b42318}
+.accessMember,.accessInvite{margin-top:10px;padding:12px;border:1px solid #e2e2e7;border-radius:14px;background:#f8f8fa}
+.accessMemberTitle{font-weight:850;line-height:1.3}.accessMemberMeta{margin-top:3px;color:#666;font-size:12px;overflow-wrap:anywhere}
+.accessPermission{display:flex;align-items:flex-start;gap:9px;margin-top:10px;line-height:1.35}
+.accessPermission input{width:22px;height:22px;flex:0 0 auto;margin:0}.accessPermission span{font-size:14px}
+.accessActions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}.accessActions button{min-height:46px;font-size:14px}
+.inviteCode{font-size:17px;font-weight:850;letter-spacing:.03em;overflow-wrap:anywhere;padding:12px;border-radius:12px;background:#fff;border:1px dashed #777;margin-top:9px}
+.accessStatus{min-height:20px;margin-top:9px;font-size:13px;line-height:1.4}.accessStatus.error{color:#b42318}.accessStatus.success{color:#157347}
 @media(max-width:420px){.chatGptShareActions{grid-template-columns:1fr}}
 </style>
 </head>
@@ -85,6 +92,14 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
 
       Проверка доступа через Telegram…
 
+    </div>
+
+    <div id="inviteRedeemPanel" class="hidden" data-i18n-ignore>
+      <div id="inviteRedeemTitle" class="section"></div>
+      <div id="inviteRedeemDescription" class="small"></div>
+      <input id="inviteRedeemCode" maxlength="48" autocomplete="off" autocapitalize="characters" style="margin-top:10px">
+      <button id="inviteRedeemBtn" class="primary" style="width:100%;margin-top:10px"></button>
+      <div id="inviteRedeemStatus" class="accessStatus" role="status" aria-live="polite"></div>
     </div>
 
   </div>
@@ -131,13 +146,15 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
       <div class="section">Управление соперником</div>
       <div id="manageOpponentHint" class="small hidden">Для изменения имени или объединения сначала выберите активного соперника. Архив доступен ниже.</div>
       <div id="activeOpponentActions">
-        <div class="label">Имя соперника</div>
-        <input id="editOpponentName" maxlength="120" autocomplete="off">
-        <div class="grid2" style="margin-top:8px">
-          <button id="renameOpponentBtn" class="primary">СОХРАНИТЬ ИМЯ</button>
-          <button id="archiveOpponentBtn" class="danger">АРХИВИРОВАТЬ</button>
+        <div id="opponentAdminActions">
+          <div class="label">Имя соперника</div>
+          <input id="editOpponentName" maxlength="120" autocomplete="off">
+          <div class="grid2" style="margin-top:8px">
+            <button id="renameOpponentBtn" class="primary">СОХРАНИТЬ ИМЯ</button>
+            <button id="archiveOpponentBtn" class="danger">АРХИВИРОВАТЬ</button>
+          </div>
         </div>
-        <div class="opponentProfileEditor">
+        <div id="opponentPlanEditor" class="opponentProfileEditor">
           <div class="section">🎯 Профиль и план против соперника</div>
           <div class="small">Наблюдения тренера сохраняются отдельно для этого соперника.</div>
           <div class="profileField">
@@ -171,16 +188,18 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
           <button id="saveOpponentProfileBtn" class="primary" style="width:100%;margin-top:10px">💾 СОХРАНИТЬ ПРОФИЛЬ</button>
           <div id="opponentProfileSaveStatus" class="profileSaveStatus" aria-live="polite"></div>
         </div>
-        <button id="mergeOpponentToggleBtn" style="width:100%;margin-top:8px">ОБЪЕДИНИТЬ С ДРУГОЙ ЗАПИСЬЮ</button>
-        <div id="mergeOpponentPanel" class="hidden" style="margin-top:10px">
-          <div class="label">Основной соперник: <span id="mergeTargetName"></span></div>
-          <div class="label">Какую вторую запись объединить с ним?</div>
-          <select id="mergeSourceOpponent">
-            <option value="">Выберите соперника</option>
-          </select>
-          <button id="confirmMergeOpponentBtn" class="danger" style="width:100%;margin-top:8px" disabled>ОБЪЕДИНИТЬ ПРОФИЛИ</button>
-          <div id="mergeOpponentError" class="small opponentError"></div>
-          <div class="small">Матчи будут учитываться вместе; старое имя останется в истории. Объединение нельзя отменить в приложении.</div>
+        <div id="opponentMergeAdmin">
+          <button id="mergeOpponentToggleBtn" style="width:100%;margin-top:8px">ОБЪЕДИНИТЬ С ДРУГОЙ ЗАПИСЬЮ</button>
+          <div id="mergeOpponentPanel" class="hidden" style="margin-top:10px">
+            <div class="label">Основной соперник: <span id="mergeTargetName"></span></div>
+            <div class="label">Какую вторую запись объединить с ним?</div>
+            <select id="mergeSourceOpponent">
+              <option value="">Выберите соперника</option>
+            </select>
+            <button id="confirmMergeOpponentBtn" class="danger" style="width:100%;margin-top:8px" disabled>ОБЪЕДИНИТЬ ПРОФИЛИ</button>
+            <div id="mergeOpponentError" class="small opponentError"></div>
+            <div class="small">Матчи будут учитываться вместе; старое имя останется в истории. Объединение нельзя отменить в приложении.</div>
+          </div>
         </div>
       </div>
       <button id="archiveOpponentToggleBtn" style="width:100%;margin-top:8px">📦 АРХИВ / ВОССТАНОВИТЬ</button>
@@ -213,6 +232,8 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
     <div class="spacer"></div>
 
 <button id="playerStatsBtn" style="width:100%">📊 СТАТИСТИКА ИГРОКА</button>
+    <div class="spacer"></div>
+    <button id="accessControlBtn" class="hidden" style="width:100%" data-i18n-ignore></button>
     <div id="resumeBox" class="resumeBox hidden">
       <div class="resumeTitle">Найден незавершённый матч</div>
       <div id="resumeText" class="small"></div>
@@ -222,6 +243,51 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
       </div>
     </div>
   </div>
+</section>
+<section id="accessControlScreen" class="hidden" data-i18n-ignore>
+  <div class="card">
+    <div id="accessControlTitle" class="startTitle"></div>
+    <div id="accessControlProfile" class="startSub"></div>
+    <div id="accessControlStatus" class="accessStatus" role="status" aria-live="polite"></div>
+  </div>
+  <div class="card">
+    <div id="accessInviteTitle" class="section"></div>
+    <div id="accessInviteDescription" class="small"></div>
+    <div class="profileField">
+      <label id="accessInviteRoleLabel" class="label" for="accessInviteRole"></label>
+      <select id="accessInviteRole">
+        <option value="coach"></option>
+        <option value="user" selected></option>
+        <option value="viewer"></option>
+      </select>
+    </div>
+    <label class="accessPermission"><input id="accessInvitePlan" type="checkbox"><span id="accessInvitePlanLabel"></span></label>
+    <label class="accessPermission"><input id="accessInviteAi" type="checkbox"><span id="accessInviteAiLabel"></span></label>
+    <div class="profileField">
+      <label id="accessInviteExpiryLabel" class="label" for="accessInviteExpiry"></label>
+      <select id="accessInviteExpiry">
+        <option value="1">1</option><option value="7" selected>7</option><option value="14">14</option><option value="30">30</option>
+      </select>
+    </div>
+    <button id="createAccessInviteBtn" class="primary" style="width:100%;margin-top:10px"></button>
+    <div id="createdInviteBox" class="hidden">
+      <div id="createdInviteCode" class="inviteCode"></div>
+      <div class="accessActions">
+        <button id="copyAccessInviteBtn"></button>
+        <button id="shareAccessInviteBtn"></button>
+      </div>
+      <div id="createdInviteWarning" class="small" style="margin-top:8px"></div>
+    </div>
+  </div>
+  <div class="card">
+    <div id="accessMembersTitle" class="section"></div>
+    <div id="accessMembersList"></div>
+  </div>
+  <div class="card">
+    <div id="accessInvitesTitle" class="section"></div>
+    <div id="accessInvitesList"></div>
+  </div>
+  <div class="card"><button id="closeAccessControlBtn" style="width:100%"></button></div>
 </section>
 <section id="playerStatsScreen" class="hidden">
 
@@ -407,6 +473,16 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
       <div class="small" id="saveStatusDetail">Матч сохраняется на этом устройстве после каждого действия.</div>
     </div>
     <button id="retryLiveSyncBtn" class="syncRetry hidden">↻ СИНХРОНИЗИРОВАТЬ</button>
+  </div>
+
+  <div id="liveObserverActionsCard" class="card hidden" data-i18n-ignore>
+    <div id="liveObserverActionsTitle" class="section"></div>
+    <div id="liveObserverActionsDescription" class="small"></div>
+    <div id="liveObserverActionButtons" class="accessActions">
+      <button id="leaveReadOnlyLiveMatchBtn"></button>
+      <button id="cancelReadOnlyLiveMatchBtn" class="danger hidden"></button>
+    </div>
+    <div id="liveObserverActionsStatus" class="accessStatus" role="status" aria-live="polite"></div>
   </div>
 
   <div id="matchOpponentPlanCard" class="card matchOpponentPlan hidden" data-i18n-ignore>
@@ -619,6 +695,7 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
       "Удаление доступно только для архивного соперника без сохранённых матчей.":"Видалення доступне лише для архівного суперника без збережених матчів.",
       "Для просмотра старых матчей выберите соперника в статистике (пометка «архив»).":"Щоб переглянути старі матчі, виберіть суперника у статистиці (позначка «архів»).",
       "НАЧАТЬ МАТЧ":"ПОЧАТИ МАТЧ",
+      "LIVE-МАТЧ УЖЕ ИДЁТ":"LIVE-МАТЧ УЖЕ ТРИВАЄ",
       "📊 СТАТИСТИКА ИГРОКА":"📊 СТАТИСТИКА ГРАВЦЯ",
       "Найден незавершённый матч":"Знайдено незавершений матч",
       "Продолжить матч":"Продовжити матч",
@@ -878,6 +955,7 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
       "Удаление доступно только для архивного соперника без сохранённых матчей.":"Permanent deletion is available only for an archived opponent with no saved matches.",
       "Для просмотра старых матчей выберите соперника в статистике (пометка «архив»).":"To view old matches, select the opponent in Statistics (marked “archive”).",
       "НАЧАТЬ МАТЧ":"START MATCH",
+      "LIVE-МАТЧ УЖЕ ИДЁТ":"LIVE MATCH IN PROGRESS",
       "📊 СТАТИСТИКА ИГРОКА":"📊 PLAYER STATISTICS",
       "Найден незавершённый матч":"Unfinished match found",
       "Продолжить матч":"Continue match",
@@ -1334,160 +1412,109 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
 <script>
 
 (async function(){
+  const AUTH_API="https://mfaptgcrzdqjjttfwuih.supabase.co/functions/v1/telegram-auth-profiles";
+  const ACCESS_API="https://mfaptgcrzdqjjttfwuih.supabase.co/functions/v1/access-control";
+  const gate=document.getElementById("accessGate");
+  const gateText=document.getElementById("accessGateText");
+  const setup=document.getElementById("setupScreen");
+  const redeemPanel=document.getElementById("inviteRedeemPanel");
+  const redeemInput=document.getElementById("inviteRedeemCode");
+  const redeemButton=document.getElementById("inviteRedeemBtn");
+  const redeemStatus=document.getElementById("inviteRedeemStatus");
+  const TEXT={
+    ru:{denied:"⛔ Доступ пока не предоставлен",open:"Откройте Tennis Tracker через разрешённый Telegram-бот.",noAccess:"Ваш Telegram-аккаунт пока не имеет доступа к Tennis Tracker.",failed:"Не удалось проверить доступ. Закройте приложение и откройте его снова через Telegram.",title:"Код приглашения",description:"Введите одноразовый код, который создал Administrator.",placeholder:"Например: TT-…",redeem:"ПОЛУЧИТЬ ДОСТУП",working:"ПРОВЕРЯЕМ…",success:"Доступ предоставлен. Загружаем приложение…",invalid:"Код недействителен, уже использован или срок его действия истёк.",error:"Не удалось применить код приглашения."},
+    uk:{denied:"⛔ Доступ ще не надано",open:"Відкрийте Tennis Tracker через дозволеного Telegram-бота.",noAccess:"Ваш Telegram-акаунт поки не має доступу до Tennis Tracker.",failed:"Не вдалося перевірити доступ. Закрийте застосунок і відкрийте його знову через Telegram.",title:"Код запрошення",description:"Введіть одноразовий код, який створив Administrator.",placeholder:"Наприклад: TT-…",redeem:"ОТРИМАТИ ДОСТУП",working:"ПЕРЕВІРЯЄМО…",success:"Доступ надано. Завантажуємо застосунок…",invalid:"Код недійсний, уже використаний або термін його дії минув.",error:"Не вдалося застосувати код запрошення."},
+    en:{denied:"⛔ Access has not been granted",open:"Open Tennis Tracker through the authorized Telegram bot.",noAccess:"Your Telegram account does not have access to Tennis Tracker yet.",failed:"Access could not be verified. Close the app and reopen it through Telegram.",title:"Invitation code",description:"Enter the one-time code created by an Administrator.",placeholder:"For example: TT-…",redeem:"GET ACCESS",working:"CHECKING…",success:"Access granted. Loading the app…",invalid:"The code is invalid, already used, or expired.",error:"The invitation code could not be applied."}
+  };
+  const language=()=>window.TennisI18n?.getLanguage?.()||"ru";
+  const text=()=>TEXT[language()]||TEXT.ru;
 
-  const gate = document.getElementById("accessGate");
+  function renderRedeemText(){
+    const t=text();
+    document.getElementById("inviteRedeemTitle").textContent=t.title;
+    document.getElementById("inviteRedeemDescription").textContent=t.description;
+    redeemInput.placeholder=t.placeholder;
+    if(!redeemButton.disabled)redeemButton.textContent=t.redeem;
+  }
 
-  const gateText = document.getElementById("accessGateText");
-
-  const setup = document.getElementById("setupScreen");
-
-  function deny(message){
-
-    if(gate) gate.classList.remove("hidden");
-
+  function deny(message,canRedeem=false){
+    const t=text();
+    gate?.classList.remove("hidden");
+    setup?.classList.add("hidden");
     if(gateText){
-
-      gateText.innerHTML = `
-
-        <div style="
-
-          font-size:18px;
-
-          font-weight:800;
-
-          color:#b00020;
-
-          margin-top:16px;
-
-          line-height:1.45;
-
-        ">
-
-          ⛔ Доступ запрещён
-
-        </div>
-
-        <div style="
-
-          margin-top:12px;
-
-          line-height:1.45;
-
-        ">
-
-          ${message}
-
-        </div>
-
-      `;
-
+      gateText.replaceChildren();
+      const title=document.createElement("div");
+      title.style.cssText="font-size:18px;font-weight:800;color:#b00020;margin-top:16px;line-height:1.45";
+      title.textContent=t.denied;
+      const detail=document.createElement("div");
+      detail.style.cssText="margin-top:12px;line-height:1.45";
+      detail.textContent=message;
+      gateText.append(title,detail);
     }
-
-    if(setup) setup.classList.add("hidden");
-
+    redeemPanel?.classList.toggle("hidden",!canRedeem);
+    if(canRedeem)renderRedeemText();
   }
 
-  try {
-
-    const tg = window.Telegram?.WebApp;
-
-    if(!tg || !tg.initData){
-
-      deny(
-
-        "Откройте Tennis Tracker через разрешённый Telegram-бот."
-
-      );
-
-      return;
-
-    }
-
+  async function authorize(){
+    const tg=window.Telegram?.WebApp;
+    const t=text();
+    if(!tg || !tg.initData){deny(t.open,false);return false}
     tg.ready();
-
     tg.expand();
-
-    const response = await fetch(
-
-      "https://mfaptgcrzdqjjttfwuih.supabase.co/functions/v1/telegram-auth-profiles",
-
-      {
-
-        method:"POST",
-
-        headers:{
-
-          "Content-Type":"application/json"
-
-        },
-
-        body:JSON.stringify({
-
-          initData:tg.initData
-
-        })
-
+    window.TENNIS_INIT_DATA=tg.initData;
+    window.TENNIS_ACCESS_CONTROL_API=ACCESS_API;
+    try{
+      const response=await fetch(AUTH_API,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({initData:tg.initData})});
+      const result=await response.json().catch(()=>({}));
+      const playerProfiles=Array.isArray(result.player_profiles)?result.player_profiles:[];
+      if(!response.ok || !result.ok || !result.authorized || !playerProfiles.length){
+        deny(result.can_redeem_invite?t.noAccess:t.noAccess,!!result.can_redeem_invite);
+        return false;
       }
-
-    );
-
-    const result = await response.json();
-
-    if(
-
-      !response.ok ||
-
-      !result.ok ||
-
-      !result.authorized
-
-    ){
-
-      deny(
-
-        "Ваш Telegram-аккаунт не имеет доступа к Tennis Tracker."
-
-      );
-
-      return;
-
+      window.TENNIS_AUTH_USER=result.user;
+      window.TENNIS_PLAYER_PROFILES=playerProfiles;
+      window.dispatchEvent(new CustomEvent("tennis-auth-ready",{detail:{user:result.user,playerProfiles}}));
+      gate?.classList.add("hidden");
+      redeemPanel?.classList.add("hidden");
+      setup?.classList.remove("hidden");
+      return true;
+    }catch(error){
+      console.error("Telegram authorization error",error);
+      deny(t.failed,false);
+      return false;
     }
-
-    const playerProfiles=Array.isArray(result.player_profiles)
-      ? result.player_profiles
-      : [];
-
-    if(!playerProfiles.length){
-      deny(
-        "Для вашего Telegram-аккаунта не назначен активный профиль игрока."
-      );
-      return;
-    }
-
-    window.TENNIS_AUTH_USER = result.user;
-    window.TENNIS_PLAYER_PROFILES = playerProfiles;
-    window.TENNIS_INIT_DATA = tg.initData;
-
-    window.dispatchEvent(new CustomEvent(
-      "tennis-auth-ready",
-      {detail:{user:result.user,playerProfiles}}
-    ));
-    if(gate) gate.classList.add("hidden");
-
-    if(setup) setup.classList.remove("hidden");
-
-  } catch(error){
-
-    console.error("Telegram authorization error",error);
-
-    deny(
-
-      "Не удалось проверить доступ. Закройте приложение и откройте его снова через Telegram."
-
-    );
-
   }
 
+  async function redeemInvite(){
+    const t=text();
+    const inviteCode=String(redeemInput?.value||"").trim().toUpperCase();
+    if(!inviteCode){redeemStatus.textContent=t.invalid;redeemStatus.className="accessStatus error";return}
+    redeemButton.disabled=true;
+    redeemButton.textContent=t.working;
+    redeemStatus.textContent="";
+    redeemStatus.className="accessStatus";
+    try{
+      const response=await fetch(ACCESS_API+"/redeem",{method:"POST",headers:{"Content-Type":"application/json","X-Telegram-Init-Data":window.TENNIS_INIT_DATA},body:JSON.stringify({invite_code:inviteCode})});
+      const result=await response.json().catch(()=>({}));
+      if(!response.ok || !result.redeemed)throw new Error(result?.error?.code||"invite_failed");
+      redeemStatus.textContent=t.success;
+      redeemStatus.className="accessStatus success";
+      await authorize();
+    }catch(error){
+      console.error("Invitation redemption error",error);
+      redeemStatus.textContent=String(error?.message||"").startsWith("invite_")?t.invalid:t.error;
+      redeemStatus.className="accessStatus error";
+    }finally{
+      redeemButton.disabled=false;
+      redeemButton.textContent=t.redeem;
+    }
+  }
+
+  window.TENNIS_REAUTHORIZE=authorize;
+  redeemButton.onclick=redeemInvite;
+  redeemInput.onkeydown=event=>{if(event.key==="Enter")redeemInvite()};
+  window.addEventListener("tennis-language-change",renderRedeemText);
+  await authorize();
 })();
 
 </script>
@@ -1510,6 +1537,11 @@ const MATCH_HISTORY_API =
 const AI_COACH_API =
 
   "https://mfaptgcrzdqjjttfwuih.supabase.co/functions/v1/ai-coach";
+
+const ACCESS_CONTROL_API =
+
+  window.TENNIS_ACCESS_CONTROL_API ||
+  "https://mfaptgcrzdqjjttfwuih.supabase.co/functions/v1/access-control";
 
 const PROFILE_SELECTION_KEY="TennisTrackerPlayerProfileId";
 
@@ -1551,6 +1583,8 @@ let statsOpponentsRefreshSequence=0;
 
 let opponentsLoadSequence=0;
 
+const activeLiveMatchesByProfile=new Map();
+
 let currentH2HSummary=null;
 
 let currentH2HLoading=false;
@@ -1589,13 +1623,27 @@ function normalizePlayerProfiles(profiles){
 
     )
 
-    .map(profile=>({
-
-      id:profile.id,
-
-      display_name:profile.display_name.trim()
-
-    }));
+    .map(profile=>{
+      const raw=profile.access && typeof profile.access==="object"
+        ? profile.access
+        : {};
+      const role=["admin","coach","user","viewer"].includes(raw.role)
+        ? raw.role
+        : "viewer";
+      return {
+        id:profile.id,
+        display_name:profile.display_name.trim(),
+        access:{
+          role,
+          can_record:role!=="viewer" && raw.can_record!==false,
+          can_edit_plan:role==="admin" || (role!=="viewer" && raw.can_edit_plan===true),
+          can_use_ai:role==="admin" || raw.can_use_ai===true,
+          can_manage_access:role==="admin" && raw.can_manage_access!==false,
+          can_manage_opponents:role==="admin" && raw.can_manage_opponents!==false,
+          can_delete_matches:role==="admin" && raw.can_delete_matches!==false
+        }
+      };
+    });
 
 }
 
@@ -1613,6 +1661,26 @@ function selectedPlayerProfile(){
 
   return playerProfileById(selectedPlayerProfileId);
 
+}
+
+function selectedProfileAccess(){
+  return selectedPlayerProfile()?.access || {
+    role:"viewer",can_record:false,can_edit_plan:false,can_use_ai:false,
+    can_manage_access:false,can_manage_opponents:false,can_delete_matches:false
+  };
+}
+
+function canRecordSelectedProfile(){return selectedProfileAccess().can_record===true}
+function canRecordProfile(profileId){
+  return playerProfileById(profileId)?.access?.can_record===true;
+}
+function canEditSelectedPlan(){return selectedProfileAccess().can_edit_plan===true}
+function canUseSelectedAi(){return selectedProfileAccess().can_use_ai===true}
+function canManageSelectedAccess(){return selectedProfileAccess().can_manage_access===true}
+function canManageSelectedOpponents(){return selectedProfileAccess().can_manage_opponents===true}
+function canDeleteSelectedMatches(){return selectedProfileAccess().can_delete_matches===true}
+function canUseAiForProfile(profileId){
+  return playerProfileById(profileId)?.access?.can_use_ai===true;
 }
 
 function normalizeOpponentProfiles(profiles,playerProfileId,includeArchived=false){
@@ -2145,25 +2213,49 @@ function updateStartButton(){
   );
 
   if(startButton){
-
-    startButton.disabled=liveMatchRecoveryConflict || !(player && opponent);
+    const hasActiveLiveMatch=!!(
+      player && activeLiveMatchesByProfile.has(player.id)
+    );
+    startButton.disabled=liveMatchRecoveryConflict ||
+      hasActiveLiveMatch || !(player && opponent) || !canRecordSelectedProfile();
+    startButton.textContent=hasActiveLiveMatch
+      ? "LIVE-МАТЧ УЖЕ ИДЁТ"
+      : "НАЧАТЬ МАТЧ";
 
   }
 
   if(newOpponentButton){
 
-    newOpponentButton.disabled=!player;
+    newOpponentButton.disabled=!player || !canRecordSelectedProfile();
+    newOpponentButton.classList.toggle("hidden",!canRecordSelectedProfile());
 
   }
 
   if(manageOpponentButton){
 
-    manageOpponentButton.disabled=!player;
+    const canManage=canManageSelectedOpponents() || canEditSelectedPlan();
+    manageOpponentButton.disabled=!player || !canManage;
+    manageOpponentButton.classList.toggle("hidden",!canManage);
 
   }
 
   if(archiveOpponentButton){
-    archiveOpponentButton.disabled=!player;
+    archiveOpponentButton.disabled=!player || !canManageSelectedOpponents();
+    archiveOpponentButton.classList.toggle("hidden",!canManageSelectedOpponents());
+  }
+
+  document.getElementById("opponentAdminActions")
+    ?.classList.toggle("hidden",!canManageSelectedOpponents());
+  document.getElementById("opponentMergeAdmin")
+    ?.classList.toggle("hidden",!canManageSelectedOpponents());
+  document.getElementById("opponentPlanEditor")
+    ?.classList.toggle("hidden",!canEditSelectedPlan());
+  document.getElementById("accessControlBtn")
+    ?.classList.toggle("hidden",!canManageSelectedAccess());
+  document.getElementById("managePlayerMatchesBtn")
+    ?.classList.toggle("hidden",!canDeleteSelectedMatches());
+  if(!canDeleteSelectedMatches()){
+    document.getElementById("playerMatchesManager")?.classList.add("hidden");
   }
 
 }
@@ -2404,7 +2496,7 @@ function setOpponentArchiveError(message){
 
 function showOpponentArchivePanel(){
 
-  if(!selectedPlayerProfile())return;
+  if(!selectedPlayerProfile() || !canManageSelectedOpponents())return;
   hideOpponentCreatePanel();
   hideOpponentManagePanel();
   renderArchivedOpponents();
@@ -2425,6 +2517,8 @@ function hideOpponentArchivePanel(){
 }
 
 function showOpponentCreatePanel(){
+
+  if(!canRecordSelectedProfile())return;
 
   const panel=document.getElementById("newOpponentPanel");
 
@@ -2493,7 +2587,8 @@ function showOpponentManagePanel(){
 
   const opponent=selectedOpponentProfile();
 
-  if(!selectedPlayerProfile())return;
+  if(!selectedPlayerProfile() ||
+    (!canManageSelectedOpponents() && !canEditSelectedPlan()))return;
 
   hideOpponentCreatePanel();
 
@@ -2541,6 +2636,8 @@ function hideOpponentManagePanel(){
 }
 
 async function mergeSelectedOpponents(){
+
+  if(!canManageSelectedOpponents())return;
 
   const player=selectedPlayerProfile();
   const target=selectedOpponentProfile();
@@ -2850,6 +2947,8 @@ async function loadOpponentsForPlayer(playerProfileId){
 
 async function createOpponent(){
 
+  if(!canRecordSelectedProfile())return;
+
   const player=selectedPlayerProfile();
 
   const nameInput=document.getElementById("newOpponentName");
@@ -2986,6 +3085,8 @@ async function createOpponent(){
 
 async function renameSelectedOpponent(){
 
+  if(!canManageSelectedOpponents())return;
+
   const player=selectedPlayerProfile();
 
   const opponent=selectedOpponentProfile();
@@ -3110,6 +3211,8 @@ async function renameSelectedOpponent(){
 
 async function saveSelectedOpponentProfile(){
 
+  if(!canEditSelectedPlan())return;
+
   const player=selectedPlayerProfile();
   const opponent=selectedOpponentProfile();
   const button=document.getElementById("saveOpponentProfileBtn");
@@ -3205,6 +3308,8 @@ async function saveSelectedOpponentProfile(){
 }
 
 async function archiveSelectedOpponent(){
+
+  if(!canManageSelectedOpponents())return;
 
   const player=selectedPlayerProfile();
 
@@ -3348,6 +3453,8 @@ async function archiveSelectedOpponent(){
 
 async function restoreSelectedOpponent(){
 
+  if(!canManageSelectedOpponents())return;
+
   const player=selectedPlayerProfile();
   const select=document.getElementById("archivedOpponentSelect");
   const button=document.getElementById("restoreOpponentBtn");
@@ -3414,6 +3521,8 @@ async function restoreSelectedOpponent(){
 }
 
 async function deleteSelectedArchivedOpponent(){
+
+  if(!canManageSelectedOpponents())return;
 
   const player=selectedPlayerProfile();
   const select=document.getElementById("archivedOpponentSelect");
@@ -3549,6 +3658,11 @@ function choosePlayerProfile(profileId){
 
     h2hStatsShareStatusKey="";
 
+    accessControlState.members=[];
+    accessControlState.invites=[];
+    accessControlState.inviteCode="";
+    document.getElementById("createdInviteBox")?.classList.add("hidden");
+
     renderH2HStatsShare();
 
     loadOpponentsForPlayer(profile.id);
@@ -3556,6 +3670,8 @@ function choosePlayerProfile(profileId){
   }
 
   updateStartButton();
+
+  renderAccessControlStatic();
 
   return profile;
 
@@ -3632,6 +3748,8 @@ function applyAuthorizedPlayerProfiles(profiles){
     updateStartButton();
 
   }
+
+  renderAccessControlStatic();
 
 }
 
@@ -3716,6 +3834,190 @@ async function listPlayerMatches(profileId,limit=500){
     if(page.length<limit)break;
   }
   return matches;
+}
+
+const ACCESS_UI_TEXT={
+  ru:{button:"👥 ДОСТУП ПОЛЬЗОВАТЕЛЕЙ",title:"👥 Доступ пользователей",profile:"Профиль",inviteTitle:"Создать приглашение",inviteDescription:"Код одноразовый. Пользователь открывает приложение через Telegram и вводит этот код.",role:"Роль",coach:"Coach",user:"Пользователь",viewer:"Наблюдатель",admin:"Administrator",plan:"Разрешить редактировать предматчевый план и наблюдения о сопернике",ai:"Разрешить платные запросы AI Coach",expiry:"Срок действия кода, дней",create:"СОЗДАТЬ КОД",creating:"СОЗДАЁМ…",members:"Пользователи",invites:"Активные приглашения",loading:"Загрузка настроек доступа…",emptyInvites:"Активных приглашений нет.",save:"СОХРАНИТЬ",remove:"УДАЛИТЬ ДОСТУП",revoke:"ОТОЗВАТЬ КОД",back:"← НАЗАД",copy:"КОПИРОВАТЬ",share:"ПОДЕЛИТЬСЯ",self:"это вы",record:"может записывать матчи",view:"только просмотр",saved:"Настройки пользователя сохранены.",removed:"Доступ пользователя удалён.",revoked:"Приглашение отозвано.",created:"Код создан.",copied:"Код скопирован.",warning:"Сохраните или отправьте код сейчас: после закрытия этой страницы он больше не показывается.",loadError:"Не удалось загрузить настройки доступа.",actionError:"Не удалось выполнить действие.",confirmRemove:name=>`Удалить доступ пользователя «${name}»?`,confirmRevoke:"Отозвать это приглашение?",shareText:(name,code)=>`Приглашение в Tennis Tracker для профиля «${name}». Код: ${code}`},
+  uk:{button:"👥 ДОСТУП КОРИСТУВАЧІВ",title:"👥 Доступ користувачів",profile:"Профіль",inviteTitle:"Створити запрошення",inviteDescription:"Код одноразовий. Користувач відкриває застосунок через Telegram і вводить цей код.",role:"Роль",coach:"Coach",user:"Користувач",viewer:"Спостерігач",admin:"Administrator",plan:"Дозволити редагувати передматчевий план і спостереження про суперника",ai:"Дозволити платні запити AI Coach",expiry:"Термін дії коду, днів",create:"СТВОРИТИ КОД",creating:"СТВОРЮЄМО…",members:"Користувачі",invites:"Активні запрошення",loading:"Завантаження налаштувань доступу…",emptyInvites:"Активних запрошень немає.",save:"ЗБЕРЕГТИ",remove:"ВИДАЛИТИ ДОСТУП",revoke:"ВІДКЛИКАТИ КОД",back:"← НАЗАД",copy:"КОПІЮВАТИ",share:"ПОДІЛИТИСЯ",self:"це ви",record:"може записувати матчі",view:"лише перегляд",saved:"Налаштування користувача збережено.",removed:"Доступ користувача видалено.",revoked:"Запрошення відкликано.",created:"Код створено.",copied:"Код скопійовано.",warning:"Збережіть або надішліть код зараз: після закриття цієї сторінки він більше не показується.",loadError:"Не вдалося завантажити налаштування доступу.",actionError:"Не вдалося виконати дію.",confirmRemove:name=>`Видалити доступ користувача «${name}»?`,confirmRevoke:"Відкликати це запрошення?",shareText:(name,code)=>`Запрошення до Tennis Tracker для профілю «${name}». Код: ${code}`},
+  en:{button:"👥 USER ACCESS",title:"👥 User access",profile:"Profile",inviteTitle:"Create invitation",inviteDescription:"The code is one-time. The user opens the app through Telegram and enters this code.",role:"Role",coach:"Coach",user:"User",viewer:"Observer",admin:"Administrator",plan:"Allow editing the pre-match plan and opponent observations",ai:"Allow paid AI Coach requests",expiry:"Code validity, days",create:"CREATE CODE",creating:"CREATING…",members:"Users",invites:"Active invitations",loading:"Loading access settings…",emptyInvites:"There are no active invitations.",save:"SAVE",remove:"REMOVE ACCESS",revoke:"REVOKE CODE",back:"← BACK",copy:"COPY",share:"SHARE",self:"you",record:"can record matches",view:"view only",saved:"User settings saved.",removed:"User access removed.",revoked:"Invitation revoked.",created:"Code created.",copied:"Code copied.",warning:"Save or send the code now: it will not be shown again after this page is closed.",loadError:"Access settings could not be loaded.",actionError:"The action could not be completed.",confirmRemove:name=>`Remove access for “${name}”?`,confirmRevoke:"Revoke this invitation?",shareText:(name,code)=>`Tennis Tracker invitation for “${name}”. Code: ${code}`}
+};
+const accessControlState={members:[],invites:[],inviteCode:"",loading:false};
+function accessUiText(){
+  const language=window.TennisI18n?.getLanguage?.()||"ru";
+  return ACCESS_UI_TEXT[language]||ACCESS_UI_TEXT.ru;
+}
+function accessRoleName(role,t=accessUiText()){
+  return t[role]||role;
+}
+function setAccessControlStatus(message,tone=""){
+  const status=$("accessControlStatus");
+  if(!status)return;
+  status.textContent=message||"";
+  status.className="accessStatus"+(tone?" "+tone:"");
+}
+async function accessControlRequest(path="",options={}){
+  if(!window.TENNIS_INIT_DATA)throw new Error("Telegram authentication required");
+  const response=await fetch(ACCESS_CONTROL_API+path,{
+    ...options,
+    headers:{"Content-Type":"application/json","X-Telegram-Init-Data":window.TENNIS_INIT_DATA,...(options.headers||{})}
+  });
+  const result=await response.json().catch(()=>({}));
+  if(!response.ok){
+    const error=new Error(result?.error?.message||"Access request failed");
+    error.apiCode=result?.error?.code||"access_request_failed";
+    throw error;
+  }
+  return result;
+}
+function applyRoleControlState(roleSelect,planCheckbox,aiCheckbox){
+  const role=roleSelect.value;
+  if(role==="admin"){
+    planCheckbox.checked=true;aiCheckbox.checked=true;
+    planCheckbox.disabled=true;aiCheckbox.disabled=true;
+  }else{
+    planCheckbox.disabled=role==="viewer";
+    if(role==="viewer")planCheckbox.checked=false;
+    aiCheckbox.disabled=false;
+  }
+}
+function renderAccessControlStatic(){
+  const t=accessUiText();
+  $("accessControlBtn").textContent=t.button;
+  $("accessControlTitle").textContent=t.title;
+  $("accessControlProfile").textContent=t.profile+": "+(selectedPlayerProfile()?.display_name||"—");
+  $("accessInviteTitle").textContent=t.inviteTitle;
+  $("accessInviteDescription").textContent=t.inviteDescription;
+  $("accessInviteRoleLabel").textContent=t.role;
+  $("accessInvitePlanLabel").textContent=t.plan;
+  $("accessInviteAiLabel").textContent=t.ai;
+  $("accessInviteExpiryLabel").textContent=t.expiry;
+  $("createAccessInviteBtn").textContent=accessControlState.loading?t.creating:t.create;
+  $("accessMembersTitle").textContent=t.members;
+  $("accessInvitesTitle").textContent=t.invites;
+  $("copyAccessInviteBtn").textContent=t.copy;
+  $("shareAccessInviteBtn").textContent=t.share;
+  $("createdInviteWarning").textContent=t.warning;
+  $("closeAccessControlBtn").textContent=t.back;
+  [...$("accessInviteRole").options].forEach(option=>{option.textContent=accessRoleName(option.value,t)});
+  renderAccessMembers();
+  renderAccessInvites();
+}
+function renderAccessMembers(){
+  const box=$("accessMembersList");
+  if(!box)return;
+  const t=accessUiText();
+  box.replaceChildren(...accessControlState.members.map(member=>{
+    const card=document.createElement("div");card.className="accessMember";
+    const title=document.createElement("div");title.className="accessMemberTitle";
+    title.textContent=member.name+(member.is_self?" ("+t.self+")":"");
+    const meta=document.createElement("div");meta.className="accessMemberMeta";
+    meta.textContent="Telegram ID: "+member.telegram_id+" · "+(member.can_record?t.record:t.view);
+    const roleLabel=document.createElement("label");roleLabel.className="label";roleLabel.style.display="block";roleLabel.style.marginTop="10px";roleLabel.textContent=t.role;
+    const role=document.createElement("select");
+    for(const value of ["admin","coach","user","viewer"]){const option=document.createElement("option");option.value=value;option.textContent=accessRoleName(value,t);role.append(option)}
+    role.value=member.role;
+    const plan=document.createElement("input");plan.type="checkbox";plan.checked=member.can_edit_plan===true;
+    const planLabel=document.createElement("label");planLabel.className="accessPermission";const planText=document.createElement("span");planText.textContent=t.plan;planLabel.append(plan,planText);
+    const ai=document.createElement("input");ai.type="checkbox";ai.checked=member.can_use_ai===true;
+    const aiLabel=document.createElement("label");aiLabel.className="accessPermission";const aiText=document.createElement("span");aiText.textContent=t.ai;aiLabel.append(ai,aiText);
+    const actions=document.createElement("div");actions.className="accessActions";
+    const save=document.createElement("button");save.className="primary";save.textContent=t.save;
+    const remove=document.createElement("button");remove.className="danger";remove.textContent=t.remove;
+    actions.append(save,remove);
+    const locked=member.is_self===true;
+    role.disabled=locked;plan.disabled=locked;ai.disabled=locked;save.disabled=locked;remove.disabled=locked;
+    if(!locked){applyRoleControlState(role,plan,ai);role.onchange=()=>applyRoleControlState(role,plan,ai)}
+    save.onclick=()=>saveAccessMember(member,role.value,plan.checked,ai.checked,save);
+    remove.onclick=()=>removeAccessMember(member,remove);
+    card.append(title,meta,roleLabel,role,planLabel,aiLabel,actions);
+    return card;
+  }));
+}
+function renderAccessInvites(){
+  const box=$("accessInvitesList");
+  if(!box)return;
+  const t=accessUiText();
+  if(!accessControlState.invites.length){box.textContent=t.emptyInvites;box.className="small";return}
+  box.className="";
+  box.replaceChildren(...accessControlState.invites.map(invite=>{
+    const card=document.createElement("div");card.className="accessInvite";
+    const title=document.createElement("div");title.className="accessMemberTitle";title.textContent=accessRoleName(invite.access_role,t);
+    const meta=document.createElement("div");meta.className="accessMemberMeta";
+    const expires=new Date(invite.expires_at);
+    meta.textContent=[invite.can_edit_plan?t.plan:null,invite.can_use_ai?t.ai:null,Number.isNaN(expires.getTime())?null:expires.toLocaleString(window.TennisI18n?.localeTag?.()||"ru-RU")].filter(Boolean).join(" · ");
+    const revoke=document.createElement("button");revoke.className="danger";revoke.style.cssText="width:100%;min-height:44px;margin-top:10px";revoke.textContent=t.revoke;revoke.onclick=()=>revokeAccessInvite(invite,revoke);
+    card.append(title,meta,revoke);return card;
+  }));
+}
+async function loadAccessControl(){
+  const profile=selectedPlayerProfile();
+  if(!profile || !canManageSelectedAccess())return;
+  accessControlState.loading=true;setAccessControlStatus(accessUiText().loading);renderAccessControlStatic();
+  try{
+    const query=new URLSearchParams({player_profile_id:profile.id});
+    const result=await accessControlRequest("?"+query);
+    if(selectedPlayerProfileId!==profile.id)return;
+    accessControlState.members=Array.isArray(result.members)?result.members:[];
+    accessControlState.invites=Array.isArray(result.invites)?result.invites:[];
+    setAccessControlStatus("");
+  }catch(error){console.error("Access list error",error);setAccessControlStatus(accessUiText().loadError,"error")}
+  finally{accessControlState.loading=false;renderAccessControlStatic()}
+}
+function openAccessControl(){
+  if(!canManageSelectedAccess())return;
+  $("setupScreen").classList.add("hidden");
+  $("accessControlScreen").classList.remove("hidden");
+  accessControlState.inviteCode="";$("createdInviteBox").classList.add("hidden");
+  renderAccessControlStatic();loadAccessControl();
+}
+function closeAccessControl(){
+  $("accessControlScreen").classList.add("hidden");
+  $("setupScreen").classList.remove("hidden");
+  accessControlState.inviteCode="";$("createdInviteBox").classList.add("hidden");
+}
+async function createAccessInvite(){
+  const profile=selectedPlayerProfile();if(!profile||!canManageSelectedAccess())return;
+  const button=$("createAccessInviteBtn");const role=$("accessInviteRole").value;
+  accessControlState.loading=true;button.disabled=true;renderAccessControlStatic();setAccessControlStatus("");
+  try{
+    const result=await accessControlRequest("/invites",{method:"POST",body:JSON.stringify({player_profile_id:profile.id,role,can_edit_plan:role!=="viewer"&&$("accessInvitePlan").checked,can_use_ai:$("accessInviteAi").checked,expires_days:Number($("accessInviteExpiry").value)})});
+    accessControlState.inviteCode=String(result.invite_code||"");
+    if(!accessControlState.inviteCode)throw new Error("Invitation code missing");
+    $("createdInviteCode").textContent=accessControlState.inviteCode;
+    $("createdInviteBox").classList.remove("hidden");
+    setAccessControlStatus(accessUiText().created,"success");
+    await loadAccessControl();
+  }catch(error){console.error("Create invite error",error);setAccessControlStatus(accessUiText().actionError,"error")}
+  finally{accessControlState.loading=false;button.disabled=false;renderAccessControlStatic()}
+}
+async function saveAccessMember(member,role,canEditPlan,canUseAi,button){
+  const profile=selectedPlayerProfile();if(!profile||!canManageSelectedAccess())return;
+  button.disabled=true;setAccessControlStatus("");
+  try{await accessControlRequest("/members/"+encodeURIComponent(member.telegram_id),{method:"PATCH",body:JSON.stringify({player_profile_id:profile.id,role,can_edit_plan:canEditPlan,can_use_ai:canUseAi})});setAccessControlStatus(accessUiText().saved,"success");await loadAccessControl()}
+  catch(error){console.error("Update member error",error);setAccessControlStatus(accessUiText().actionError,"error");button.disabled=false}
+}
+async function removeAccessMember(member,button){
+  const profile=selectedPlayerProfile();if(!profile||!canManageSelectedAccess()||!confirm(accessUiText().confirmRemove(member.name)))return;
+  button.disabled=true;setAccessControlStatus("");
+  try{await accessControlRequest("/members/"+encodeURIComponent(member.telegram_id),{method:"DELETE",body:JSON.stringify({player_profile_id:profile.id})});setAccessControlStatus(accessUiText().removed,"success");await loadAccessControl()}
+  catch(error){console.error("Remove member error",error);setAccessControlStatus(accessUiText().actionError,"error");button.disabled=false}
+}
+async function revokeAccessInvite(invite,button){
+  const profile=selectedPlayerProfile();if(!profile||!canManageSelectedAccess()||!confirm(accessUiText().confirmRevoke))return;
+  button.disabled=true;setAccessControlStatus("");
+  try{await accessControlRequest("/invites/"+encodeURIComponent(invite.id),{method:"DELETE",body:JSON.stringify({player_profile_id:profile.id})});setAccessControlStatus(accessUiText().revoked,"success");await loadAccessControl()}
+  catch(error){console.error("Revoke invite error",error);setAccessControlStatus(accessUiText().actionError,"error");button.disabled=false}
+}
+async function copyAccessInvite(){
+  const code=accessControlState.inviteCode;if(!code)return;
+  try{if(navigator.clipboard?.writeText)await navigator.clipboard.writeText(code);else{const field=document.createElement("textarea");field.value=code;document.body.append(field);field.select();document.execCommand("copy");field.remove()}setAccessControlStatus(accessUiText().copied,"success")}
+  catch(error){console.error("Invite copy error",error);setAccessControlStatus(accessUiText().actionError,"error")}
+}
+async function shareAccessInvite(){
+  const code=accessControlState.inviteCode;if(!code)return;
+  const message=accessUiText().shareText(selectedPlayerProfile()?.display_name||"",code);
+  try{if(navigator.share)await navigator.share({text:message});else{await copyAccessInvite()}}
+  catch(error){if(error?.name!=="AbortError"){console.error("Invite share error",error);setAccessControlStatus(accessUiText().actionError,"error")}}
 }
 
 const HISTORY_EXPORT_TEXT={
@@ -4392,6 +4694,9 @@ async function ensureLiveMatch(stateSnapshot=S){
 
     }
 
+    activeLiveMatchesByProfile.set(profileId,result.match);
+    updateStartButton();
+
     if(S.clientMatchId===clientMatchId){
 
       S.liveMatchId=result.match.id;
@@ -4571,29 +4876,37 @@ async function cancelLiveMatch(){
 
   const id=await ensureLiveMatch(S);
 
-  const cancelledState=JSON.parse(JSON.stringify(S));
+  try{
 
-  cancelledState.cancelled=true;
+    await liveMatchRequest(
 
-  cancelledState.cancelledAt=new Date().toISOString();
+      "/"+encodeURIComponent(id)+"/cancel",
 
-  await liveMatchRequest(
+      {
 
-    "/"+encodeURIComponent(id)+"/finish",
+        method:"POST",
 
-    {
+        body:JSON.stringify({action:"cancel_live_match"})
 
-      method:"POST",
+      }
 
-      body:JSON.stringify({
+    );
 
-        match_data:cancelledState
+  }catch(error){
 
-      })
+    // An Administrator may have cancelled this match while the creator's
+    // device was offline or still open. The remote match is already closed,
+    // so it is safe to release the local screen and start a new one.
+    if(!["match_not_live","match_cancel_conflict"].includes(error?.apiCode)){
+
+      throw error;
 
     }
 
-  );
+  }
+
+  activeLiveMatchesByProfile.delete(S.playerProfileId);
+  updateStartButton();
 
 }
 
@@ -4657,6 +4970,9 @@ async function finishLiveMatch(){
         );
 
       }
+
+      activeLiveMatchesByProfile.delete(matchState.playerProfileId);
+      updateStartButton();
 
       if(S===matchState){
 
@@ -4768,6 +5084,14 @@ async function findActiveLiveMatch(){
 
       : [];
 
+    activeLiveMatchesByProfile.clear();
+    matches.forEach(match=>{
+      if(typeof match?.player_profile_id==="string"){
+        activeLiveMatchesByProfile.set(match.player_profile_id,match);
+      }
+    });
+    updateStartButton();
+
     if(!matches.length){
 
       return null;
@@ -4810,11 +5134,12 @@ function setLiveMatchAccess(match){
 
   liveMatchReadOnly=!!(
 
-    activeLiveMatchCreatorId &&
-
-    myTelegramId &&
-
-    activeLiveMatchCreatorId!==myTelegramId
+    !canRecordProfile(match?.player_profile_id) ||
+    (
+      activeLiveMatchCreatorId &&
+      myTelegramId &&
+      activeLiveMatchCreatorId!==myTelegramId
+    )
 
   );
 
@@ -4932,6 +5257,16 @@ function applyLiveMatchState(match,preserveSelectedSet=false){
   liveMatchLastUpdatedAt=
 
     match.updated_at || new Date().toISOString();
+
+  if(match.status==="live" && typeof match.player_profile_id==="string"){
+    activeLiveMatchesByProfile.set(match.player_profile_id,match);
+  }else if(typeof match.player_profile_id==="string"){
+    const known=activeLiveMatchesByProfile.get(match.player_profile_id);
+    if(!known || known.id===match.id){
+      activeLiveMatchesByProfile.delete(match.player_profile_id);
+    }
+  }
+  updateStartButton();
 
   liveMatchRefreshError="";
 
@@ -5051,9 +5386,12 @@ async function loadActiveLiveMatchFromServer(){
 
   const local=readLocalMatchSnapshot();
   const isReadOnly=!!(
-    Number(match.created_by_telegram_id) &&
-    currentTelegramUserId() &&
-    Number(match.created_by_telegram_id)!==currentTelegramUserId()
+    !canRecordProfile(match.player_profile_id) ||
+    (
+      Number(match.created_by_telegram_id) &&
+      currentTelegramUserId() &&
+      Number(match.created_by_telegram_id)!==currentTelegramUserId()
+    )
   );
   const sameMatch=!!local && !!(
     (local.liveMatchId && local.liveMatchId===match.id) ||
@@ -5197,6 +5535,122 @@ let newMatchInProgress=false;
 let liveMatchRecoveryConflict=false;
 const LIVE_MATCH_REFRESH_MS=2000;
 const LIVE_MATCH_RETRY_MS=15000;
+
+const LIVE_OBSERVER_ACTIONS_TEXT={
+  ru:{title:"👁 LIVE · Только просмотр",description:"Матч начал другой пользователь. Можно вернуться к выбору игрока, не изменяя этот матч.",adminDescription:"Матч начал другой пользователь. Если матч запущен случайно или больше не записывается, Administrator может отменить его. Отмена не создаёт запись в истории.",creatorDescription:"У вас больше нет права записывать очки, но как создатель вы можете отменить этот LIVE-матч.",back:"← НАЗАД К ВЫБОРУ",cancel:"🛑 ОТМЕНИТЬ LIVE-МАТЧ",cancelling:"ОТМЕНЯЕМ…",offline:"Для отмены LIVE-матча подключитесь к интернету.",success:"LIVE-матч отменён. Теперь можно начать новый матч.",alreadyClosed:"LIVE-матч уже был завершён или отменён.",error:"Не удалось отменить LIVE-матч.",confirm:(p1,p2)=>`Отменить LIVE-матч «${p1} vs ${p2}»?\n\nОн не попадёт в историю и больше не восстановится. Убедитесь, что другой пользователь действительно не продолжает запись.`},
+  uk:{title:"👁 LIVE · Лише перегляд",description:"Матч розпочав інший користувач. Можна повернутися до вибору гравця, не змінюючи цей матч.",adminDescription:"Матч розпочав інший користувач. Якщо матч запущено випадково або його більше не записують, Administrator може скасувати його. Скасування не створює запису в історії.",creatorDescription:"У вас більше немає права записувати очки, але як автор ви можете скасувати цей LIVE-матч.",back:"← НАЗАД ДО ВИБОРУ",cancel:"🛑 СКАСУВАТИ LIVE-МАТЧ",cancelling:"СКАСОВУЄМО…",offline:"Для скасування LIVE-матчу підключіться до інтернету.",success:"LIVE-матч скасовано. Тепер можна почати новий матч.",alreadyClosed:"LIVE-матч уже було завершено або скасовано.",error:"Не вдалося скасувати LIVE-матч.",confirm:(p1,p2)=>`Скасувати LIVE-матч «${p1} vs ${p2}»?\n\nВін не потрапить до історії та більше не відновиться. Переконайтеся, що інший користувач справді не продовжує запис.`},
+  en:{title:"👁 LIVE · View only",description:"Another user started this match. You can return to player selection without changing it.",adminDescription:"Another user started this match. If it was started accidentally or is no longer being recorded, an Administrator can cancel it. Cancellation does not create a history record.",creatorDescription:"You no longer have permission to record points, but as the creator you can cancel this LIVE match.",back:"← BACK TO SELECTION",cancel:"🛑 CANCEL LIVE MATCH",cancelling:"CANCELLING…",offline:"Connect to the internet to cancel the LIVE match.",success:"The LIVE match was cancelled. A new match can now be started.",alreadyClosed:"The LIVE match has already been finished or cancelled.",error:"The LIVE match could not be cancelled.",confirm:(p1,p2)=>`Cancel the LIVE match “${p1} vs ${p2}”?\n\nIt will not be added to history and cannot be restored. Make sure the other user is no longer recording it.`}
+};
+let liveObserverActionInProgress=false;
+
+function liveObserverActionsText(){
+  const language=window.TennisI18n?.getLanguage?.()||"ru";
+  return LIVE_OBSERVER_ACTIONS_TEXT[language]||LIVE_OBSERVER_ACTIONS_TEXT.ru;
+}
+
+function canCancelCurrentReadOnlyLiveMatch(){
+  if(!liveMatchReadOnly||!S.liveMatchId||S.matchOver||S.cancelled)return false;
+  const role=playerProfileById(S.playerProfileId)?.access?.role;
+  const telegramId=currentTelegramUserId();
+  const isCreator=!!(
+    telegramId&&activeLiveMatchCreatorId&&telegramId===activeLiveMatchCreatorId
+  );
+  return role==="admin"||isCreator;
+}
+
+function renderLiveObserverActions(){
+  const card=$("liveObserverActionsCard");
+  if(!card)return;
+  const visible=!!(
+    liveMatchReadOnly&&S.liveMatchId
+  );
+  card.classList.toggle("hidden",!visible);
+  if(!visible)return;
+  const t=liveObserverActionsText();
+  const telegramId=currentTelegramUserId();
+  const isCreator=!!(
+    telegramId&&activeLiveMatchCreatorId&&telegramId===activeLiveMatchCreatorId
+  );
+  const canCancel=canCancelCurrentReadOnlyLiveMatch();
+  $("liveObserverActionsTitle").textContent=t.title;
+  $("liveObserverActionsDescription").textContent=isCreator
+    ? t.creatorDescription
+    : canCancel?t.adminDescription:t.description;
+  $("leaveReadOnlyLiveMatchBtn").textContent=t.back;
+  const cancelButton=$("cancelReadOnlyLiveMatchBtn");
+  cancelButton.classList.toggle("hidden",!canCancel);
+  cancelButton.textContent=liveObserverActionInProgress?t.cancelling:t.cancel;
+  cancelButton.disabled=liveObserverActionInProgress||!navigator.onLine;
+  $("leaveReadOnlyLiveMatchBtn").disabled=liveObserverActionInProgress;
+  $("liveObserverActionButtons").style.gridTemplateColumns=canCancel
+    ? "1fr 1fr"
+    : "1fr";
+}
+
+function leaveReadOnlyLiveMatch(force=false){
+  if(!liveMatchReadOnly||(liveObserverActionInProgress&&!force))return;
+  stopLiveMatchRefresh();
+  liveMatchReadOnly=false;
+  activeLiveMatchCreatorId=null;
+  liveMatchLastUpdatedAt=null;
+  liveMatchRefreshError="";
+  resetLiveMatchSyncState();
+  S=defaultState();
+  resetAiCoachState();
+  matchOpponentPlanOpen=false;
+  $("liveObserverActionsStatus").textContent="";
+  $("matchScreen").classList.add("hidden");
+  $("serverScreen").classList.add("hidden");
+  $("setupScreen").classList.remove("hidden");
+  renderSetupOpponentPlan();
+  updateStartButton();
+}
+
+async function cancelReadOnlyLiveMatch(){
+  if(!canCancelCurrentReadOnlyLiveMatch()||liveObserverActionInProgress)return;
+  const t=liveObserverActionsText();
+  const status=$("liveObserverActionsStatus");
+  if(!navigator.onLine){
+    status.textContent=t.offline;
+    status.className="accessStatus error";
+    return;
+  }
+  if(!confirm(t.confirm(S.names[0],S.names[1])))return;
+  const matchId=S.liveMatchId;
+  const profileId=S.playerProfileId;
+  liveObserverActionInProgress=true;
+  status.textContent="";
+  status.className="accessStatus";
+  renderLiveObserverActions();
+  try{
+    await liveMatchRequest("/"+encodeURIComponent(matchId)+"/cancel",{
+      method:"POST",
+      body:JSON.stringify({action:"cancel_live_match"})
+    });
+    activeLiveMatchesByProfile.delete(profileId);
+    const local=readLocalMatchSnapshot();
+    if(local&&(
+      local.liveMatchId===matchId||
+      (local.clientMatchId&&local.clientMatchId===S.clientMatchId)
+    ))clearLocal();
+    leaveReadOnlyLiveMatch(true);
+    alert(t.success);
+  }catch(error){
+    console.error("Administrator Live Match cancellation error",error);
+    if(["match_not_live","match_cancel_conflict"].includes(error?.apiCode)){
+      activeLiveMatchesByProfile.delete(profileId);
+      leaveReadOnlyLiveMatch(true);
+      alert(t.alreadyClosed);
+    }else{
+      status.textContent=t.error+" "+(error?.message||"");
+      status.className="accessStatus error";
+    }
+  }finally{
+    liveObserverActionInProgress=false;
+    renderLiveObserverActions();
+    updateStartButton();
+  }
+}
 
 const AI_COACH_MIN_POINTS=4;
 const AI_COACH_USAGE_KEY="TennisTrackerAICoachUsageV13";
@@ -5496,10 +5950,11 @@ function showResumeOffer(){
 function resumeSavedMatch(){
   if(liveMatchRecoveryConflict)return;
   if(S.playerProfileId)choosePlayerProfile(S.playerProfileId);
+  if(!canRecordProfile(S.playerProfileId))liveMatchReadOnly=true;
   preloadH2HForOpponent(S.playerProfileId,S.opponentProfileId);
   resetAiCoachState();
   $("setupScreen").classList.add("hidden");$("serverScreen").classList.add("hidden");$("matchScreen").classList.remove("hidden");render();updateSaveStatus();loadHistory();
-  if(S.started&&!S.matchOver)syncLiveMatch();
+  if(S.started&&!S.matchOver&&!liveMatchReadOnly)syncLiveMatch();
   else if(S.matchOver&&navigator.onLine)retryCurrentMatchSync();
 }
 function discardSavedMatch(){
@@ -5625,8 +6080,9 @@ async function undo(){
       });
       const found=await matchHistoryRequest("?"+query);
       for(const match of found.matches||[]){
-        await matchHistoryRequest("/"+encodeURIComponent(match.id),{
-          method:"DELETE"
+        await matchHistoryRequest("/"+encodeURIComponent(match.id)+"/reopen",{
+          method:"POST",
+          body:JSON.stringify({action:"correct_last_match"})
         });
       }
 
@@ -6055,6 +6511,7 @@ function selectAnalysisHubMode(value){
   resetAiCoachState();
   renderAnalysisHub();
   renderAiCoach();
+  renderLiveObserverActions();
 }
 
 function renderAnalysisHub(){
@@ -7309,6 +7766,7 @@ const AI_COACH_TEXT={
     qualitySufficient:"Качество данных: достаточное. Записано очков: {points}.",
     qualityGood:"Качество данных: хорошее. Записано очков: {points}.",
     readOnly:"AI Coach отключён в режиме «только просмотр», чтобы не создавать платные запросы.",
+    permission:"Administrator не разрешил этому пользователю платные запросы AI Coach.",
     offline:"Нет подключения к интернету. AI Coach доступен только онлайн.",
     profiles:"Профиль игрока или соперника не выбран.",
     auth:"Откройте приложение заново через Telegram.",
@@ -7320,6 +7778,7 @@ const AI_COACH_TEXT={
     errorRate:"Достигнут временный лимит AI Coach. Попробуйте позже.",
     errorAuth:"Telegram-авторизация истекла. Закройте приложение и снова откройте его через бот.",
     errorAccess:"Нет доступа к выбранному профилю игрока или соперника.",
+    errorPermission:"Для этого пользователя AI Coach не разрешён.",
     evidence:"Основание",
     priorityHigh:"Высокий приоритет",
     priorityMedium:"Средний приоритет",
@@ -7346,6 +7805,7 @@ const AI_COACH_TEXT={
     qualitySufficient:"Якість даних: достатня. Записано очок: {points}.",
     qualityGood:"Якість даних: хороша. Записано очок: {points}.",
     readOnly:"AI Coach вимкнено в режимі «лише перегляд», щоб не створювати платні запити.",
+    permission:"Administrator не дозволив цьому користувачеві платні запити AI Coach.",
     offline:"Немає підключення до інтернету. AI Coach доступний лише онлайн.",
     profiles:"Профіль гравця або суперника не вибрано.",
     auth:"Відкрийте застосунок знову через Telegram.",
@@ -7357,6 +7817,7 @@ const AI_COACH_TEXT={
     errorRate:"Досягнуто тимчасового ліміту AI Coach. Спробуйте пізніше.",
     errorAuth:"Telegram-авторизація закінчилася. Закрийте застосунок і відкрийте його знову через бот.",
     errorAccess:"Немає доступу до вибраного профілю гравця або суперника.",
+    errorPermission:"Для цього користувача AI Coach не дозволено.",
     evidence:"Підстава",
     priorityHigh:"Високий пріоритет",
     priorityMedium:"Середній пріоритет",
@@ -7383,6 +7844,7 @@ const AI_COACH_TEXT={
     qualitySufficient:"Data quality: sufficient. Recorded points: {points}.",
     qualityGood:"Data quality: good. Recorded points: {points}.",
     readOnly:"AI Coach is disabled in read-only mode to prevent paid requests.",
+    permission:"An Administrator has not enabled paid AI Coach requests for this user.",
     offline:"No internet connection. AI Coach is available online only.",
     profiles:"The player or opponent profile is not selected.",
     auth:"Reopen the app through Telegram.",
@@ -7394,6 +7856,7 @@ const AI_COACH_TEXT={
     errorRate:"The temporary AI Coach limit has been reached. Try again later.",
     errorAuth:"Telegram authorization expired. Close the app and reopen it through the bot.",
     errorAccess:"You do not have access to the selected player or opponent profile.",
+    errorPermission:"AI Coach is not enabled for this user.",
     evidence:"Evidence",
     priorityHigh:"High priority",
     priorityMedium:"Medium priority",
@@ -7542,6 +8005,7 @@ function aiCoachErrorText(code){
   if(code==="rate_limited")return aiCoachText("errorRate");
   if(code==="telegram_auth_expired" || code==="telegram_auth_invalid" || code==="telegram_auth_missing")return aiCoachText("errorAuth");
   if(code==="access_denied" || code==="profile_access_denied" || code==="opponent_access_denied")return aiCoachText("errorAccess");
+  if(code==="ai_permission_denied")return aiCoachText("errorPermission");
   return aiCoachText("errorGeneric");
 }
 
@@ -7562,8 +8026,9 @@ function renderAiCoach(){
     ? aiCoachText("loading")
     : aiCoachText(S.matchOver?postRequestKey:"requestLive");
   button.disabled=!!(
-    aiCoachLoading || liveMatchReadOnly || !navigator.onLine ||
-    !window.TENNIS_INIT_DATA || !S.playerProfileId || !S.opponentProfileId || !quality.ready
+    aiCoachLoading || !navigator.onLine ||
+    !window.TENNIS_INIT_DATA || !S.playerProfileId || !S.opponentProfileId ||
+    !canUseAiForProfile(S.playerProfileId) || !quality.ready
   );
   $("aiCoachCostNote").textContent=
     aiCoachText("cost")+" "+aiCoachText("usage",{count:aiCoachUsageCount()});
@@ -7575,8 +8040,8 @@ function renderAiCoach(){
   }else if(aiCoachError){
     status.textContent=aiCoachError;
     status.classList.add("error");
-  }else if(liveMatchReadOnly){
-    status.textContent=aiCoachText("readOnly");
+  }else if(!canUseAiForProfile(S.playerProfileId)){
+    status.textContent=aiCoachText("permission");
   }else if(!navigator.onLine){
     status.textContent=aiCoachText("offline");
   }else if(!window.TENNIS_INIT_DATA){
@@ -7625,7 +8090,7 @@ function renderAiCoach(){
 async function requestAiCoach(){
   if(aiCoachLoading)return;
   const quality=aiCoachDataQuality();
-  if(liveMatchReadOnly){alert(aiCoachText("readOnly"));return}
+  if(!canUseAiForProfile(S.playerProfileId)){alert(aiCoachText("permission"));return}
   if(!navigator.onLine){alert(aiCoachText("offline"));return}
   if(!window.TENNIS_INIT_DATA){alert(aiCoachText("auth"));return}
   if(!S.playerProfileId || !S.opponentProfileId){alert(aiCoachText("profiles"));return}
@@ -7806,7 +8271,8 @@ function renderSavedMatchAiCoach(){
     : aiCoachText(requestKey);
   button.disabled=!!(
     savedMatchAiLoading || !navigator.onLine || !window.TENNIS_INIT_DATA ||
-    !context.playerProfileId || !context.opponentProfileId || !quality.ready
+    !context.playerProfileId || !context.opponentProfileId ||
+    !canUseAiForProfile(context.playerProfileId) || !quality.ready
   );
   $("savedMatchAiCostNote").textContent=
     aiCoachText("cost")+" "+aiCoachText("usage",{count:savedMatchAiUsageCount()});
@@ -7820,6 +8286,8 @@ function renderSavedMatchAiCoach(){
     status.classList.add("error");
   }else if(!navigator.onLine){
     status.textContent=aiCoachText("offline");
+  }else if(!canUseAiForProfile(context.playerProfileId)){
+    status.textContent=aiCoachText("permission");
   }else if(!window.TENNIS_INIT_DATA){
     status.textContent=aiCoachText("auth");
   }else if(!context.playerProfileId || !context.opponentProfileId){
@@ -7873,6 +8341,10 @@ async function requestSavedMatchAiCoach(){
   if(!context)return;
   if(!navigator.onLine){alert(aiCoachText("offline"));return}
   if(!window.TENNIS_INIT_DATA){alert(aiCoachText("auth"));return}
+  if(!canUseAiForProfile(context.playerProfileId)){
+    alert(aiCoachText("permission"));
+    return;
+  }
   if(!context.playerProfileId || !context.opponentProfileId){
     alert(aiCoachText("profiles"));
     return;
@@ -8368,15 +8840,23 @@ async function loadHistory(){
       matchBelongsToPlayerProfile(match,profile)
     );
     if(!matches.length){box.textContent="Сохранённых матчей пока нет.";return}
+    const myTelegramId=currentTelegramUserId();
+    const latestOwned=matches.find(match=>
+      Number(match?.created_by_telegram_id||0)===myTelegramId
+    );
     box.innerHTML=matches.map((m,index)=>{
-      const isLatest = index===0;
+      const createdAt=Date.parse(String(m.created_at||""));
+      const canCorrect=canRecordSelectedProfile() &&
+        latestOwned?.id===m.id &&
+        Number.isFinite(createdAt) &&
+        Date.now()-createdAt<=24*60*60*1000;
       const sc=m.sets?.score||["?","?"];
       const d=m.created_at?new Date(m.created_at).toLocaleString(
         window.TennisI18n?.localeTag() || "ru-RU"
       ):"";
       const gs=Array.isArray(m.sets?.set_scores)?m.sets.set_scores:[];const tbs=Array.isArray(m.sets?.tie_break_scores)?m.sets.tie_break_scores:[];
       const detail=gs.map((g,i)=>{if(!Array.isArray(g))return "";let z=g[0]+"–"+g[1],tb=tbs[i];if(Array.isArray(tb)&&Math.max(g[0],g[1])===7&&Math.min(g[0],g[1])===6)z+=" ("+tb[0]+"–"+tb[1]+")";return z}).filter(Boolean).join(", ");
-      return `<div class="historyItem"><div class="historyTop"><div><div class="historyScore">${esc(m.player1)} ${esc(sc[0])}–${esc(sc[1])} ${esc(m.player2)}</div><div class="muted">${esc(detail?detail+" · "+d:d)}</div></div><div style="display:flex;gap:6px">${isLatest?`<button data-history-edit="${m.id}" style="min-height:38px;padding:7px 10px">Исправить</button>`:""}<button class="danger" data-history-delete="${m.id}" style="min-height:38px;padding:7px 10px">Удалить</button></div></div></div>`
+      return `<div class="historyItem"><div class="historyTop"><div><div class="historyScore">${esc(m.player1)} ${esc(sc[0])}–${esc(sc[1])} ${esc(m.player2)}</div><div class="muted">${esc(detail?detail+" · "+d:d)}</div></div><div style="display:flex;gap:6px">${canCorrect?`<button data-history-edit="${m.id}" style="min-height:38px;padding:7px 10px">Исправить</button>`:""}${canDeleteSelectedMatches()?`<button class="danger" data-history-delete="${m.id}" style="min-height:38px;padding:7px 10px">Удалить</button>`:""}</div></div></div>`
     }).join("");
     box.querySelectorAll("[data-history-delete]").forEach(b=>b.onclick=()=>deleteHistoryMatch(b.dataset.historyDelete));
     box.querySelectorAll("[data-history-edit]").forEach(b=>b.onclick=()=>editLastMatch(b.dataset.historyEdit));
@@ -8405,8 +8885,9 @@ if(!editSnapshot){
 
 }
 
-    await matchHistoryRequest("/"+encodeURIComponent(id),{
-      method:"DELETE"
+    await matchHistoryRequest("/"+encodeURIComponent(id)+"/reopen",{
+      method:"POST",
+      body:JSON.stringify({action:"correct_last_match"})
     });
 
     S=normalizeState(editSnapshot);
@@ -8467,6 +8948,7 @@ saveLocalOnly();
 
 } 
 async function deleteHistoryMatch(id){
+  if(!canDeleteSelectedMatches())return;
   if(!confirm("Удалить этот матч из истории полностью? Это действие нельзя отменить."))return;
   try{
     await matchHistoryRequest("/"+encodeURIComponent(id),{
@@ -8486,6 +8968,10 @@ function exportCSV(){
 }
 function start(){
   if(liveMatchRecoveryConflict)return;
+  if(!canRecordSelectedProfile()){
+    alert("Для этого профиля доступен только просмотр.");
+    return;
+  }
   if(hasRecoverableMatch(readLocalMatchSnapshot())){
     alert("Сначала продолжите или удалите сохранённый матч.");
     return;
@@ -8600,6 +9086,8 @@ async function newMatch(){
   let playerStatsMatchesCache=[];
 
 async function loadPlayerMatchesManager(){
+
+  if(!canDeleteSelectedMatches())return;
 
   const profile=selectedPlayerProfile();
 
@@ -11048,6 +11536,8 @@ const analysisHtml = `
 }
 async function savePlayerStatsSelection(){
 
+  if(!canDeleteSelectedMatches())return;
+
   const boxes=[
 
     ...document.querySelectorAll(
@@ -11551,6 +12041,16 @@ function renderH2HPlayerStats(summary,title,box){
 
 }
 $("startBtn").onclick=start;
+  $("accessControlBtn").onclick=openAccessControl;
+  $("closeAccessControlBtn").onclick=closeAccessControl;
+  $("createAccessInviteBtn").onclick=createAccessInvite;
+  $("copyAccessInviteBtn").onclick=copyAccessInvite;
+  $("shareAccessInviteBtn").onclick=shareAccessInvite;
+  $("accessInviteRole").onchange=event=>{
+    if(event.target.value==="coach")$("accessInvitePlan").checked=true;
+    if(event.target.value==="viewer")$("accessInvitePlan").checked=false;
+    applyRoleControlState(event.target,$("accessInvitePlan"),$("accessInviteAi"));
+  };
   $("setupOpponentProfile").onchange=event=>{
 
     chooseOpponentProfile(event.target.value);
@@ -11695,16 +12195,21 @@ $("aiCoachRequestBtn").onclick=requestAiCoach;
 $("undoBtn").onclick=undo;
 $("changeServerBtn").onclick=changeServer;
 $("retryLiveSyncBtn").onclick=retryCurrentMatchSync;
+$("leaveReadOnlyLiveMatchBtn").onclick=leaveReadOnlyLiveMatch;
+$("cancelReadOnlyLiveMatchBtn").onclick=cancelReadOnlyLiveMatch;
 $("exportBtn").onclick=exportCSV;
 $("newMatchBtn").onclick=newMatch;
 $("refreshHistoryBtn").onclick=loadHistory;
 $("resumeBtn").onclick=resumeSavedMatch;
 $("discardResumeBtn").onclick=discardSavedMatch;
+applyRoleControlState($("accessInviteRole"),$("accessInvitePlan"),$("accessInviteAi"));
+renderAccessControlStatic();
 document.querySelectorAll("[data-evt]").forEach(b=>b.onclick=()=>finish(b.dataset.evt));
 document.querySelectorAll("[data-rally]").forEach(b=>b.onclick=()=>markRally(b.dataset.rally));
 window.addEventListener("online",()=>{
 
   updateSaveStatus();
+  renderLiveObserverActions();
 
   renderAiCoach();
 
@@ -11743,11 +12248,14 @@ window.addEventListener("online",()=>{
 });
 window.addEventListener("offline",()=>{
   updateSaveStatus();
+  renderLiveObserverActions();
   renderAiCoach();
   renderSavedMatchAnalysis();
 });
 
 window.addEventListener("tennis-language-change",()=>{
+  renderAccessControlStatic();
+  renderLiveObserverActions();
   renderHistoryExport();
   resetAiCoachState();
   resetSavedMatchAiState();

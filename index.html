@@ -1,5 +1,5 @@
 ﻿<!doctype html>
-<!-- UPDATED: safe abandoned Live Match recovery V24.1 -->
+<!-- UPDATED: safe result corrections, cancelled LIVE guard, nullable AI statistics V24.2 -->
 <html lang="ru">
 <head>
 <meta charset="utf-8">
@@ -1557,7 +1557,7 @@ const H2H_CACHE_KEY_PREFIX=
 
   "TennisTrackerH2H:v1:";
 
-const H2H_CACHE_VERSION=1;
+const H2H_CACHE_VERSION=2;
 
 let authorizedPlayerProfiles=[];
 
@@ -3816,9 +3816,12 @@ async function matchHistoryRequest(path="",options={}){
     }
   });
   const result=await response.json().catch(()=>({}));
-  if(!response.ok)throw new Error(
-    result?.error?.message||"Не удалось обратиться к истории матчей"
-  );
+  if(!response.ok){
+    const error=new Error(result?.error?.message||"Не удалось обратиться к истории матчей");
+    error.status=response.status;
+    error.apiCode=result?.error?.code;
+    throw error;
+  }
   return result;
 }
 
@@ -4203,9 +4206,10 @@ function renderHistoryExport(){
 
 function historyExportHasUnsyncedMatch(profile){
   return getPendingMatches().some(item=>
-    item.tracked_player_id===profile.id ||
-    (!item.tracked_player_id && item.player1===profile.display_name)
-  ) || (S.matchOver && S.playerProfileId===profile.id &&
+    item?.sets?.sync_blocked!=="match_cancelled" &&
+    (item.tracked_player_id===profile.id ||
+    (!item.tracked_player_id && item.player1===profile.display_name))
+  ) || (!S.cancelled && S.matchOver && S.playerProfileId===profile.id &&
     (S.liveFinishPending || (S.pendingSyncId && !S.savedMatchId)));
 }
 
@@ -4334,6 +4338,11 @@ function h2hNormalizeStats(value){
   return stats;
 }
 
+function h2hCompleteStats(value){
+  return !!value&&H2H_STAT_KEYS.every(key=>typeof value[key]==="number"&&
+    Number.isSafeInteger(value[key])&&value[key]>=0&&value[key]<=100000);
+}
+
 function h2hAddStats(target,value){
   const stats=h2hNormalizeStats(value);
   H2H_STAT_KEYS.forEach(key=>{target[key]+=stats[key]});
@@ -4384,6 +4393,7 @@ function normalizeH2HSummary(value,playerProfileId,opponentProfileId){
     sets_won:h2hCount(value.sets_won),
     sets_lost:h2hCount(value.sets_lost),
     matches_with_stats:h2hCount(value.matches_with_stats),
+    partial_stats_matches:h2hCount(value.partial_stats_matches),
     legacy_without_opponent_id:h2hCount(value.legacy_without_opponent_id),
     excluded_from_stats:h2hCount(value.excluded_from_stats),
     player_stats:h2hNormalizeStats(value.player_stats),
@@ -4496,6 +4506,7 @@ function buildH2HSummary(allMatches,profile,opponent){
     sets_won:0,
     sets_lost:0,
     matches_with_stats:0,
+    partial_stats_matches:0,
     legacy_without_opponent_id:playerMatches.filter(match=>!match?.opponent_profile_id).length,
     excluded_from_stats:linked.filter(match=>match?.sets?.include_in_stats===false).length,
     player_stats:h2hBlankStats(),
@@ -4524,9 +4535,11 @@ function buildH2HSummary(allMatches,profile,opponent){
 
     const playerStats=h2hStatsAt(match,playerIndex);
     const opponentStats=h2hStatsAt(match,opponentIndex);
-    if(playerStats||opponentStats)summary.matches_with_stats++;
-    if(playerStats)h2hAddStats(summary.player_stats,playerStats);
-    if(opponentStats)h2hAddStats(summary.opponent_stats,opponentStats);
+    if(h2hCompleteStats(playerStats)&&h2hCompleteStats(opponentStats)){
+      summary.matches_with_stats++;
+      h2hAddStats(summary.player_stats,playerStats);
+      h2hAddStats(summary.opponent_stats,opponentStats);
+    }else summary.partial_stats_matches++;
 
     const points=Array.isArray(match?.points)
       ? match.points
@@ -4800,6 +4813,11 @@ async function drainLiveMatchSyncQueue(){
       }catch(error){
 
         console.error("Live Match sync error",error);
+        if(error?.apiCode==="match_cancelled"){
+          markCurrentMatchCancelled();
+          liveMatchSyncError=cancelledResultError().message;
+          break;
+        }
 
         liveMatchSyncError=String(
           error?.message || "Live Match request failed"
@@ -4847,6 +4865,7 @@ async function syncLiveMatch(){
   if(
     !S.started ||
     S.matchOver ||
+    S.cancelled ||
     liveMatchClosing ||
     liveMatchReadOnly
   ) return false;
@@ -4948,10 +4967,12 @@ async function finishLiveMatch(){
           const remote=await liveMatchRequest(
             "/"+encodeURIComponent(id),{method:"GET"}
           );
+          if(remote?.match?.match_data?.cancelled)throw cancelledResultError();
           alreadyFinished=remote?.match?.status==="finished";
 
         }catch(error){
 
+          if(error?.apiCode==="match_cancelled")throw error;
           console.warn("Live Match finish check failed",error);
 
         }
@@ -4992,11 +5013,12 @@ async function finishLiveMatch(){
     }catch(error){
 
       console.error("Live Match finish error",error);
+      if(error?.apiCode==="match_cancelled")markCurrentMatchCancelled();
       liveMatchFinishConfirmed=false;
       liveMatchSyncError=String(
         error?.message || "Live Match request failed"
       );
-      liveMatchSyncRetryable=![401,403].includes(error?.status);
+      liveMatchSyncRetryable=![401,403].includes(error?.status)&&error?.apiCode!=="match_cancelled";
       return false;
 
     }
@@ -5243,7 +5265,8 @@ function applyLiveMatchState(match,preserveSelectedSet=false){
 
   liveMatchPendingSnapshot=null;
   liveMatchSyncError="";
-  liveMatchFinishConfirmed=match.status==="finished";
+  liveMatchFinishConfirmed=match.status==="finished"&&!S.cancelled;
+  if(match.correction_match_id)S.correctionMatchId=match.correction_match_id;
 
   if(!liveMatchReadOnly){
 
@@ -5690,6 +5713,7 @@ function normalizeState(x){
 function hasRecoverableMatch(x){
 
   if(!x)return false;
+  if(x.cancelled)return false;
 
   if(x.matchOver){
 
@@ -5760,6 +5784,19 @@ function updateSaveStatus(){
   const retry=$("retryLiveSyncBtn");
 
   if(!a||!b)return;
+  if(S.deletedFromHistory){
+    a.textContent="⚪ Результат удалён из истории";
+    b.textContent="Повторная отправка не восстановит удалённый результат. Локальную запись можно экспортировать в CSV.";
+    retry?.classList.add("hidden");
+    return;
+  }
+
+  if(S.cancelled&&!liveMatchReadOnly){
+    a.textContent="⚪ LIVE · Матч отменён";
+    b.textContent="Результат не отправляется в историю. Журнал сохранён на этом устройстве для Export CSV. Можно начать новый матч.";
+    retry?.classList.add("hidden");
+    return;
+  }
 
   if(retry){
 
@@ -5886,7 +5923,7 @@ function updateSaveStatus(){
     }else{
 
       a.textContent="🟠 Матч ожидает синхронизации";
-      b.textContent="Завершённый матч сохранён на устройстве и будет отправлен в Supabase.";
+      b.textContent=S.pendingSyncError||"Завершённый матч сохранён на устройстве и будет отправлен в Supabase.";
       if(retry)retry.classList.remove("hidden");
 
     }
@@ -5969,10 +6006,10 @@ function discardSavedMatch(){
 }
 function isBP(server){if(S.tb)return false;let r=1-server,rp=S.pt[r],sp=S.pt[server];if(rp<3)return false;if(rp===3&&sp<=2)return true;return rp>=3&&sp>=3&&rp===sp+1}
 function inc(o,k){o[k]=(o[k]||0)+1}
-function firstIn(){if(liveMatchReadOnly||liveMatchClosing||S.matchOver||S.marked)return;snapshot();S.marked=true;S.sn=1;save()}
-function firstOut(){if(liveMatchReadOnly||liveMatchClosing||S.matchOver||S.marked)return;snapshot();S.marked=true;S.sn=2;save()}
+function firstIn(){if(liveMatchReadOnly||liveMatchClosing||S.matchOver||S.cancelled||S.marked)return;snapshot();S.marked=true;S.sn=1;save()}
+function firstOut(){if(liveMatchReadOnly||liveMatchClosing||S.matchOver||S.cancelled||S.marked)return;snapshot();S.marked=true;S.sn=2;save()}
 function finish(type){
-  if(liveMatchReadOnly||liveMatchClosing||S.matchOver)return;
+  if(liveMatchReadOnly||liveMatchClosing||S.matchOver||S.cancelled)return;
   snapshot();ensureSet();
   let sv=S.srv,rc=1-sv,w=null,bp=isBP(sv),serv=S.st[sv],ret=S.st[rc],ss=S.setStats[S.curSet][sv],sr=S.setStats[S.curSet][rc];
   if(type==="df"){S.marked=true;S.sn=2}else if(!S.marked)S.marked=true;
@@ -6036,12 +6073,12 @@ function winSet(w){
   S.curSet++;ensureSet();S.selectedSet=S.curSet
 }
 function pointText(i){if(S.tb)return S.pt[i];let a=S.pt[i],b=S.pt[1-i];if(a>=3&&b>=3)return a===b?"40":a>b?"AD":"40";return["0","15","30","40"][Math.min(a,3)]}
-function markRally(r){if(liveMatchReadOnly||liveMatchClosing||S.matchOver||S.last<0)return;snapshot();S.log[S.last].rally=r;save()}
-function changeServer(){if(liveMatchReadOnly||liveMatchClosing||S.matchOver)return;snapshot();S.srv=1-S.srv;S.sn=1;S.marked=false;save()}
+function markRally(r){if(liveMatchReadOnly||liveMatchClosing||S.matchOver||S.cancelled||S.last<0)return;snapshot();S.log[S.last].rally=r;save()}
+function changeServer(){if(liveMatchReadOnly||liveMatchClosing||S.matchOver||S.cancelled)return;snapshot();S.srv=1-S.srv;S.sn=1;S.marked=false;save()}
 
 async function undo(){
 
-  if(liveMatchReadOnly||liveMatchClosing||newMatchInProgress||!S.hist.length)return;
+  if(liveMatchReadOnly||liveMatchClosing||newMatchInProgress||S.cancelled||!S.hist.length)return;
 
   const wasCompleted=S.matchOver;
 
@@ -6060,6 +6097,13 @@ async function undo(){
   }
 
   if(pendingHistorySyncPromise)await pendingHistorySyncPromise;
+  if(wasCompleted&&S.pendingSyncId&&!S.savedMatchId){
+    await syncPendingMatches();
+    if(S.pendingSyncId&&!S.savedMatchId){
+      alert("Сначала синхронизируйте результат матча, затем откройте исправление. Локальные данные сохранены.");
+      return;
+    }
+  }
 
   const savedId=S.savedMatchId;
 
@@ -6070,6 +6114,7 @@ async function undo(){
   const restored=JSON.parse(h);
 
   const newHist=S.hist.slice(0,-1);
+  let correctionLive=null;
 
   if(savedId){
 
@@ -6079,16 +6124,19 @@ async function undo(){
         player_profile_id:S.playerProfileId,sync_id:savedId
       });
       const found=await matchHistoryRequest("?"+query);
+      if(!(found.matches||[]).length)throw new Error("Сохранённый результат больше не найден в истории.");
       for(const match of found.matches||[]){
-        await matchHistoryRequest("/"+encodeURIComponent(match.id)+"/reopen",{
+        const opened=await matchHistoryRequest("/"+encodeURIComponent(match.id)+"/reopen",{
           method:"POST",
           body:JSON.stringify({action:"correct_last_match"})
         });
+        if(!opened?.live_match?.id)throw new Error("Обновите match-history до V24.2.");
+        correctionLive=opened.live_match;
       }
 
     }catch(e){
 
-      alert("Не удалось удалить завершённый матч из Supabase: "+e.message);
+      alert("Не удалось открыть исправление. Исходный матч сохранён: "+e.message);
 
       return;
 
@@ -6125,6 +6173,11 @@ async function undo(){
     S.syncRevision=0;
     S.lastSyncedRevision=0;
     resetLiveMatchSyncState();
+    if(correctionLive){
+      S.liveMatchId=correctionLive.id;
+      S.clientMatchId=correctionLive.client_match_id;
+      S.correctionMatchId=correctionLive.correction_match_id;
+    }else S.clientMatchId=crypto.randomUUID();
 
   }
 
@@ -6655,21 +6708,24 @@ function analysisDetailedPayload(setScores,setStats,playerIndex,recordedPoints,t
 }
 
 function chatGptPlayerStats(name,stats){
-  const s=stats || emptyStats();
+  const s=stats || {};
+  const count=value=>typeof value==="number"&&Number.isSafeInteger(value)&&value>=0?value:"unavailable";
+  const rate=(won,total)=>count(won)==="unavailable"||count(total)==="unavailable"
+    ? "unavailable" : chatGptRate(won,total);
   return [
     name+":",
-    "- Points won: "+chatGptCount(s.ptsWon),
-    "- 1st Serve In: "+chatGptRate(s.fi,s.sp),
-    "- 1st Serve Won: "+chatGptRate(s.fw,s.fi),
-    "- 2nd Serve Won: "+chatGptRate(s.sw,s.sp2),
-    "- ACE / DF: "+chatGptCount(s.a)+" / "+chatGptCount(s.df),
-    "- Winners FH/BH: "+chatGptCount(s.fhw)+"/"+chatGptCount(s.bhw),
-    "- UE FH/BH: "+chatGptCount(s.fhue)+"/"+chatGptCount(s.bhue),
-    "- Forced Errors Won: "+chatGptCount(s.fe),
-    "- Net Points Won: "+chatGptCount(s.net),
-    "- Break Points Saved: "+chatGptCount(s.bps)+"/"+chatGptCount(s.bpf),
-    "- Return vs 1st Serve Won: "+chatGptRate(s.r1w,s.r1p),
-    "- Return vs 2nd Serve Won: "+chatGptRate(s.r2w,s.r2p)
+    "- Points won: "+count(s.ptsWon),
+    "- 1st Serve In: "+rate(s.fi,s.sp),
+    "- 1st Serve Won: "+rate(s.fw,s.fi),
+    "- 2nd Serve Won: "+rate(s.sw,s.sp2),
+    "- ACE / DF: "+count(s.a)+" / "+count(s.df),
+    "- Winners FH/BH: "+count(s.fhw)+"/"+count(s.bhw),
+    "- UE FH/BH: "+count(s.fhue)+"/"+count(s.bhue),
+    "- Forced Errors Won: "+count(s.fe),
+    "- Net Points Won: "+count(s.net),
+    "- Break Points Saved: "+count(s.bps)+"/"+count(s.bpf),
+    "- Return vs 1st Serve Won: "+rate(s.r1w,s.r1p),
+    "- Return vs 2nd Serve Won: "+rate(s.r2w,s.r2p)
   ].join("\n");
 }
 
@@ -6762,13 +6818,14 @@ function chatGptH2HDataBlock(summary,playerName,opponentName){
     "- Match record for "+playerName+": "+chatGptCount(summary.wins)+" W / "+chatGptCount(summary.losses)+" L",
     "- Set record for "+playerName+": "+chatGptCount(summary.sets_won)+"–"+chatGptCount(summary.sets_lost),
     "- Matches with detailed point stats: "+chatGptCount(summary.matches_with_stats),
+    "- Matches with missing or incomplete point stats excluded from numeric aggregate: "+chatGptCount(summary.partial_stats_matches),
     "- Matches manually excluded from this opponent's statistics: "+chatGptCount(summary.excluded_from_stats),
     "- Legacy matches without opponent_profile_id excluded: "+chatGptCount(summary.legacy_without_opponent_id),
     "",
     "H2H AGGREGATE",
-    chatGptPlayerStats(playerName,summary.player_stats),
+    chatGptPlayerStats(playerName,summary.matches_with_stats?summary.player_stats:null),
     "",
-    chatGptPlayerStats(opponentName,summary.opponent_stats),
+    chatGptPlayerStats(opponentName,summary.matches_with_stats?summary.opponent_stats:null),
     "",
     "H2H RALLY LENGTH (winner count)",
     chatGptH2HRallySummary(summary,playerName,opponentName),
@@ -6990,8 +7047,8 @@ function analysisHubStoredEntry(match,profile){
     score:h2hScoreForPlayer(match,playerIndex),
     setsWon:setScore?chatGptCount(setScore[playerIndex]):0,
     setsLost:setScore?chatGptCount(setScore[opponentIndex]):0,
-    stats:stats?h2hNormalizeStats(stats):null,
-    detailed:!!stats,
+    stats:stats?aiCoachStats(stats):null,
+    detailed:h2hCompleteStats(stats),
     current:false,
     playerName:profile.display_name
   };
@@ -7007,7 +7064,7 @@ function analysisHubAggregateEntries(entries){
     else if(entry.result==="L")aggregate.losses++;
     aggregate.setsWon+=chatGptCount(entry.setsWon);
     aggregate.setsLost+=chatGptCount(entry.setsLost);
-    if(entry.stats){
+    if(entry.detailed&&h2hCompleteStats(entry.stats)){
       aggregate.detailed++;
       h2hAddStats(aggregate.stats,entry.stats);
     }
@@ -7026,7 +7083,7 @@ function analysisHubWindowBlock(title,entries,playerName){
     "- Match record: "+aggregate.wins+" W / "+aggregate.losses+" L",
     "- Set record: "+aggregate.setsWon+"–"+aggregate.setsLost,
     "- Matches with detailed point stats: "+aggregate.detailed,
-    chatGptPlayerStats(playerName+" aggregate",aggregate.stats)
+    chatGptPlayerStats(playerName+" aggregate",aggregate.detailed?aggregate.stats:null)
   ].join("\n");
 }
 
@@ -7765,6 +7822,7 @@ const AI_COACH_TEXT={
     qualityBasic:"Качество данных: базовое. Записано очков: {points}; выводы могут измениться.",
     qualitySufficient:"Качество данных: достаточное. Записано очков: {points}.",
     qualityGood:"Качество данных: хорошее. Записано очков: {points}.",
+    qualityPartial:"Статистика неполная. Записано очков: {points}; отсутствующие показатели не оцениваются.",
     readOnly:"AI Coach отключён в режиме «только просмотр», чтобы не создавать платные запросы.",
     permission:"Administrator не разрешил этому пользователю платные запросы AI Coach.",
     offline:"Нет подключения к интернету. AI Coach доступен только онлайн.",
@@ -7804,6 +7862,7 @@ const AI_COACH_TEXT={
     qualityBasic:"Якість даних: базова. Записано очок: {points}; висновки можуть змінитися.",
     qualitySufficient:"Якість даних: достатня. Записано очок: {points}.",
     qualityGood:"Якість даних: хороша. Записано очок: {points}.",
+    qualityPartial:"Статистика неповна. Записано очок: {points}; відсутні показники не оцінюються.",
     readOnly:"AI Coach вимкнено в режимі «лише перегляд», щоб не створювати платні запити.",
     permission:"Administrator не дозволив цьому користувачеві платні запити AI Coach.",
     offline:"Немає підключення до інтернету. AI Coach доступний лише онлайн.",
@@ -7843,6 +7902,7 @@ const AI_COACH_TEXT={
     qualityBasic:"Data quality: basic. Recorded points: {points}; conclusions may change.",
     qualitySufficient:"Data quality: sufficient. Recorded points: {points}.",
     qualityGood:"Data quality: good. Recorded points: {points}.",
+    qualityPartial:"Statistics are incomplete. Recorded points: {points}; missing metrics are not evaluated.",
     readOnly:"AI Coach is disabled in read-only mode to prevent paid requests.",
     permission:"An Administrator has not enabled paid AI Coach requests for this user.",
     offline:"No internet connection. AI Coach is available online only.",
@@ -7899,7 +7959,8 @@ function aiCoachSafeCount(value,max=100000){
 function aiCoachStats(stats){
   const result={};
   for(const key of AI_COACH_STAT_KEYS){
-    result[key]=aiCoachSafeCount(stats?.[key]);
+    const value=stats?.[key];
+    result[key]=typeof value==="number"&&Number.isSafeInteger(value)&&value>=0&&value<=100000?value:null;
   }
   return result;
 }
@@ -8166,6 +8227,10 @@ function savedMatchAiDataQuality(){
       text:aiCoachText("qualityInsufficient",{points:recorded})
     };
   }
+  if([context.playerStats,context.opponentStats].some(stats=>
+    Object.values(aiCoachStats(stats)).some(value=>value===null))){
+    return {points:recorded,ready:true,tone:"warn",text:aiCoachText("qualityPartial",{points:recorded})};
+  }
   if(recorded<12){
     return {
       points:recorded,ready:true,tone:"warn",
@@ -8227,7 +8292,7 @@ function savedMatchAiPayload(){
     analysis_mode:savedMatchAnalysisMode,
     ...(isDetailedAnalysisMode(savedMatchAnalysisMode)?{match_details:{
       ...analysisDetailedPayload(context.setScores,context.setStats,context.playerIndex,context.recordedPoints,context.tieBreakScores),
-      totals_available:{player:!!h2hStatsAt(context.match,context.playerIndex),opponent:!!h2hStatsAt(context.match,context.opponentIndex)}
+      totals_available:{player:Object.values(context.playerStats).every(v=>v!==null),opponent:Object.values(context.opponentStats).every(v=>v!==null)}
     }}:{}),
     current_match_key:savedMatchAnalysisKey(context.match) || null,
     current_match:{
@@ -8541,12 +8606,16 @@ liveEditButtons.forEach(btn=>{
   $("matchOverCard").classList.toggle("hidden",!matchClosed);
   if(S.cancelled){
     $("matchOverText").textContent="Матч отменён";
-    $("matchOverDetail").textContent="Пользователь начал новый матч. Этот матч не сохранён в истории.";
+    $("matchOverDetail").textContent=S.correctionMatchId
+      ? "Черновик исправления отменён. Исходный результат остался в истории."
+      : "Этот матч отменён и не добавляется в историю. Локальный журнал можно экспортировать в CSV.";
   }else if(S.matchOver){
     const w=S.set[0]>S.set[1]?0:1;
     const fs=fullScore();
     $("matchOverText").textContent="🏆 Победитель: "+S.names[w]+" · "+S.set[0]+"–"+S.set[1]+" по сетам"+(fs?" · "+fs:"");
-    $("matchOverDetail").textContent="Матч завершён и сохранён в истории.";
+    $("matchOverDetail").textContent=S.deletedFromHistory
+      ? "Результат удалён из истории. На устройстве осталась локальная запись."
+      : S.savedMatchId?"Матч завершён и сохранён в истории.":"Матч завершён. Результат ожидает синхронизации с Supabase.";
   }
 
   drawChart()
@@ -8608,6 +8677,59 @@ function addPendingMatch(payload){
 
 }
 
+function cancelledResultError(){
+  const error=new Error("Матч отменён. Локальный журнал доступен для Export CSV; результат не будет добавлен в историю.");
+  error.apiCode="match_cancelled";
+  error.status=409;
+  return error;
+}
+
+function markCurrentMatchCancelled(){
+  S.cancelled=true;
+  S.liveFinishPending=false;
+  liveMatchPendingSnapshot=null;
+  liveMatchSyncRetryable=false;
+  activeLiveMatchesByProfile.delete(S.playerProfileId);
+  saveLocalOnly();
+  render();
+  updateStartButton();
+}
+
+async function linkPendingResultToLive(payload){
+  const sets=payload.sets;
+  if(sets.sync_blocked==="match_cancelled")throw cancelledResultError();
+  const old=sets.edit_snapshot||{};
+  let id=sets.live_match_id||old.liveMatchId;
+  const clientId=sets.client_match_id||old.clientMatchId;
+  let remote;
+  if(id){
+    remote=await liveMatchRequest("/"+encodeURIComponent(id),{method:"GET"});
+  }else{
+    if(!clientId){
+      const error=new Error("Старая локальная запись не содержит LIVE ID. Она сохранена на устройстве; автоматическая отправка заблокирована, чтобы не восстановить отменённый матч.");
+      error.apiCode="result_live_link_required";
+      throw error;
+    }
+    const snapshot=sets.live_snapshot||{
+      ...old,names:[payload.player1,payload.player2],started:true,matchOver:true,
+      playerProfileId:payload.tracked_player_id,opponentProfileId:payload.opponent_profile_id,
+      clientMatchId:clientId,set:sets.score,setScores:sets.set_scores,
+      setStats:sets.stats,st:[payload.stats.player1,payload.stats.player2],log:payload.points,hist:[]
+    };
+    remote=await liveMatchRequest("",{method:"POST",body:JSON.stringify({
+      client_match_id:clientId,player_profile_id:payload.tracked_player_id,
+      player2:payload.player2,match_data:snapshot
+    })});
+    id=remote?.match?.id;
+  }
+  if(!id||!remote?.match)throw new Error("Не удалось связать результат с LIVE-матчем.");
+  if(remote.match.match_data?.cancelled)throw cancelledResultError();
+  sets.live_match_id=id;
+  sets.client_match_id=remote.match.client_match_id;
+  setPendingMatches(getPendingMatches().map(item=>item?.sets?.sync_id===sets.sync_id?payload:item));
+  if(S.pendingSyncId===sets.sync_id){S.liveMatchId=id;saveLocalOnly()}
+}
+
 async function syncPendingMatches(){
 
   if(!window.TENNIS_INIT_DATA || !navigator.onLine)return false;
@@ -8625,7 +8747,7 @@ async function syncPendingMatches(){
 
       const payload=getPendingMatches().find(item=>{
         const id=item?.sets?.sync_id;
-        return id && !attempted.has(id);
+        return id && !attempted.has(id) && item?.sets?.sync_blocked!=="match_cancelled";
       });
 
       if(!payload)break;
@@ -8635,7 +8757,8 @@ async function syncPendingMatches(){
 
       try{
 
-        await matchHistoryRequest("",{
+        await linkPendingResultToLive(payload);
+        const savedResponse=await matchHistoryRequest("",{
           method:"POST",body:JSON.stringify(payload)
         });
 
@@ -8647,7 +8770,9 @@ async function syncPendingMatches(){
         if(S.pendingSyncId===syncId){
 
           S.savedMatchId=syncId;
+          S.deletedFromHistory=savedResponse?.deleted===true;
           S.pendingSyncId=null;
+          S.pendingSyncError="";
           saveLocalOnly();
           if(!S.liveFinishPending)$("resumeBox")?.classList.add("hidden");
 
@@ -8656,6 +8781,13 @@ async function syncPendingMatches(){
       }catch(error){
 
         console.error("Pending match sync error",error);
+        if(S.pendingSyncId===syncId){S.pendingSyncError=error?.message||"Не удалось сохранить результат";saveLocalOnly()}
+        if(error?.apiCode==="match_cancelled"){
+          if(S.pendingSyncId===syncId)markCurrentMatchCancelled();
+          // Keep the local journal for CSV export, but never retry a cancelled result.
+          payload.sets.sync_blocked="match_cancelled";
+          setPendingMatches(getPendingMatches().map(item=>item?.sets?.sync_id===syncId?payload:item));
+        }
 
       }
 
@@ -8670,7 +8802,7 @@ async function syncPendingMatches(){
 
     }
 
-    return getPendingMatches().length===0;
+    return getPendingMatches().every(item=>item?.sets?.sync_blocked==="match_cancelled");
 
   })();
 
@@ -8691,7 +8823,7 @@ async function syncPendingMatches(){
 
 async function saveCompletedMatch(){
 
-  if(!S.matchOver || S.savedMatchId) return;
+  if(!S.matchOver || S.savedMatchId || S.cancelled) return;
 
   const winnerIndex = S.set[0] > S.set[1] ? 0 : 1;
 
@@ -8724,6 +8856,11 @@ const payload = {
   points:S.log,
 
   sets:{
+    sync_id:S.pendingSyncId||makeSyncId(),
+    result_version:242,
+    live_match_id:S.liveMatchId,
+    client_match_id:S.clientMatchId||(S.clientMatchId=crypto.randomUUID()),
+    live_snapshot:{...cloneLiveMatchState(S),hist:[]},
 
     score:S.set,
 
@@ -8774,6 +8911,7 @@ S.pendingSyncId = syncId;
   try{
 
     await syncPendingMatches();
+    if(S.cancelled){alert(cancelledResultError().message);return}
 
     const stillPending = getPendingMatches()
 
@@ -8869,7 +9007,7 @@ async function loadHistory(){
     return;
   }
 
-  if(!confirm("Исправить последний завершённый матч? Матч будет удалён из истории и открыт для исправления."))return;
+  if(!confirm("Открыть исправление последнего матча? Исходный результат останется в истории до успешного сохранения исправления."))return;
 
   try{
 
@@ -8885,12 +9023,13 @@ if(!editSnapshot){
 
 }
 
-    await matchHistoryRequest("/"+encodeURIComponent(id)+"/reopen",{
+    const opened=await matchHistoryRequest("/"+encodeURIComponent(id)+"/reopen",{
       method:"POST",
       body:JSON.stringify({action:"correct_last_match"})
     });
+    if(!opened?.live_match?.id)throw new Error("Обновите match-history до V24.2.");
 
-    S=normalizeState(editSnapshot);
+    S=normalizeState(opened.live_match.match_data);
 
 resetAiCoachState();
 
@@ -8902,9 +9041,10 @@ S.matchOver=false;
 
 S.started=true;
 
-S.liveMatchId=null;
+S.liveMatchId=opened.live_match.id;
 
-S.clientMatchId=null;
+S.clientMatchId=opened.live_match.client_match_id;
+S.correctionMatchId=opened.live_match.correction_match_id;
 
 S.syncRevision=0;
 
@@ -9004,14 +9144,16 @@ function start(){
   $("setupScreen").classList.add("hidden");
   $("serverScreen").classList.remove("hidden")
 }
-function chooseServer(i){S.srv=i;S.started=true;$("serverScreen").classList.add("hidden");$("matchScreen").classList.remove("hidden");save();loadHistory()}
+function chooseServer(i){S.srv=i;S.started=true;S.clientMatchId=S.clientMatchId||crypto.randomUUID();$("serverScreen").classList.add("hidden");$("matchScreen").classList.remove("hidden");save();loadHistory()}
 async function newMatch(){
   if(liveMatchReadOnly || newMatchInProgress || liveMatchRecoveryConflict)return;
 
-  const hasUnfinishedLiveMatch=S.started&&!S.matchOver;
+  const hasUnfinishedLiveMatch=S.started&&!S.matchOver&&!S.cancelled;
 
   const message=hasUnfinishedLiveMatch
-    ? "Начать новый матч? Текущий незавершённый матч будет отменён и больше не восстановится."
+    ? S.correctionMatchId
+      ? "Отменить черновик исправления и начать новый матч? Исходный результат останется в истории."
+      : "Начать новый матч? Текущий незавершённый матч будет отменён и больше не восстановится."
     : "Начать новый матч?";
 
   if(!confirm(message))return;
@@ -9043,7 +9185,7 @@ async function newMatch(){
         return;
       }
 
-    }else if(S.matchOver && (S.liveFinishPending || liveMatchFinishPromise)){
+    }else if(!S.cancelled && S.matchOver && (S.liveFinishPending || liveMatchFinishPromise)){
 
       if(!navigator.onLine){
         alert("Сначала подключитесь к интернету и синхронизируйте завершённый матч.");

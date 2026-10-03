@@ -1,4 +1,4 @@
-﻿const CACHE_NAME = "tennis-tracker-v24-1-safe-live-match-release";
+﻿const CACHE_NAME = "tennis-tracker-v24-2-safe-results-ai-quota";
 
 const APP_FILES = [
 

@@ -1,5 +1,5 @@
 ﻿<!doctype html>
-<!-- UPDATED: safe result corrections, cancelled LIVE guard, nullable AI statistics V24.2 -->
+<!-- UPDATED V24.3: reopen saved matches from player statistics; V24.2 result API retained -->
 <html lang="ru">
 <head>
 <meta charset="utf-8">
@@ -366,7 +366,7 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
 
   <div id="playerMatchesManager" class="hidden" style="margin-top:12px">
 
-  <div class="small" style="margin-bottom:10px">
+  <div id="statsSelectionHelp" class="small" style="margin-bottom:10px">
 
     ☑️ отмечен — матч учитывается в статистике.<br>
 
@@ -392,6 +392,11 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
 
     Статистика матча
 
+  </div>
+
+  <div id="selectedMatchCorrection" class="hidden" style="margin-bottom:14px">
+    <button id="correctSelectedMatchBtn" type="button" style="width:100%;min-height:50px">✏️ ИСПРАВИТЬ МАТЧ</button>
+    <div class="small" style="margin-top:8px">Можно исправить свой последний матч в течение 24 часов. Откроется состояние перед решающим очком.</div>
   </div>
 
   <div id="savedMatchAnalysisPanel" class="savedMatchAnalysisPanel hidden" data-i18n-ignore>
@@ -838,6 +843,9 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
       "Загрузка…":"Завантаження…",
       "Сохранённых матчей пока нет.":"Збережених матчів поки немає.",
       "Исправить":"Виправити",
+      "✏️ ИСПРАВИТЬ МАТЧ":"✏️ ВИПРАВИТИ МАТЧ",
+      "Можно исправить свой последний матч в течение 24 часов. Откроется состояние перед решающим очком.":"Свій останній матч можна виправити протягом 24 годин. Відкриється стан перед вирішальним очком.",
+      "Открыть исправление последнего матча? Исходный результат останется в истории до успешного сохранения исправления.":"Відкрити виправлення останнього матчу? Початковий результат залишиться в історії до успішного збереження виправлення.",
       "Удалить":"Видалити",
       "Исправить последний завершённый матч? Матч будет удалён из истории и открыт для исправления.":"Виправити останній завершений матч? Матч буде видалено з історії та відкрито для виправлення.",
       "Этот матч был сохранён до появления функции исправления и не может быть восстановлен по последнему очку.":"Цей матч було збережено до появи функції виправлення, тому його неможливо відновити за останнім очком.",
@@ -1098,6 +1106,9 @@ canvas{width:100%;height:240px;background:#fafafa;border-radius:12px;display:blo
       "Загрузка…":"Loading…",
       "Сохранённых матчей пока нет.":"There are no saved matches yet.",
       "Исправить":"Edit",
+      "✏️ ИСПРАВИТЬ МАТЧ":"✏️ EDIT MATCH",
+      "Можно исправить свой последний матч в течение 24 часов. Откроется состояние перед решающим очком.":"You can edit your latest match within 24 hours. It will reopen before the deciding point.",
+      "Открыть исправление последнего матча? Исходный результат останется в истории до успешного сохранения исправления.":"Open the latest match for editing? The original result will stay in history until the correction is successfully saved.",
       "Удалить":"Delete",
       "Исправить последний завершённый матч? Матч будет удалён из истории и открыт для исправления.":"Edit the latest completed match? It will be removed from history and opened for editing.",
       "Этот матч был сохранён до появления функции исправления и не может быть восстановлен по последнему очку.":"This match was saved before editing was available and cannot be restored to its previous point.",
@@ -1679,6 +1690,7 @@ function canUseSelectedAi(){return selectedProfileAccess().can_use_ai===true}
 function canManageSelectedAccess(){return selectedProfileAccess().can_manage_access===true}
 function canManageSelectedOpponents(){return selectedProfileAccess().can_manage_opponents===true}
 function canDeleteSelectedMatches(){return selectedProfileAccess().can_delete_matches===true}
+function canOpenSelectedMatches(){return canDeleteSelectedMatches() || canRecordSelectedProfile()}
 function canUseAiForProfile(profileId){
   return playerProfileById(profileId)?.access?.can_use_ai===true;
 }
@@ -2253,9 +2265,14 @@ function updateStartButton(){
   document.getElementById("accessControlBtn")
     ?.classList.toggle("hidden",!canManageSelectedAccess());
   document.getElementById("managePlayerMatchesBtn")
+    ?.classList.toggle("hidden",!canOpenSelectedMatches());
+  document.getElementById("saveStatsSelectionBtn")
     ?.classList.toggle("hidden",!canDeleteSelectedMatches());
-  if(!canDeleteSelectedMatches()){
+  document.getElementById("statsSelectionHelp")
+    ?.classList.toggle("hidden",!canDeleteSelectedMatches());
+  if(!canOpenSelectedMatches()){
     document.getElementById("playerMatchesManager")?.classList.add("hidden");
+    document.getElementById("selectedMatchDetails")?.classList.add("hidden");
   }
 
 }
@@ -8963,6 +8980,28 @@ function matchBelongsToPlayerProfile(match,profile){
 function matchBelongsToStatsOpponent(match,opponent){
   return !opponent || match?.opponent_profile_id===opponent.id;
 }
+function canCorrectSavedMatch(match,allMatches,profileId=selectedPlayerProfileId){
+  const actor=currentTelegramUserId();
+  if(!actor || !match || !canRecordProfile(profileId) ||
+    match.tracked_player_id!==profileId ||
+    Number(match.created_by_telegram_id)!==actor ||
+    !match.sets?.edit_snapshot)return false;
+  const createdAt=Date.parse(String(match.created_at||""));
+  if(!Number.isFinite(createdAt) || Date.now()-createdAt>24*60*60*1000)return false;
+  const latestOwned=(Array.isArray(allMatches)?allMatches:[])
+    .filter(item=>item?.tracked_player_id===profileId &&
+      Number(item.created_by_telegram_id)===actor)
+    .sort((a,b)=>(Date.parse(b.created_at||"")||0)-(Date.parse(a.created_at||"")||0) ||
+      Number(b.id)-Number(a.id))[0];
+  return !!latestOwned && String(latestOwned.id)===String(match.id);
+}
+let matchCorrectionOpening=false;
+function setMatchCorrectionOpening(opening){
+  matchCorrectionOpening=opening;
+  document.querySelectorAll(
+    "[data-history-edit],[data-edit-match-id],#correctSelectedMatchBtn"
+  ).forEach(button=>{button.disabled=opening});
+}
 async function loadHistory(){
   const box=$("historyList");
   if(!window.TENNIS_INIT_DATA){box.textContent="Откройте приложение через Telegram.";return}
@@ -8978,16 +9017,8 @@ async function loadHistory(){
       matchBelongsToPlayerProfile(match,profile)
     );
     if(!matches.length){box.textContent="Сохранённых матчей пока нет.";return}
-    const myTelegramId=currentTelegramUserId();
-    const latestOwned=matches.find(match=>
-      Number(match?.created_by_telegram_id||0)===myTelegramId
-    );
     box.innerHTML=matches.map((m,index)=>{
-      const createdAt=Date.parse(String(m.created_at||""));
-      const canCorrect=canRecordSelectedProfile() &&
-        latestOwned?.id===m.id &&
-        Number.isFinite(createdAt) &&
-        Date.now()-createdAt<=24*60*60*1000;
+      const canCorrect=canCorrectSavedMatch(m,matches,profile.id);
       const sc=m.sets?.score||["?","?"];
       const d=m.created_at?new Date(m.created_at).toLocaleString(
         window.TennisI18n?.localeTag() || "ru-RU"
@@ -9002,13 +9033,15 @@ async function loadHistory(){
 }
  async function editLastMatch(id){
 
-  if(liveMatchReadOnly||hasRecoverableMatch(S)){
+  if(matchCorrectionOpening || !canRecordSelectedProfile())return;
+  if(liveMatchReadOnly||liveMatchClosing||newMatchInProgress||hasRecoverableMatch(S)){
     alert("Сначала завершите или отмените текущий матч, прежде чем исправлять сохранённый.");
     return;
   }
 
   if(!confirm("Открыть исправление последнего матча? Исходный результат останется в истории до успешного сохранения исправления."))return;
 
+  setMatchCorrectionOpening(true);
   try{
 
     const {match:data}=await matchHistoryRequest("/"+encodeURIComponent(id));
@@ -9072,6 +9105,11 @@ saveLocalOnly();
 
     $("serverScreen").classList.add("hidden");
 
+    $("playerStatsScreen").classList.add("hidden");
+    $("selectedMatchDetails").classList.add("hidden");
+    $("playerMatchesManager").classList.add("hidden");
+    closeSavedMatchAnalysis();
+
     $("matchScreen").classList.remove("hidden");
 
     render();
@@ -9079,11 +9117,14 @@ saveLocalOnly();
     updateSaveStatus();
 
     loadHistory();
+    window.scrollTo(0,0);
 
   }catch(e){
 
     alert("Не удалось открыть матч для исправления: "+e.message);
 
+  }finally{
+    setMatchCorrectionOpening(false);
   }
 
 } 
@@ -9226,12 +9267,15 @@ async function newMatch(){
   }
 }
   let playerStatsMatchesCache=[];
+  let playerStatsAllMatchesCache=[];
 
 async function loadPlayerMatchesManager(){
 
-  if(!canDeleteSelectedMatches())return;
+  if(!canOpenSelectedMatches())return;
 
   const profile=selectedPlayerProfile();
+
+  const canSelectMatches=canDeleteSelectedMatches();
 
   const statsOpponent=selectedStatsOpponentProfile();
 
@@ -9268,8 +9312,13 @@ async function loadPlayerMatchesManager(){
   try{
 
     const data=await listPlayerMatches(profile.id);
+    if(selectedPlayerProfileId!==profile.id ||
+      (selectedStatsOpponentProfile()?.id||null)!==(statsOpponent?.id||null))return;
 
     rememberStatsOpponentsFromMatches(profile.id,data);
+    playerStatsAllMatchesCache=(data||[]).filter(match=>
+      matchBelongsToPlayerProfile(match,profile)
+    );
 
     const n=name.toLowerCase();
 
@@ -9320,10 +9369,11 @@ async function loadPlayerMatchesManager(){
         : "";
 
       const included=m.sets?.include_in_stats!==false;
+      const canCorrect=canCorrectSavedMatch(m,playerStatsAllMatchesCache,profile.id);
 
       return `
 
-        <label style="
+        <div style="
 
           display:flex;
 
@@ -9337,7 +9387,7 @@ async function loadPlayerMatchesManager(){
 
         ">
 
-          <input
+          ${canSelectMatches?`<input
 
             type="checkbox"
 
@@ -9347,7 +9397,7 @@ async function loadPlayerMatchesManager(){
 
             style="width:22px;height:22px;flex:0 0 22px"
 
-          >
+          >`:""}
 
           <span>
 
@@ -9359,6 +9409,7 @@ async function loadPlayerMatchesManager(){
 
             <br><br>
 
+<span style="display:flex;flex-wrap:wrap;gap:8px">
 <button
 
   type="button"
@@ -9372,10 +9423,12 @@ async function loadPlayerMatchesManager(){
   📊 ОТКРЫТЬ
 
 </button>
+${canCorrect?`<button type="button" data-edit-match-id="${esc(m.id)}" style="min-height:38px;padding:7px 12px">✏️ ИСПРАВИТЬ МАТЧ</button>`:""}
+</span>
 
           </span>
 
-        </label>
+        </div>
 
       `;
 
@@ -9386,6 +9439,9 @@ async function loadPlayerMatchesManager(){
   btn.onclick=()=>openPlayerMatchDetails(btn.dataset.openMatchId);
 
 });
+    box.querySelectorAll("[data-edit-match-id]").forEach(button=>{
+      button.onclick=()=>editLastMatch(button.dataset.editMatchId);
+    });
 
   }catch(e){
 
@@ -9423,6 +9479,10 @@ async function openPlayerMatchDetails(matchId){
     return;
 
   }
+
+  const canCorrect=canCorrectSavedMatch(match,playerStatsAllMatchesCache);
+  $("selectedMatchCorrection").classList.toggle("hidden",!canCorrect);
+  $("correctSelectedMatchBtn").onclick=()=>editLastMatch(match.id);
 
   const p1=String(match.player1||"Игрок 1");
 
